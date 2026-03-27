@@ -10,6 +10,10 @@ CANONICAL_SKILLS = {
 }
 
 
+def _normalize_tokens(values: list[str]) -> list[str]:
+    return [value.strip().lower() for value in values if value and value.strip()]
+
+
 def extract_job_skills(job_text: str) -> list[str]:
     lowered = job_text.lower()
     return [skill for skill, variants in CANONICAL_SKILLS.items() if any(keyword in lowered for keyword in variants)]
@@ -19,7 +23,7 @@ def clamp_score(value: float) -> float:
     return max(0.0, min(100.0, value))
 
 
-def score_job(candidate: dict, job: dict) -> dict:
+def score_job(candidate: dict, job: dict, role: dict | None = None) -> dict:
     job_text = " ".join(
         [
             job.get("title", ""),
@@ -34,24 +38,46 @@ def score_job(candidate: dict, job: dict) -> dict:
     strengths = [skill for skill in required_skills if skill.lower() in candidate_skill_lookup]
     missing_skills = [skill for skill in required_skills if skill.lower() not in candidate_skill_lookup]
 
+    role_keywords = _normalize_tokens(
+        [role.get("name", "")] if role else []
+        + (role.get("aliases", []) if role else [])
+        + (role.get("keywords", []) if role else [])
+    )
     target_role = candidate.get("basics", {}).get("target_role", "").lower()
     title = job.get("title", "").lower()
-    role_match = 20 if target_role and target_role in title else 12 if any(token in title for token in target_role.split()) else 6
+    if role_keywords:
+        role_match = 22 if any(keyword in title for keyword in role_keywords) else 12
+    else:
+        role_match = 20 if target_role and target_role in title else 12 if any(token in title for token in target_role.split()) else 6
     skills_match = min(30, len(strengths) * 7.5)
     must_have_penalty = min(18, len(missing_skills) * 6)
 
     candidate_locations = [item.lower() for item in candidate.get("basics", {}).get("preferred_locations", [])]
+    preferred_locations = _normalize_tokens(role.get("preferred_locations", []) if role else candidate_locations)
+    remote_preference = (role or {}).get("remote_preference") or candidate.get("preferences", {}).get("remote_preference", "")
     location_match = 10 if "remote" in job.get("location", "").lower() or "remote" == job.get("remote_type", "").lower() else 6
     if candidate_locations and any(location in job.get("location", "").lower() for location in candidate_locations):
         location_match = 10
+    if preferred_locations and any(location in job.get("location", "").lower() for location in preferred_locations):
+        location_match = 10
+    if remote_preference == "remote" and job.get("remote_type", "").lower() == "remote":
+        location_match = max(location_match, 10)
 
     seniority = job.get("seniority", "").lower()
+    desired_seniority = ((role or {}).get("seniority") or "").lower()
     seniority_match = 10 if not seniority or seniority in {"senior", "lead"} else 7
+    if desired_seniority:
+        seniority_match = 10 if desired_seniority == seniority else 6
 
     domain_match = 10 if "ai" in job_text.lower() and "ai" in candidate.get("summary", "").lower() else 6
+    visa_preference = (role or {}).get("visa_preference")
     bonus_match = 5 if "visa" in job_text.lower() and candidate.get("preferences", {}).get("visa_required") is False else 3
+    if visa_preference and visa_preference != "unknown":
+        bonus_match = 5 if visa_preference in {"not_required", "sponsorship_ok"} else bonus_match
 
-    raw_score = role_match + skills_match + location_match + seniority_match + domain_match + bonus_match - must_have_penalty
+    compensation_fit = 6 if (role or {}).get("salary_target") and job.get("salary") else 3
+
+    raw_score = role_match + skills_match + location_match + seniority_match + domain_match + bonus_match + compensation_fit - must_have_penalty
     overall_score = clamp_score(raw_score + 28)
     recommendation = "high priority" if overall_score >= 75 else "maybe" if overall_score >= 55 else "skip"
 
@@ -71,6 +97,7 @@ def score_job(candidate: dict, job: dict) -> dict:
             "seniority_alignment": seniority_match,
             "domain_relevance": domain_match,
             "location_match": location_match,
+            "compensation_fit": compensation_fit,
             "bonus_qualifications": bonus_match,
             "must_have_penalty": must_have_penalty,
         },

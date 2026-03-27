@@ -34,11 +34,22 @@ def rank_skills_for_job(skills: list[str], description: str) -> list[str]:
     return sorted(skills, key=lambda skill: (0 if skill.lower() in lowered else 1, skill.lower()))
 
 
-def tailor_resume(profile: dict, job: dict) -> dict:
+def build_tailoring_diff(original_skills: list[str], ranked_skills: list[str], role: dict | None) -> dict:
+    role_keywords = role.get("keywords", []) if role else []
+    return {
+        "skills_reordered": original_skills != ranked_skills,
+        "role_keywords": role_keywords,
+        "focused_on_role": role.get("name") if role else "",
+    }
+
+
+def tailor_resume(profile: dict, job: dict, role: dict | None = None) -> dict:
     ranked_skills = rank_skills_for_job(profile.get("skills", []), job.get("description", ""))
+    original_summary = profile.get("summary", "").strip()
+    role_name = (role or {}).get("name") or profile.get("basics", {}).get("target_role") or job.get("title", "this role")
     target_summary = (
-        f"{profile.get('summary', '').strip()} "
-        f"Positioned for {job.get('title', 'this role')} at {job.get('company', 'the company')}."
+        f"{original_summary} "
+        f"Positioned for {role_name} work aligned with {job.get('title', 'this role')} at {job.get('company', 'the company')}."
     ).strip()
     tailoring_notes = [
         "Reordered skills to emphasize job-relevant capabilities.",
@@ -58,6 +69,7 @@ def tailor_resume(profile: dict, job: dict) -> dict:
         "preferences": dict(profile.get("preferences", {})),
         "saved_answers": dict(profile.get("saved_answers", {})),
         "tailoring_notes": tailoring_notes,
+        "diff_metadata": build_tailoring_diff(profile.get("skills", []), ranked_skills, role),
         "fact_locked": True,
     }
 

@@ -3,10 +3,19 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.entities import CandidateProfile, CoverLetter, Job, JobScore, Resume, ResumeVersion, User
-from app.schemas.jobs import CoverLetterResponse, JobCreate, JobOut, JobScoreResponse, ResumeVersionResponse
+from app.models.entities import CandidateProfile, CoverLetter, Job, JobFeedEvent, JobScore, Resume, ResumeVersion, TargetRole, User
+from app.schemas.jobs import (
+    CoverLetterResponse,
+    JobCreate,
+    JobOut,
+    JobScoreRequest,
+    JobScoreResponse,
+    ResumeTailorRequest,
+    ResumeVersionResponse,
+)
 from app.services.job_normalizer import normalize_job_payload
 from app.services.llm import log_prompt_invocation
+from app.services.resume_themes import get_theme_by_id
 from app.services.scoring import score_job
 from app.services.tailor import generate_cover_letter, tailor_resume
 
@@ -31,8 +40,18 @@ def _ensure_resume(user_id: int, db: Session) -> Resume:
     return resume
 
 
+def _require_role(user_id: int, role_id: int | None, db: Session) -> TargetRole | None:
+    if not role_id:
+        return None
+    role = db.query(TargetRole).filter(TargetRole.id == role_id, TargetRole.user_id == user_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    return role
+
+
 @router.post("/manual", response_model=JobOut)
 def create_job(payload: JobCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Job:
+    _require_role(user.id, payload.role_id, db)
     normalized = normalize_job_payload(payload.model_dump(mode="json"))
     if db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first():
         raise HTTPException(status_code=409, detail="Duplicate job")
@@ -58,6 +77,7 @@ def import_job(payload: JobCreate, user: User = Depends(get_current_user), db: S
 def list_jobs(
     q: str | None = Query(default=None),
     remote_type: str | None = Query(default=None),
+    role_id: int | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[Job]:
@@ -67,7 +87,46 @@ def list_jobs(
         query = query.filter((Job.title.ilike(needle)) | (Job.company.ilike(needle)) | (Job.description.ilike(needle)))
     if remote_type:
         query = query.filter(Job.remote_type == remote_type)
+    if role_id:
+        query = query.filter(Job.role_id == role_id)
     return query.order_by(Job.created_at.desc()).all()
+
+
+@router.get("/feed")
+def job_feed(
+    role_id: int | None = Query(default=None),
+    event_type: str | None = Query(default=None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    query = db.query(JobFeedEvent).join(Job, Job.id == JobFeedEvent.job_id).filter(Job.user_id == user.id)
+    if role_id:
+        query = query.filter(JobFeedEvent.role_id == role_id)
+    if event_type:
+        query = query.filter(JobFeedEvent.event_type == event_type)
+    events = query.order_by(JobFeedEvent.created_at.desc()).limit(100).all()
+    jobs = {
+        job.id: job
+        for job in db.query(Job).filter(Job.id.in_([event.job_id for event in events])).all()
+    } if events else {}
+    roles = {
+        role.id: role.name
+        for role in db.query(TargetRole).filter(TargetRole.id.in_([event.role_id for event in events])).all()
+    } if events else {}
+    return [
+        {
+            "id": event.id,
+            "role_id": event.role_id,
+            "role_name": roles.get(event.role_id, ""),
+            "job_id": event.job_id,
+            "run_id": event.run_id,
+            "event_type": event.event_type,
+            "event_metadata": event.event_metadata,
+            "created_at": event.created_at,
+            "job": JobOut.model_validate(jobs[event.job_id]).model_dump(mode="json") if event.job_id in jobs else None,
+        }
+        for event in events
+    ]
 
 
 @router.get("/{job_id}", response_model=JobOut)
@@ -79,9 +138,15 @@ def get_job(job_id: int, user: User = Depends(get_current_user), db: Session = D
 
 
 @router.post("/{job_id}/score", response_model=JobScoreResponse)
-def score(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> JobScore:
+def score(
+    job_id: int,
+    payload: JobScoreRequest | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobScore:
     job = get_job(job_id, user, db)
     profile = _require_profile(user.id, db)
+    role = _require_role(user.id, payload.role_id if payload else job.role_id, db)
     log_prompt_invocation(
         db,
         user_id=user.id,
@@ -101,10 +166,25 @@ def score(job_id: int, user: User = Depends(get_current_user), db: Session = Dep
             "location": job.location,
             "remote_type": job.remote_type,
             "seniority": job.seniority,
+            "salary": job.salary,
             "tags": job.tags,
         },
+        {
+            "name": role.name,
+            "aliases": role.aliases,
+            "keywords": role.keywords,
+            "preferred_locations": role.preferred_locations,
+            "remote_preference": role.remote_preference,
+            "salary_target": role.salary_target,
+            "visa_preference": role.visa_preference,
+            "seniority": role.seniority,
+        }
+        if role
+        else None,
     )
-    score_row = JobScore(job_id=job.id, **score_result)
+    job.latest_score = score_result["overall_score"]
+    job.latest_recommendation = score_result["recommendation"]
+    score_row = JobScore(job_id=job.id, role_id=role.id if role else None, **score_result)
     db.add(score_row)
     db.commit()
     db.refresh(score_row)
@@ -112,10 +192,17 @@ def score(job_id: int, user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("/{job_id}/tailor", response_model=ResumeVersionResponse)
-def tailor(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> ResumeVersion:
+def tailor(
+    job_id: int,
+    payload: ResumeTailorRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeVersion:
     job = get_job(job_id, user, db)
     profile = _require_profile(user.id, db)
     resume = _ensure_resume(user.id, db)
+    role = _require_role(user.id, payload.role_id or job.role_id, db)
+    theme = get_theme_by_id(db, payload.theme_id)
     log_prompt_invocation(
         db,
         user_id=user.id,
@@ -137,18 +224,49 @@ def tailor(job_id: int, user: User = Depends(get_current_user), db: Session = De
             "fact_locked": profile.fact_locked,
         },
         {"title": job.title, "company": job.company, "description": job.description},
+        {
+            "name": role.name,
+            "aliases": role.aliases,
+            "keywords": role.keywords,
+            "preferred_locations": role.preferred_locations,
+            "remote_preference": role.remote_preference,
+        }
+        if role
+        else None,
     )
+    diff_metadata = content.pop("diff_metadata", {})
     version = ResumeVersion(
         resume_id=resume.id,
         job_id=job.id,
+        theme_id=theme.id if theme else None,
         title=f"{job.company} - {job.title}",
         variant="tailored",
+        theme_variant=theme.slug if theme else "classic-ats-light",
+        ats_mode=payload.ats_mode,
         content_json=content,
+        diff_metadata=diff_metadata,
+        export_status="ready",
     )
     db.add(version)
     db.commit()
     db.refresh(version)
     return version
+
+
+@router.get("/{job_id}/eligibility")
+def eligibility(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    job = get_job(job_id, user, db)
+    role = _require_role(user.id, job.role_id, db)
+    threshold = role.min_auto_apply_score if role else 85.0
+    eligible = bool(role and role.automation_enabled and job.latest_score >= threshold)
+    return {
+        "eligible": eligible,
+        "latest_score": job.latest_score,
+        "threshold": threshold,
+        "role_id": role.id if role else None,
+        "role_name": role.name if role else "",
+        "reason": "Eligible for auto-apply" if eligible else "Needs assisted review or higher score",
+    }
 
 
 @router.post("/{job_id}/cover-letter", response_model=CoverLetterResponse)

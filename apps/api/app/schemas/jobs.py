@@ -8,6 +8,7 @@ from app.schemas.common import OrmModel
 class JobCreate(BaseModel):
     title: str = Field(min_length=2, max_length=255)
     company: str = Field(min_length=2, max_length=255)
+    role_id: int | None = None
     location: str = ""
     remote_type: str = "unknown"
     salary: str = ""
@@ -26,13 +27,25 @@ class JobOut(JobCreate, OrmModel):
     normalized_description: dict
     stack_tags: list[str]
     domain_tags: list[str]
+    source_metadata: dict
+    latest_score: float
+    latest_recommendation: str
+    first_seen_at: datetime
+    last_seen_at: datetime
+    expired_at: datetime | None
+    active: bool
     dedupe_key: str
     created_at: datetime
+
+
+class JobScoreRequest(BaseModel):
+    role_id: int | None = None
 
 
 class JobScoreResponse(OrmModel):
     id: int
     job_id: int
+    role_id: int | None
     overall_score: float
     score_breakdown: dict
     missing_skills: list[str]
@@ -46,11 +59,41 @@ class ResumeVersionResponse(OrmModel):
     id: int
     resume_id: int
     job_id: int | None
+    theme_id: int | None
     title: str
     variant: str
+    theme_variant: str
+    ats_mode: bool
     content_json: dict
+    diff_metadata: dict
+    export_status: str
     pdf_file_id: int | None
     created_at: datetime
+
+
+class ResumeTailorRequest(BaseModel):
+    role_id: int | None = None
+    theme_id: int | None = None
+    ats_mode: bool = True
+
+
+class ResumeThemeOut(OrmModel):
+    id: int
+    slug: str
+    label: str
+    description: str
+    accent_color: str
+    layout_mode: str
+    is_ats_safe: bool
+    metadata_json: dict
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResumePreviewResponse(BaseModel):
+    theme: ResumeThemeOut
+    blocks: list[dict]
 
 
 class CoverLetterResponse(OrmModel):

@@ -23,8 +23,11 @@ class ApplicationStepOut(OrmModel):
     run_id: int
     name: str
     status: str
+    step_kind: str
+    requires_approval: bool
     screenshot_file_id: int | None
     output: dict
+    masked_output: dict
     retry_count: int
     started_at: datetime
     completed_at: datetime | None
@@ -33,11 +36,13 @@ class ApplicationStepOut(OrmModel):
 class ApplicationRunOut(OrmModel):
     id: int
     application_id: int
+    role_id: int | None
     mode: str
     status: str
     current_step: str
     external_task_id: str
     error_message: str
+    policy_snapshot: dict
     started_at: datetime
     finished_at: datetime | None
 

@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 from uuid import uuid4
 
+from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
@@ -45,27 +46,34 @@ def save_upload(filename: str, content: bytes) -> str:
     return str(target)
 
 
-def render_resume_pdf(content: dict) -> str:
+def render_resume_pdf(content: dict, theme: dict | None = None) -> str:
     ensure_directory(settings.storage_path)
     target = Path(settings.storage_path) / f"resume_{uuid4()}.pdf"
     c = canvas.Canvas(str(target), pagesize=letter)
     y = 770
     margin = 48
     width = 520
+    theme = theme or {}
+    accent = HexColor(theme.get("accent_color", "#0f172a"))
+    heading_font_size = 11 if theme.get("metadata_json", {}).get("density") != "compact" else 10
+    body_font_size = 10 if theme.get("metadata_json", {}).get("density") != "compact" else 9
 
     def draw_block(title: str, body_lines: list[str]) -> None:
         nonlocal y
-        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(accent)
+        c.setFont("Helvetica-Bold", heading_font_size)
         c.drawString(margin, y, title)
         y -= 16
-        c.setFont("Helvetica", 10)
+        c.setFillColor(HexColor("#111827"))
+        c.setFont("Helvetica", body_font_size)
         for line in body_lines:
-            for wrapped in simpleSplit(line, "Helvetica", 10, width):
+            for wrapped in simpleSplit(line, "Helvetica", body_font_size, width):
                 c.drawString(margin, y, wrapped)
                 y -= 14
         y -= 8
 
     basics = content.get("basics", {})
+    c.setFillColor(HexColor("#0f172a"))
     c.setFont("Helvetica-Bold", 18)
     c.drawString(margin, y, basics.get("full_name", "Candidate"))
     y -= 20
@@ -73,6 +81,10 @@ def render_resume_pdf(content: dict) -> str:
     contact_parts = [basics.get("email", ""), basics.get("phone", ""), basics.get("location", "")]
     c.drawString(margin, y, " | ".join(part for part in contact_parts if part))
     y -= 24
+    if basics.get("headline"):
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawString(margin, y, basics.get("headline"))
+        y -= 22
     draw_block("Summary", [content.get("summary", "")])
     draw_block("Skills", [", ".join(content.get("skills", []))])
     draw_block(
@@ -83,5 +95,19 @@ def render_resume_pdf(content: dict) -> str:
         ]
         or ["No experience entries yet."],
     )
+    if content.get("projects"):
+        draw_block(
+            "Projects",
+            [item.get("name", "") for item in content.get("projects", []) if item.get("name")] or ["No projects yet."],
+        )
+    if content.get("education"):
+        draw_block(
+            "Education",
+            [
+                f"{item.get('degree', '')} - {item.get('institution', '')}".strip(" -")
+                for item in content.get("education", [])
+            ]
+            or ["No education entries yet."],
+        )
     c.save()
     return str(target)
