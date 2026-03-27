@@ -1,0 +1,5 @@
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { api } from '@/lib/api'
+export default function SignUpPage(){const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const router=useRouter(); return <section className='card max-w-md space-y-3'><h2 className='text-xl font-semibold'>Sign Up</h2><input className='w-full rounded bg-slate-800 p-2' value={email} onChange={(e)=>setEmail(e.target.value)} /><input type='password' className='w-full rounded bg-slate-800 p-2' value={password} onChange={(e)=>setPassword(e.target.value)} />{error && <p className='text-red-400'>{error}</p>}<button className='rounded bg-blue-600 px-4 py-2' onClick={async()=>{try{const r=await api<{access_token:string}>('/auth/register',{method:'POST',body:JSON.stringify({email,password})}); localStorage.setItem('token',r.access_token); router.push('/dashboard')}catch{setError('Failed to register')}}}>Create account</button></section>}

@@ -1,0 +1,4 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
+export default function AdminPage(){const [runs,setRuns]=useState<any[]>([]); const [errors,setErrors]=useState<any[]>([]); useEffect(()=>{api<any[]>('/admin/runs').then(setRuns); api<any[]>('/admin/errors').then(setErrors)},[]); return <section className='space-y-3'><div className='card'><h2 className='text-xl font-semibold'>Admin Diagnostics</h2><p className='text-slate-300'>Worker status, failed steps, and run diagnostics.</p></div><div className='card'><h3 className='font-semibold'>Recent Runs</h3><pre className='text-xs'>{JSON.stringify(runs,null,2)}</pre></div><div className='card'><h3 className='font-semibold'>Errors/Paused Steps</h3><pre className='text-xs'>{JSON.stringify(errors,null,2)}</pre></div></section>}

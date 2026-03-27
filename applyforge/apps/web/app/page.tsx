@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export default function LandingPage(){return <section className='card space-y-4'><h2 className='text-3xl font-bold'>Run your full job hunt from one OS.</h2><p className='text-slate-300'>Parse your resume, score jobs, tailor applications, and automate form filling with human-in-the-loop safety.</p><div className='flex gap-3'><Link href='/signin' className='rounded-md bg-blue-600 px-4 py-2'>Sign In</Link><Link href='/signup' className='rounded-md border border-slate-600 px-4 py-2'>Create Account</Link></div></section>}
