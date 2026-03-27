@@ -1,0 +1,6 @@
+celery==5.4.0
+redis==5.2.0
+playwright==1.48.0
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+pydantic-settings==2.6.1

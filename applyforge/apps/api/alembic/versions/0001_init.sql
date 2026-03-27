@@ -1,0 +1,2 @@
+-- Minimal SQL migration placeholder for MVP bootstrap.
+-- Production migration flow should use alembic revision scripts generated from models.

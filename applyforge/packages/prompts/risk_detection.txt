@@ -1,0 +1,1 @@
+Classify whether application field is low-risk or high-risk. High-risk fields require approval.

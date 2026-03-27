@@ -1,0 +1,1 @@
+Given profile and job JSON, produce scoring rationale with strengths, missing skills, must-haves, and recommendation.

@@ -1,0 +1,4 @@
+'use client'
+import { useState } from 'react'
+import { api } from '@/lib/api'
+export default function ResumePage(){const [fileId,setFileId]=useState<number| null>(null); const [msg,setMsg]=useState(''); return <section className='card space-y-3'><h2 className='text-xl font-semibold'>Resume Upload & Parser</h2><input type='file' onChange={async(e)=>{const f=e.target.files?.[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await api<{file_id:number}>('/profile/upload-resume',{method:'POST',body:fd}); setFileId(res.file_id); setMsg('Uploaded')}} />{fileId && <button className='rounded bg-blue-600 px-3 py-2' onClick={async()=>{await api('/profile/parse-resume?file_id='+fileId,{method:'POST'}); setMsg('Parsed into profile')}}>Parse Resume</button>}<p className='text-slate-300'>{msg}</p></section>}

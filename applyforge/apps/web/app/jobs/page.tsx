@@ -1,0 +1,5 @@
+'use client'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
+export default function JobsPage(){const [jobs,setJobs]=useState<any[]>([]); const [title,setTitle]=useState('Senior Full Stack Engineer'); useEffect(()=>{api<any[]>('/jobs').then(setJobs).catch(()=>{})},[]); return <section className='space-y-3'><div className='card space-y-2'><h2 className='text-xl font-semibold'>Job Discovery</h2><input className='w-full rounded bg-slate-800 p-2' value={title} onChange={(e)=>setTitle(e.target.value)} /><button className='rounded bg-blue-600 px-3 py-2' onClick={async()=>{await api('/jobs/manual',{method:'POST',body:JSON.stringify({title,company:'NewCo',description:'Need Python React FastAPI',application_url:'https://example.com'})}); setJobs(await api('/jobs'))}}>Add Manual Job</button></div><div className='grid gap-2'>{jobs.map((job)=><Link href={`/jobs/${job.id}`} key={job.id} className='card'><p className='font-semibold'>{job.title}</p><p className='text-slate-400'>{job.company}</p></Link>)}</div></section>}

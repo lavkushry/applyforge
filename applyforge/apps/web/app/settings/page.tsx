@@ -1,0 +1,1 @@
+export default function SettingsPage(){return <section className='card'><h2 className='text-xl font-semibold'>Settings</h2><p className='text-slate-300'>Configure automation preferences, risk thresholds, and profile defaults.</p></section>}

@@ -1,0 +1,1 @@
+-- Placeholder init SQL. App boot creates schema from SQLAlchemy metadata for MVP.
