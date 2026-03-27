@@ -1,1 +1,2 @@
-Classify whether application field is low-risk or high-risk. High-risk fields require approval.
+Classify whether an application field is low-risk or high-risk.
+High-risk fields require approval, especially for salary, visa, work authorization, disability, demographic, or legal declarations.

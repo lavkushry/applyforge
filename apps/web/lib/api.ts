@@ -1,9 +1,38 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+"use client";
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-  const isForm = options.body instanceof FormData
-  const headers: HeadersInit = { ...(isForm ? {} : {'Content-Type':'application/json'}), ...(options.headers||{}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
-  if (!res.ok) throw new Error(await res.text() || 'Request failed')
-  return res.json() as Promise<T>
+  const isFormData = options.body instanceof FormData;
+  const headers = new Headers(options.headers);
+
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: "include",
+    headers,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(body || "Request failed", response.status);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return {} as T;
+  }
+  return (await response.json()) as T;
 }

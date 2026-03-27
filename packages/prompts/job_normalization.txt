@@ -1,1 +1,14 @@
-Normalize raw job posting content into JSON fields: title, company, location, remote_type, salary, source, application_url, description, seniority, employment_type, tags.
+Normalize raw job posting content into clean JSON fields:
+- title
+- company
+- location
+- remote_type
+- salary
+- source
+- application_url
+- description
+- seniority
+- employment_type
+- tags
+
+Do not hallucinate unavailable data. Leave missing fields blank or unknown.

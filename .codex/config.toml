@@ -1,0 +1,11 @@
+[features]
+multi_agent = true
+
+[agents.explorer]
+path = ".codex/agents/explorer.toml"
+
+[agents.reviewer]
+path = ".codex/agents/reviewer.toml"
+
+[agents.docs_researcher]
+path = ".codex/agents/docs-researcher.toml"

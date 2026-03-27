@@ -1,5 +1,91 @@
-'use client'
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-export default function JobsPage(){const [jobs,setJobs]=useState<any[]>([]); const [title,setTitle]=useState('Senior Full Stack Engineer'); useEffect(()=>{api<any[]>('/jobs').then(setJobs).catch(()=>{})},[]); return <section className='space-y-3'><div className='card space-y-2'><h2 className='text-xl font-semibold'>Job Discovery</h2><input className='w-full rounded bg-slate-800 p-2' value={title} onChange={(e)=>setTitle(e.target.value)} /><button className='rounded bg-blue-600 px-3 py-2' onClick={async()=>{await api('/jobs/manual',{method:'POST',body:JSON.stringify({title,company:'NewCo',description:'Need Python React FastAPI',application_url:'https://example.com'})}); setJobs(await api('/jobs'))}}>Add Manual Job</button></div><div className='grid gap-2'>{jobs.map((job)=><Link href={`/jobs/${job.id}`} key={job.id} className='card'><p className='font-semibold'>{job.title}</p><p className='text-slate-400'>{job.company}</p></Link>)}</div></section>}
+"use client";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import { JobCreateForm } from "@/components/forms/job-create-form";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { ProtectedPage } from "@/components/ui/protected-page";
+import { useSession } from "@/hooks/use-session";
+import { api } from "@/lib/api";
+import type { Job } from "@/lib/types";
+
+export default function JobsPage() {
+  const [search, setSearch] = useState("");
+  const session = useSession();
+  const queryClient = useQueryClient();
+  const jobsQuery = useQuery({ queryKey: ["jobs"], queryFn: () => api<Job[]>("/jobs"), enabled: Boolean(session.user) });
+
+  const filtered = useMemo(() => {
+    const jobs = jobsQuery.data || [];
+    const term = search.toLowerCase();
+    if (!term) {
+      return jobs;
+    }
+    return jobs.filter(
+      (job) =>
+        job.title.toLowerCase().includes(term) ||
+        job.company.toLowerCase().includes(term) ||
+        job.tags.join(" ").toLowerCase().includes(term),
+    );
+  }, [jobsQuery.data, search]);
+
+  return (
+    <ProtectedPage>
+      <section className="space-y-6">
+        <PageHeader
+          eyebrow="Discovery"
+          title="Job pipeline"
+          description="Import opportunities, keep them normalized, and move the best matches into tailored application flows."
+        />
+        <JobCreateForm
+          onCreated={(job) => {
+            queryClient.setQueryData<Job[]>(["jobs"], (current) => [job, ...(current || [])]);
+          }}
+        />
+
+        <Card className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <h2 className="text-xl font-semibold text-white">Tracked jobs</h2>
+            <div className="w-full max-w-sm">
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search role, company, or tags" />
+            </div>
+          </div>
+          {filtered.length ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {filtered.map((job) => (
+                <Link key={job.id} href={`/jobs/${job.id}`}>
+                  <Card className="h-full space-y-3 transition hover:border-cyan-400/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{job.title}</h3>
+                        <p className="text-sm text-slate-300">{job.company}</p>
+                      </div>
+                      <Badge>{job.remote_type}</Badge>
+                    </div>
+                    <p className="text-sm text-slate-400">{job.location || "Location not provided"}</p>
+                    <p className="text-sm text-slate-300">{job.description.slice(0, 180)}…</p>
+                    <div className="flex flex-wrap gap-2">
+                      {job.tags.slice(0, 4).map((tag) => (
+                        <Badge key={tag} tone="default">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No jobs yet" description="Add a job above to start scoring and tailoring." />
+          )}
+        </Card>
+      </section>
+    </ProtectedPage>
+  );
+}

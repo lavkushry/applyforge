@@ -1,2 +1,3 @@
--- Minimal SQL migration placeholder for MVP bootstrap.
--- Production migration flow should use alembic revision scripts generated from models.
+-- ApplyForge bootstrap schema reference.
+-- This file documents the initial schema intent while the runtime still uses `Base.metadata.create_all`.
+-- Move this into a proper Alembic revision before production rollout.

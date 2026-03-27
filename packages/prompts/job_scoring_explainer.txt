@@ -1,1 +1,8 @@
-Given profile and job JSON, produce scoring rationale with strengths, missing skills, must-haves, and recommendation.
+Given profile and job JSON, produce a clear scoring rationale with:
+- strengths
+- missing skills
+- must-have requirement gaps
+- role alignment
+- recommendation
+
+Be explicit about uncertainty and tradeoffs.

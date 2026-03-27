@@ -1,7 +1,7 @@
-.PHONY: setup dev api web worker seed lint
+.PHONY: setup dev api web worker seed lint api-test web-typecheck
 
 setup:
-	python -m venv .venv && . .venv/bin/activate && pip install -r apps/api/requirements.txt && pip install -r apps/worker/requirements.txt
+	python3 -m venv .venv && . .venv/bin/activate && pip install -r apps/api/requirements.txt -r apps/api/requirements-dev.txt && pip install -r apps/worker/requirements.txt
 	cd apps/web && npm install
 
 dev:
@@ -20,7 +20,13 @@ worker:
 	cd apps/worker && celery -A app.celery_app worker --loglevel=info
 
 seed:
-	cd apps/api && python -m app.db.seed
+	cd apps/api && python3 -m app.db.seed
 
 lint:
 	cd apps/web && npm run lint
+
+api-test:
+	cd apps/api && python3 -m pytest tests -q
+
+web-typecheck:
+	cd apps/web && npm run typecheck

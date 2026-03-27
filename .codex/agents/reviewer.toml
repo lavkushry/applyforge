@@ -1,0 +1,7 @@
+name = "applyforge-reviewer"
+model = "gpt-5.4"
+description = "ApplyForge reviewer focused on correctness, regressions, and security-sensitive flows."
+
+[role]
+focus = "review"
+write_scope = "none"

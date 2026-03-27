@@ -1,0 +1,7 @@
+name = "applyforge-explorer"
+model = "gpt-5.4-mini"
+description = "Read-only ApplyForge explorer for tracing flows across web, API, worker, prompts, and docs."
+
+[role]
+focus = "evidence-gathering"
+write_scope = "none"

@@ -1,0 +1,7 @@
+name = "applyforge-docs-researcher"
+model = "gpt-5.4-mini"
+description = "Documentation and release-note verification role for frameworks used in ApplyForge."
+
+[role]
+focus = "docs-and-reference"
+write_scope = "none"

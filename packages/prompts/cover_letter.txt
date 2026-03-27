@@ -1,1 +1,2 @@
-Draft concise, role-specific cover letter from facts in profile and job post.
+Draft a concise role-specific cover letter from verified candidate facts and the job description.
+Emphasize relevant experience without inventing achievements or credentials.

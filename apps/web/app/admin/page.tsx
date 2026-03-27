@@ -1,4 +1,82 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-export default function AdminPage(){const [runs,setRuns]=useState<any[]>([]); const [errors,setErrors]=useState<any[]>([]); useEffect(()=>{api<any[]>('/admin/runs').then(setRuns); api<any[]>('/admin/errors').then(setErrors)},[]); return <section className='space-y-3'><div className='card'><h2 className='text-xl font-semibold'>Admin Diagnostics</h2><p className='text-slate-300'>Worker status, failed steps, and run diagnostics.</p></div><div className='card'><h3 className='font-semibold'>Recent Runs</h3><pre className='text-xs'>{JSON.stringify(runs,null,2)}</pre></div><div className='card'><h3 className='font-semibold'>Errors/Paused Steps</h3><pre className='text-xs'>{JSON.stringify(errors,null,2)}</pre></div></section>}
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { ProtectedPage } from "@/components/ui/protected-page";
+import { useSession } from "@/hooks/use-session";
+import { api } from "@/lib/api";
+import type { HealthStatus } from "@/lib/types";
+
+export default function AdminPage() {
+  const session = useSession();
+  const enabled = Boolean(session.user);
+  const runsQuery = useQuery({
+    queryKey: ["admin-runs"],
+    queryFn: () => api<Array<Record<string, unknown>>>("/admin/runs"),
+    enabled,
+  });
+  const errorsQuery = useQuery({
+    queryKey: ["admin-errors"],
+    queryFn: () => api<Array<Record<string, unknown>>>("/admin/errors"),
+    enabled,
+  });
+  const logsQuery = useQuery({
+    queryKey: ["prompt-logs"],
+    queryFn: () => api<Array<Record<string, unknown>>>("/admin/prompt-logs"),
+    enabled,
+  });
+  const healthQuery = useQuery({ queryKey: ["health"], queryFn: () => api<HealthStatus>("/admin/health"), enabled });
+
+  return (
+    <ProtectedPage>
+      <section className="space-y-6">
+        <PageHeader
+          eyebrow="Diagnostics"
+          title="Internal operations panel"
+          description="Inspect automation run states, prompt traces, and basic service health before hardening deeper ops flows."
+        />
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Card className="space-y-3">
+            <p className="text-sm font-medium text-white">API health</p>
+            <Badge tone={healthQuery.data?.status === "ok" ? "success" : "danger"}>{healthQuery.data?.status || "unknown"}</Badge>
+            <p className="text-sm text-slate-300">Database: {healthQuery.data?.database || "pending"}</p>
+            <p className="text-sm text-slate-300">Redis: {healthQuery.data?.redis || "pending"}</p>
+          </Card>
+          <Card className="space-y-3">
+            <p className="text-sm font-medium text-white">Recent runs</p>
+            <p className="text-4xl font-semibold text-white">{runsQuery.data?.length || 0}</p>
+          </Card>
+          <Card className="space-y-3">
+            <p className="text-sm font-medium text-white">Paused or failed steps</p>
+            <p className="text-4xl font-semibold text-white">{errorsQuery.data?.length || 0}</p>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold text-white">Runs</h2>
+            <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {JSON.stringify(runsQuery.data || [], null, 2)}
+            </pre>
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold text-white">Errors</h2>
+            <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {JSON.stringify(errorsQuery.data || [], null, 2)}
+            </pre>
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold text-white">Prompt logs</h2>
+            <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {JSON.stringify(logsQuery.data || [], null, 2)}
+            </pre>
+          </Card>
+        </div>
+      </section>
+    </ProtectedPage>
+  );
+}

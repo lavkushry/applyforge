@@ -1,5 +1,90 @@
-'use client'
-import { useParams } from 'next/navigation'
-import { useState } from 'react'
-import { api } from '@/lib/api'
-export default function ScoreDetail(){const {id}=useParams<{id:string}>(); const [score,setScore]=useState<any>(null); return <section className='card space-y-3'><h2 className='text-xl font-semibold'>Match Score Detail</h2><button className='rounded bg-blue-600 px-3 py-2' onClick={async()=>setScore(await api(`/jobs/${id}/score`,{method:'POST'}))}>Refresh Score</button><pre className='rounded bg-slate-950 p-3 text-xs'>{JSON.stringify(score,null,2)}</pre></section>}
+"use client";
+
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { ProtectedPage } from "@/components/ui/protected-page";
+import { useSession } from "@/hooks/use-session";
+import { api } from "@/lib/api";
+import type { Job, JobScore } from "@/lib/types";
+
+export default function ScoreDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const session = useSession();
+  const jobQuery = useQuery({
+    queryKey: ["job", id],
+    queryFn: () => api<Job>(`/jobs/${id}`),
+    enabled: Boolean(session.user),
+  });
+  const scoreMutation = useMutation({
+    mutationFn: () => api<JobScore>(`/jobs/${id}/score`, { method: "POST" }),
+  });
+
+  const score = scoreMutation.data;
+
+  return (
+    <ProtectedPage>
+      <section className="space-y-6">
+        <PageHeader
+          eyebrow="Match Scoring"
+          title={jobQuery.data ? `${jobQuery.data.title} fit analysis` : "Loading score detail…"}
+          description="Score job fit across role alignment, skill overlap, seniority, and must-have requirement gaps."
+        />
+
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-400">Generate or refresh the latest score snapshot for this role.</p>
+            </div>
+            <Button onClick={() => scoreMutation.mutate()}>{scoreMutation.isPending ? "Scoring…" : "Refresh score"}</Button>
+          </div>
+
+          {score ? (
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <p className="text-5xl font-semibold text-white">{Math.round(score.overall_score)}</p>
+                <Badge tone={score.recommendation === "high priority" ? "success" : score.recommendation === "maybe" ? "warning" : "danger"}>
+                  {score.recommendation}
+                </Badge>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card className="space-y-3 border-white/5 bg-slate-950/60">
+                  <h2 className="text-base font-semibold text-white">Strengths</h2>
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {score.strengths.map((strength) => (
+                      <li key={strength}>• {strength}</li>
+                    ))}
+                  </ul>
+                </Card>
+                <Card className="space-y-3 border-white/5 bg-slate-950/60">
+                  <h2 className="text-base font-semibold text-white">Missing skills</h2>
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {score.missing_skills.map((skill) => (
+                      <li key={skill}>• {skill}</li>
+                    ))}
+                  </ul>
+                </Card>
+              </div>
+
+              <Card className="space-y-3 border-white/5 bg-slate-950/60">
+                <h2 className="text-base font-semibold text-white">Why this score</h2>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  {score.reasons.map((reason) => (
+                    <li key={reason}>• {reason}</li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-300">No score yet. Generate one to inspect the breakdown.</p>
+          )}
+        </Card>
+      </section>
+    </ProtectedPage>
+  );
+}
