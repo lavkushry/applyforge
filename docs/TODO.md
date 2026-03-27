@@ -19,12 +19,16 @@
 1. Replace JSON textareas with richer section-level profile editors.
 2. Add multiple resume strategies and reusable tailored variants.
 3. Upgrade PDF rendering to a more polished typographic engine.
+4. Add a light ATS-safe resume theme catalog with preview, selection, and structured export metadata.
+5. Add a RenderCV-compatible or equivalent structured resume renderer.
 
 ## Jobs and Scoring
 
 1. Add URL scraping workers for richer multi-source ingestion.
 2. Persist latest score snapshots on jobs for faster dashboard access.
 3. Add tunable weighting for location, visa, salary, and domain fit.
+4. Add target-role subscriptions, scrape cadence, and per-role job feeds.
+5. Add scrape-run history, freshness tracking, and expired-job handling.
 
 ## Automation
 
@@ -32,6 +36,8 @@
 2. Persist screenshots as uploaded file records directly from worker callbacks.
 3. Expand generic field adapters for dropdowns, radios, file uploads, and multi-step ATS flows.
 4. Add resume submission checkpoints and resume-failure recovery.
+5. Add inbox/OTP retrieval integration with scoped access, masking, and manual fallback.
+6. Add explicit automation eligibility rules per role and per job score threshold.
 
 ## Quality
 

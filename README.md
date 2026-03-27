@@ -126,4 +126,4 @@ make lint
 - Frontend document editing is MVP-grade and will benefit from richer section editors.
 - Enterprise multi-user, agency workflows, and S3 storage remain future phases.
 
-See [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md) and [docs/TODO.md](/home/ems/applyforge/docs/TODO.md) for more detail.
+See [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md), [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md), and [docs/TODO.md](/home/ems/applyforge/docs/TODO.md) for more detail.
