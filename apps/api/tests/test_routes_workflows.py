@@ -3,13 +3,14 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.api.routes import setup as setup_routes
+from app.api.routes import admin as admin_routes
 from app.api.routes import application_runs as application_runs_routes
 from app.api.routes import applications as applications_routes
 from app.api.routes import inbox as inbox_routes
 from app.api.routes import jobs as jobs_routes
 from app.api.routes import roles as roles_routes
 from app.core.config import settings
-from app.models.entities import ApplicationRun, ApplicationStep, CoverLetter, InboxOtpEvent, Job, Resume, ResumeVersion, TargetRole, UploadedFile
+from app.models.entities import Application, ApplicationRun, ApplicationStep, CoverLetter, InboxOtpEvent, Job, Resume, ResumeVersion, TargetRole, UploadedFile
 from app.schemas.inbox import InboxConnectionCreate, InboxOtpRequest
 from app.schemas.roles import TargetRoleIn, TargetRoleSourceIn
 from app.services.files import render_resume_pdf
@@ -897,7 +898,7 @@ def test_resume_run_requeues_paused_run_with_existing_packet(db_session: Session
         assert packet["job"]["application_url"] == job.application_url
         return "task-resume-123"
 
-    monkeypatch.setattr("app.api.routes.application_runs.dispatch_application_run", fake_dispatch)
+    monkeypatch.setattr("app.services.recovery.dispatch_application_run", fake_dispatch)
     resumed = application_runs_routes.resume_run(run.id, user, db_session)
 
     steps = db_session.query(ApplicationStep).filter(ApplicationStep.run_id == run.id).order_by(ApplicationStep.id.asc()).all()
@@ -1015,3 +1016,130 @@ def test_score_route_records_current_enrichment_revision(db_session: Session, us
     assert score.score_breakdown["application_readiness"] >= 7
     assert refreshed_job is not None
     assert refreshed_job.latest_score_revision == 4
+
+
+def test_admin_retry_enrichment_requeues_failed_job(db_session: Session, user, profile, monkeypatch) -> None:
+    role = TargetRole(
+        user_id=user.id,
+        name="Platform Engineer",
+        aliases=["Platform Engineer"],
+        keywords=["python", "platform"],
+        preferred_locations=["Remote"],
+        remote_preference="remote",
+        salary_target="$180k+",
+        visa_preference="unknown",
+        seniority="senior",
+        companies_include=[],
+        companies_exclude=[],
+        scrape_cadence_minutes=30,
+        automation_enabled=True,
+        min_auto_apply_score=85,
+        active=True,
+    )
+    db_session.add(role)
+    db_session.commit()
+    db_session.refresh(role)
+
+    job = Job(
+        user_id=user.id,
+        role_id=role.id,
+        title="Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$185,000",
+        source="greenhouse",
+        application_url="https://careers.acme.dev/jobs/retry-enrichment",
+        description="Platform role",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python"],
+        stack_tags=["python"],
+        domain_tags=["platform"],
+        source_metadata={},
+        enrichment_status="failed",
+        enrichment_error="network timeout",
+        enrichment_metadata={"source_kind": "greenhouse", "source_url": "https://boards.greenhouse.io/acme"},
+        dedupe_key="acme-platform-engineer-retry-enrichment",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    dispatched: list[dict] = []
+    monkeypatch.setattr(
+        "app.services.recovery.dispatch_job_enrichment",
+        lambda *, run_id, job_id, role_id, user_id, source_context=None: dispatched.append(
+            {
+                "run_id": run_id,
+                "job_id": job_id,
+                "role_id": role_id,
+                "user_id": user_id,
+                "source_context": source_context,
+            }
+        )
+        or "task-enrichment-retry",
+    )
+
+    payload = admin_routes.retry_enrichment(job.id, user, db_session)
+    refreshed_job = db_session.query(Job).filter(Job.id == job.id).first()
+
+    assert payload["status"] == "running"
+    assert dispatched and dispatched[0]["job_id"] == job.id
+    assert refreshed_job is not None
+    assert refreshed_job.enrichment_status == "pending"
+    assert refreshed_job.enrichment_error == ""
+
+
+def test_admin_retry_run_resumes_failed_application_run(db_session: Session, user, profile, monkeypatch) -> None:
+    job = Job(
+        user_id=user.id,
+        title="Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$185,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/retry-run",
+        description="Platform role",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python"],
+        stack_tags=["python"],
+        domain_tags=["platform"],
+        source_metadata={},
+        dedupe_key="acme-platform-engineer-retry-run",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    application = Application(user_id=user.id, job_id=job.id, status="ready_to_apply")
+    db_session.add(application)
+    db_session.commit()
+    db_session.refresh(application)
+
+    run = ApplicationRun(
+        application_id=application.id,
+        mode="assisted",
+        status="failed",
+        current_step="worker_execution_failed",
+        prepared_payload={"job": {"application_url": job.application_url}, "mode": "assisted"},
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    monkeypatch.setattr("app.services.recovery.dispatch_application_run", lambda mode, run_id, packet: f"task-{run_id}")
+
+    payload = admin_routes.retry_run(run.id, user, db_session)
+    refreshed_run = db_session.query(ApplicationRun).filter(ApplicationRun.id == run.id).first()
+
+    assert payload["status"] == "queued"
+    assert refreshed_run is not None
+    assert refreshed_run.status == "queued"
+    assert refreshed_run.external_task_id == f"task-{run.id}"

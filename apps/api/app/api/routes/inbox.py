@@ -62,8 +62,8 @@ def oauth_provider_status(provider: str, user: User = Depends(get_current_user))
 def oauth_start(
     provider: str,
     return_to: str = "/settings",
-    request: Request | None = None,
     user: User = Depends(get_current_user),
+    request: Request = None,
 ) -> dict:
     enforce_rate_limit(
         bucket=f"inbox.oauth_start.{provider}",
@@ -114,9 +114,9 @@ def list_connections(user: User = Depends(get_current_user), db: Session = Depen
 @router.post("/gmail/connect", response_model=InboxConnectionOut)
 def connect_gmail(
     payload: InboxConnectionCreate,
-    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> InboxConnectionOut:
     enforce_rate_limit(
         bucket="inbox.manual_connect.gmail",
@@ -133,9 +133,9 @@ def connect_gmail(
 @router.post("/outlook/connect", response_model=InboxConnectionOut)
 def connect_outlook(
     payload: InboxConnectionCreate,
-    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> InboxConnectionOut:
     enforce_rate_limit(
         bucket="inbox.manual_connect.outlook",
@@ -167,9 +167,9 @@ def disconnect_connection(connection_id: int, user: User = Depends(get_current_u
 @router.post("/request-otp")
 def request_otp(
     payload: InboxOtpRequest,
-    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> dict:
     enforce_rate_limit(
         bucket="inbox.request_otp",

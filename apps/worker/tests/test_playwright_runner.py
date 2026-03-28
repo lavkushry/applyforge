@@ -13,6 +13,7 @@ playwright_module.sync_api = sync_api_module
 sys.modules.setdefault("playwright", playwright_module)
 sys.modules["playwright.sync_api"] = sync_api_module
 
+from app.field_adapters import resolve_field_action
 from app.playwright_runner import classify_required_fields, detect_manual_challenge_signals
 
 
@@ -74,3 +75,69 @@ def test_classify_required_fields_keeps_simple_missing_inputs_as_supported_gap()
 
     assert step_name == "unsupported_fields_detected"
     assert reason == "Unsupported required fields detected"
+
+
+def test_resolve_field_action_maps_select_to_matching_option() -> None:
+    action = resolve_field_action(
+        {
+            "tag_name": "select",
+            "type": "",
+            "name": "authorized",
+            "label_text": "Are you legally authorized to work in the United States?",
+            "options": [
+                {"value": "", "text": "Choose"},
+                {"value": "yes", "text": "Yes"},
+                {"value": "no", "text": "No"},
+            ],
+        },
+        {"authorized_to_work": "yes"},
+    )
+
+    assert action is not None
+    assert action["answer_key"] == "authorized_to_work"
+    assert action["type"] == "select"
+    assert action["option"]["value"] == "yes"
+
+
+def test_resolve_field_action_maps_radio_and_checkbox_questions() -> None:
+    radio_action = resolve_field_action(
+        {
+            "tag_name": "input",
+            "type": "radio",
+            "name": "relocation",
+            "group_label": "Are you willing to relocate?",
+            "option_text": "Yes",
+        },
+        {"willing_to_relocate": "yes"},
+    )
+    checkbox_action = resolve_field_action(
+        {
+            "tag_name": "input",
+            "type": "checkbox",
+            "name": "relocation_confirmed",
+            "label_text": "I am willing to relocate",
+        },
+        {"willing_to_relocate": "yes"},
+    )
+
+    assert radio_action is not None
+    assert radio_action["type"] == "radio"
+    assert checkbox_action is not None
+    assert checkbox_action["type"] == "checkbox"
+    assert checkbox_action["value"] is True
+
+
+def test_resolve_field_action_normalizes_date_answers() -> None:
+    action = resolve_field_action(
+        {
+            "tag_name": "input",
+            "type": "date",
+            "name": "available_start",
+            "label_text": "Available start date",
+        },
+        {"available_start_date": "04/15/2026"},
+    )
+
+    assert action is not None
+    assert action["type"] == "fill"
+    assert action["value"] == "2026-04-15"

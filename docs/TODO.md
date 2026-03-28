@@ -5,16 +5,15 @@ This file tracks what still remains after the current resume-template, company-d
 ## Platform
 
 1. Remove runtime `create_all` and move fully to Alembic-managed migrations.
-2. Add structured logging middleware and request IDs across API and worker.
-3. Add S3-compatible storage adapter and signed downloads.
-4. Add webhook or stream-based updates for long-running runs instead of polling only.
+2. Add S3-compatible storage adapter and signed downloads.
+3. Add webhook or stream-based updates for long-running runs instead of polling only.
 
 ## Auth and security
 
 1. Replace the basic cookie session flow with refresh-token rotation and stricter session policies.
 2. Add per-route authorization layers for future multi-user and agency roles.
 3. Encrypt sensitive profile answers at rest instead of leaving all preferences in plain JSON.
-4. Add rate limiting and brute-force protection for auth and inbox-sensitive endpoints.
+4. Expand rate limiting beyond auth and inbox-sensitive endpoints into broader write-heavy automation surfaces.
 
 ## Resume and document system
 
@@ -29,7 +28,7 @@ This file tracks what still remains after the current resume-template, company-d
 1. Add richer direct-page extraction for company career sites and Workday-like pages.
 2. Add source-health diagnostics, retry visibility, and stale-source alerts.
 3. Expand source coverage while preserving ATS-first dedupe and freshness semantics.
-4. Add operator-visible recovery for failed enrichment jobs.
+4. Add richer per-source retry history and stale-source alerting, not just manual enrichment retry.
 
 ## Company intelligence
 
@@ -39,11 +38,10 @@ This file tracks what still remains after the current resume-template, company-d
 
 ## Automation
 
-1. Expand generic field adapters for selects, radios, checkboxes, date inputs, and multi-step flows.
+1. Expand generic field adapters further for file variants, address composites, and more site-specific controls.
 2. Add richer resume-from-last-checkpoint semantics for partially completed runs.
 3. Persist worker retry attempts and backoff metadata directly on run history.
-4. Add stronger packet diagnostics and approval decision visibility.
-5. Add broader site-specific adapters while keeping graceful fallback behavior.
+4. Add broader site-specific adapters while keeping graceful fallback behavior.
 
 ## Inbox and OAuth
 
@@ -54,9 +52,8 @@ This file tracks what still remains after the current resume-template, company-d
 
 ## Diagnostics and admin
 
-1. Expand the admin surface for worker queues, failed enrichment jobs, prompt traces, and screenshot browsing.
+1. Expand the admin surface further for screenshot browsing, queue depth, and source-health drilldowns.
 2. Add better filtering and search across run history, feed events, and OTP events.
-3. Add retry controls directly from diagnostics for enrichment and apply runs.
 
 ## Quality
 

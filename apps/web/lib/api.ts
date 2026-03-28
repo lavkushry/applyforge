@@ -2,10 +2,12 @@
 
 export class ApiError extends Error {
   status: number;
+  requestId: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, requestId = "") {
     super(message);
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
@@ -27,7 +29,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   if (!response.ok) {
     const body = await response.text();
-    throw new ApiError(body || "Request failed", response.status);
+    throw new ApiError(body || "Request failed", response.status, response.headers.get("X-Request-ID") || "");
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -47,7 +49,7 @@ export async function apiText(path: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const body = await response.text();
-    throw new ApiError(body || "Request failed", response.status);
+    throw new ApiError(body || "Request failed", response.status, response.headers.get("X-Request-ID") || "");
   }
 
   return response.text();

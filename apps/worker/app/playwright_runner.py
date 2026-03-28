@@ -5,8 +5,12 @@ from playwright.sync_api import sync_playwright
 
 from app.config import settings
 from app.db import SessionLocal
+from app.field_adapters import resolve_field_action
+from app.logging_utils import configure_logging
 from app.models import UploadedFile
 from app.persistence import RunRecorder, persist_uploaded_file
+
+configure_logging()
 
 
 FIELD_RULES = [
@@ -68,6 +72,16 @@ MANUAL_CHALLENGE_SELECTORS = (
     "textarea[name='g-recaptcha-response']",
     "[data-testid*='captcha' i]",
 )
+NEXT_BUTTON_SELECTOR = (
+    "button:has-text('Next'), "
+    "button:has-text('Continue'), "
+    "button:has-text('Review'), "
+    "button:has-text('Save and continue'), "
+    "input[type='button'][value*='next' i], "
+    "input[type='button'][value*='continue' i], "
+    "input[type='submit'][value*='next' i], "
+    "input[type='submit'][value*='continue' i]"
+)
 
 
 def _save_screenshot(page, user_id: int | None, suffix: str) -> int:
@@ -99,7 +113,26 @@ def _upload_resume(page, resume_path: str) -> bool:
     return True
 
 
-def _collect_unsupported_required_fields(page) -> list[dict]:
+def _attribute_selector(attribute: str, value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'[{attribute}="{escaped}"]'
+
+
+def _field_locator(page, field: dict):
+    tag_name = str(field.get("tag_name", "input") or "input").lower()
+    if field.get("id"):
+        return page.locator(_attribute_selector("id", str(field["id"])))
+    selector = tag_name
+    if field.get("type"):
+        selector += _attribute_selector("type", str(field["type"]))
+    if field.get("name"):
+        selector += _attribute_selector("name", str(field["name"]))
+    if field.get("value"):
+        selector += _attribute_selector("value", str(field["value"]))
+    return page.locator(selector)
+
+
+def _collect_required_fields(page) -> list[dict]:
     script = """
     (elements) => elements.map((element) => {
       const tagName = element.tagName.toLowerCase();
@@ -112,21 +145,108 @@ def _collect_unsupported_required_fields(page) -> list[dict]:
           : Boolean(element.value);
       const linkedLabel = element.id ? document.querySelector(`label[for="${element.id}"]`) : null;
       const wrappedLabel = element.closest('label');
+      const fieldset = element.closest('fieldset');
+      const groupLabel = fieldset?.querySelector('legend')?.innerText || '';
       const labelText = (linkedLabel?.innerText || wrappedLabel?.innerText || '').trim();
+      const optionText = (type === 'radio' || type === 'checkbox') ? labelText : '';
+      const options = tagName === 'select'
+        ? Array.from(element.options || []).map((option) => ({
+            value: option.value || '',
+            text: (option.innerText || option.textContent || '').trim(),
+          })).filter((option) => option.value || option.text)
+        : [];
       return {
         tag_name: tagName,
         type,
         name: element.getAttribute('name') || '',
         id: element.getAttribute('id') || '',
         label_text: labelText,
+        group_label: (groupLabel || '').trim(),
+        option_text: optionText,
         placeholder: element.getAttribute('placeholder') || '',
         aria_label: element.getAttribute('aria-label') || '',
+        value: element.getAttribute('value') || '',
         required,
         has_value: hasValue,
+        options,
       };
     }).filter((field) => field.required && !field.has_value);
     """
     return page.locator("input, textarea, select").evaluate_all(script)
+
+
+def _apply_field_action(page, field: dict, action: dict) -> bool:
+    locator = _field_locator(page, field)
+    if locator.count() == 0:
+        return False
+    action_type = action["type"]
+    if action_type == "fill":
+        locator.first.fill(str(action["value"]))
+        return True
+    if action_type == "select":
+        option = action["option"]
+        if option.get("value"):
+            locator.first.select_option(str(option["value"]))
+        else:
+            locator.first.select_option(label=str(option.get("text", "")))
+        return True
+    if action_type == "radio":
+        locator.first.check()
+        return True
+    if action_type == "checkbox":
+        desired = bool(action["value"])
+        if desired:
+            locator.first.check()
+        else:
+            locator.first.uncheck()
+        return True
+    return False
+
+
+def _fill_supported_required_fields(page, answers: dict) -> tuple[list[dict], list[dict]]:
+    fields = _collect_required_fields(page)
+    filled: list[dict] = []
+    seen_radio_groups: set[str] = set()
+    seen_checkbox_groups: set[str] = set()
+    for field in fields:
+        field_type = str(field.get("type", "")).lower()
+        field_name = str(field.get("name", ""))
+        if field_type == "radio" and field_name in seen_radio_groups:
+            continue
+        if field_type == "checkbox" and field_name and field_name in seen_checkbox_groups:
+            continue
+        action = resolve_field_action(field, answers)
+        if not action:
+            continue
+        if _apply_field_action(page, field, action):
+            filled.append(
+                {
+                    "field": action["answer_key"],
+                    "control": field_type or field.get("tag_name", "input"),
+                    "name": field_name,
+                    "label": field.get("label_text") or field.get("group_label") or field_name,
+                }
+            )
+            if field_type == "radio" and field_name:
+                seen_radio_groups.add(field_name)
+            if field_type == "checkbox" and field_name:
+                seen_checkbox_groups.add(field_name)
+    return filled, _collect_required_fields(page)
+
+
+def _click_next_or_continue(page) -> str | None:
+    locator = page.locator(NEXT_BUTTON_SELECTOR)
+    if locator.count() == 0:
+        return None
+    label = (
+        locator.first.get_attribute("value")
+        or locator.first.get_attribute("aria-label")
+        or locator.first.text_content()
+        or "Continue"
+    )
+    locator.first.click()
+    page.wait_for_timeout(1200)
+    return label.strip() or "Continue"
 
 
 def classify_required_fields(fields: list[dict]) -> tuple[str, str]:
@@ -250,7 +370,53 @@ def run_application_flow(run_id: int, packet: dict) -> dict:
                 browser.close()
                 return {"status": "paused", "steps": [{"name": "captcha_or_antibot_detected", "status": "paused"}]}
 
-            unsupported_fields = _collect_unsupported_required_fields(page)
+            resolved_required_fields, unsupported_fields = _fill_supported_required_fields(page, answers)
+            if resolved_required_fields:
+                recorder.log_step(
+                    name="resolve_supported_required_fields",
+                    status="completed",
+                    output={"resolved_fields": resolved_required_fields},
+                    step_kind="form_fill",
+                )
+
+            submit_locator = page.locator("button[type='submit'], input[type='submit']")
+            if unsupported_fields == [] and submit_locator.count() == 0:
+                next_label = _click_next_or_continue(page)
+                if next_label:
+                    advance_screenshot = _save_screenshot(page, user_id, "advance")
+                    recorder.log_step(
+                        name="advance_application_step",
+                        status="completed",
+                        output={"button_label": next_label},
+                        step_kind="navigation",
+                        screenshot_file_id=advance_screenshot,
+                    )
+                    challenge_signals = _detect_manual_challenge(page)
+                    if challenge_signals:
+                        recorder.log_step(
+                            name="captcha_or_antibot_detected",
+                            status="paused",
+                            output={
+                                "reason": "Manual security challenge detected after advancing the application flow",
+                                "signals": challenge_signals,
+                            },
+                            step_kind="anti_bot",
+                            requires_approval=True,
+                            screenshot_file_id=advance_screenshot,
+                        )
+                        recorder.set_status("paused", "captcha_or_antibot_detected")
+                        browser.close()
+                        return {"status": "paused", "steps": [{"name": "captcha_or_antibot_detected", "status": "paused"}]}
+                    additional_resolved_fields, unsupported_fields = _fill_supported_required_fields(page, answers)
+                    if additional_resolved_fields:
+                        recorder.log_step(
+                            name="resolve_follow_up_required_fields",
+                            status="completed",
+                            output={"resolved_fields": additional_resolved_fields},
+                            step_kind="form_fill",
+                            screenshot_file_id=advance_screenshot,
+                        )
+
             if unsupported_fields:
                 step_name, reason = classify_required_fields(unsupported_fields)
                 recorder.log_step(

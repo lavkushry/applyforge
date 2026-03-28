@@ -35,7 +35,13 @@ def resume_application_run(db: Session, *, run: ApplicationRun) -> ApplicationRu
     )
 
     transition_run(run, event="resume_requested", current_step="resume_requested")
-    run.external_task_id = dispatch_application_run(run.mode, run.id, run.prepared_payload)
+    try:
+        run.external_task_id = dispatch_application_run(run.mode, run.id, run.prepared_payload)
+    except Exception as exc:
+        run.status = "failed"
+        run.error_message = f"Worker dispatch failed: {exc}"
+        db.commit()
+        raise HTTPException(status_code=502, detail="Worker dispatch failed while retrying the run") from exc
     db.commit()
     db.refresh(run)
     return run
@@ -79,14 +85,22 @@ def retry_job_enrichment(db: Session, *, user: User, job: Job) -> JobIngestionRu
     db.commit()
     db.refresh(run)
 
-    dispatch_job_enrichment(
-        run_id=run.id,
-        job_id=job.id,
-        role_id=role.id,
-        user_id=user.id,
-        source_context={
-            "source_kind": job.enrichment_metadata.get("source_kind", ""),
-            "source_url": job.enrichment_metadata.get("source_url", "") or job.application_url,
-        },
-    )
+    try:
+        dispatch_job_enrichment(
+            run_id=run.id,
+            job_id=job.id,
+            role_id=role.id,
+            user_id=user.id,
+            source_context={
+                "source_kind": job.enrichment_metadata.get("source_kind", ""),
+                "source_url": job.enrichment_metadata.get("source_url", "") or job.application_url,
+            },
+        )
+    except Exception as exc:
+        run.status = "failed"
+        run.error_message = f"Enrichment dispatch failed: {exc}"
+        job.enrichment_status = "failed"
+        job.enrichment_error = f"Enrichment dispatch failed: {exc}"
+        db.commit()
+        raise HTTPException(status_code=502, detail="Worker dispatch failed while retrying enrichment") from exc
     return run

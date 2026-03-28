@@ -358,9 +358,9 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
 def request_otp(
     job_id: int,
     payload: InboxOtpRequest,
-    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> dict:
     enforce_rate_limit(
         bucket="applications.request_otp",

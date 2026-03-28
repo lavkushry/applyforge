@@ -276,6 +276,7 @@ export type JobFeedEvent = {
 export type IngestionRun = {
   id: number;
   role_id: number;
+  role_name?: string;
   status: string;
   source_count: number;
   discovered_count: number;
@@ -392,9 +393,12 @@ export type ApplicationPacket = {
   auto_submit_allowed: boolean;
   resume_file_id: number | null;
   cover_letter_id: number | null;
+  upload_ready: boolean;
   missing_answers: string[];
   risk_summary: string[];
   blocking_issues: string[];
+  auto_policy_reasons: string[];
+  answer_provenance: Record<string, string>;
   answer_keys: string[];
 };
 
@@ -434,6 +438,44 @@ export type HealthStatus = {
   database: string;
   redis: string;
   timestamp: string;
+};
+
+export type AdminRun = {
+  id: number;
+  application_id: number;
+  job_id: number;
+  mode: string;
+  status: string;
+  current_step: string;
+  error_message: string;
+  external_task_id: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type AdminStepError = {
+  id: number;
+  run_id: number;
+  application_id: number;
+  job_id: number;
+  name: string;
+  step_kind: string;
+  status: string;
+  requires_approval: boolean;
+  output: Record<string, unknown>;
+};
+
+export type AdminEnrichmentError = {
+  job_id: number;
+  role_id: number;
+  role_name: string;
+  title: string;
+  company: string;
+  application_url: string;
+  error_message: string;
+  source_kind: string;
+  source_url: string;
+  updated_at: string;
 };
 
 export type WizardStep = {

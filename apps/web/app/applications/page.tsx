@@ -207,6 +207,14 @@ export default function ApplicationsPage() {
                     {application.packet_summary?.blocking_issues?.length ? (
                       <p className="text-sm text-amber-200">Blocking issues: {application.packet_summary.blocking_issues.join(", ")}</p>
                     ) : null}
+                    {application.packet_summary?.auto_policy_reasons?.length ? (
+                      <p className="text-sm text-amber-100">
+                        Auto policy gates: {application.packet_summary.auto_policy_reasons.join(", ")}
+                      </p>
+                    ) : null}
+                    {application.packet_summary?.risk_summary?.length ? (
+                      <p className="text-sm text-amber-100">Risk flags: {application.packet_summary.risk_summary.join(", ")}</p>
+                    ) : null}
                     {application.action_required ? (
                       <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3">
                         <div className="flex flex-wrap items-center gap-2">

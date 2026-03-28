@@ -5,6 +5,18 @@ from app.models.entities import Application, CandidateProfile, CoverLetter, Job,
 REQUIRED_ANSWER_KEYS = ("full_name", "email", "phone", "work_authorization")
 
 
+def _derive_requires_sponsorship(work_authorization: str, saved_answers: dict, preferences: dict) -> str:
+    explicit = str(saved_answers.get("requires_sponsorship") or preferences.get("requires_sponsorship") or "").strip()
+    if explicit:
+        return explicit
+    lowered = work_authorization.lower()
+    if "no sponsorship" in lowered or "authorized to work" in lowered:
+        return "no"
+    if "require sponsorship" in lowered or "need sponsorship" in lowered:
+        return "yes"
+    return ""
+
+
 def _link_value(links: list[dict], *match_terms: str) -> str:
     for link in links:
         label = str(link.get("label", "")).lower()
@@ -61,14 +73,20 @@ def _resolve_answers(profile: CandidateProfile | None, user: User, extra_answers
     preferences = profile.preferences if profile else {}
     saved_answers = profile.saved_answers if profile else {}
     links = profile.links if profile else []
+    work_authorization = str(preferences.get("work_authorization", ""))
     answers = {
         "full_name": basics.get("full_name", ""),
         "email": basics.get("email", "") or user.email,
         "phone": basics.get("phone", ""),
         "location": basics.get("location", ""),
-        "work_authorization": preferences.get("work_authorization", ""),
+        "work_authorization": work_authorization,
+        "authorized_to_work": saved_answers.get("authorized_to_work", "yes" if work_authorization else ""),
+        "requires_sponsorship": _derive_requires_sponsorship(work_authorization, saved_answers, preferences),
         "notice_period": saved_answers.get("notice_period", ""),
+        "available_start_date": saved_answers.get("available_start_date", ""),
         "salary_expectation": saved_answers.get("salary_expectation", ""),
+        "years_of_experience": saved_answers.get("years_of_experience", ""),
+        "willing_to_relocate": saved_answers.get("willing_to_relocate", preferences.get("willing_to_relocate", "")),
         "linkedin_url": _link_value(links, "linkedin"),
         "github_url": _link_value(links, "github"),
         "portfolio_url": _link_value(links, "portfolio", "website"),
@@ -79,8 +97,13 @@ def _resolve_answers(profile: CandidateProfile | None, user: User, extra_answers
         "phone": "profile.basics",
         "location": "profile.basics",
         "work_authorization": "profile.preferences",
+        "authorized_to_work": "profile.saved_answers_or_work_authorization",
+        "requires_sponsorship": "profile.saved_answers_or_work_authorization",
         "notice_period": "profile.saved_answers",
+        "available_start_date": "profile.saved_answers",
         "salary_expectation": "profile.saved_answers",
+        "years_of_experience": "profile.saved_answers",
+        "willing_to_relocate": "profile.saved_answers_or_preferences",
         "linkedin_url": "profile.links",
         "github_url": "profile.links",
         "portfolio_url": "profile.links",
@@ -173,8 +196,11 @@ def summarize_application_packet(packet: dict) -> dict:
         "auto_submit_allowed": packet["auto_submit_allowed"],
         "resume_file_id": packet["resume_file_id"],
         "cover_letter_id": packet["cover_letter_id"],
+        "upload_ready": packet["upload_ready"],
         "missing_answers": packet["missing_answers"],
         "risk_summary": packet["risk_summary"],
-        "blocking_issues": packet["blocking_issues"] + packet.get("auto_policy_reasons", []),
+        "blocking_issues": packet["blocking_issues"],
+        "auto_policy_reasons": packet.get("auto_policy_reasons", []),
+        "answer_provenance": packet.get("answer_provenance", {}),
         "answer_keys": sorted(packet["answers"].keys()),
     }

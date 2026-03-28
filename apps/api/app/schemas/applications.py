@@ -52,9 +52,12 @@ class ApplicationPacketSummary(BaseModel):
     auto_submit_allowed: bool
     resume_file_id: int | None
     cover_letter_id: int | None
+    upload_ready: bool
     missing_answers: list[str]
     risk_summary: list[str]
     blocking_issues: list[str]
+    auto_policy_reasons: list[str]
+    answer_provenance: dict[str, str]
     answer_keys: list[str]
 
 

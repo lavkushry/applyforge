@@ -50,6 +50,8 @@ Those subsystems share one product invariant: the canonical candidate profile is
 ### 1. Auth and user scope
 
 - Cookie-backed JWT session flow
+- request-scoped IDs and structured logs on API responses
+- rate limiting on auth and inbox-sensitive endpoints
 - user-scoped profile, jobs, roles, companies, inbox connections, and applications
 - routes:
   - `/auth/register`
@@ -176,7 +178,9 @@ Those subsystems share one product invariant: the canonical candidate profile is
 - application runner currently supports:
   - navigation
   - common text fields
+  - select, radio, checkbox, and date field adapters for common application questions
   - resume upload
+  - next or continue transitions for simple multi-step flows
   - anti-bot detection
   - unsupported required-field pause
   - assisted pause-before-submit
@@ -258,6 +262,8 @@ Primary tables:
 - unknown answers degrade to candidate review
 - CAPTCHA and anti-bot flows pause rather than bypass
 - dedupe keys protect discovery from duplicate inserts
+- diagnostics expose enrichment retry and run retry controls
+- request IDs and structured logs improve API and worker traceability
 - provider tokens and OTPs stay masked or encrypted
 - worker evidence remains durable after partial failure
 

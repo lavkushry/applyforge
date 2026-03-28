@@ -29,8 +29,8 @@ def _build_auth_response(response: Response, user: User) -> TokenResponse:
 def register(
     payload: RegisterRequest,
     response: Response,
-    request: Request | None = None,
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> TokenResponse:
     enforce_rate_limit(
         bucket="auth.register",
@@ -52,8 +52,8 @@ def register(
 def login(
     payload: LoginRequest,
     response: Response,
-    request: Request | None = None,
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> TokenResponse:
     enforce_rate_limit(
         bucket="auth.login",
