@@ -34,6 +34,7 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     profiles: Mapped[list["CandidateProfile"]] = relationship(back_populates="user")
+    companies: Mapped[list["Company"]] = relationship(back_populates="user")
     jobs: Mapped[list["Job"]] = relationship(back_populates="user")
     applications: Mapped[list["Application"]] = relationship(back_populates="user")
 
@@ -109,6 +110,55 @@ class JobSource(Base):
     base_url: Mapped[str] = mapped_column(String(255), default="")
 
 
+class Company(TimestampMixin, Base):
+    __tablename__ = "companies"
+    __table_args__ = (UniqueConstraint("user_id", "normalized_name", name="uq_companies_user_normalized_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    website_url: Mapped[str] = mapped_column(String(500), default="")
+    careers_url: Mapped[str] = mapped_column(String(500), default="")
+    linkedin_url: Mapped[str] = mapped_column(String(500), default="")
+    hq_location: Mapped[str] = mapped_column(String(255), default="")
+    industry: Mapped[str] = mapped_column(String(120), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    user: Mapped["User"] = relationship(back_populates="companies")
+
+
+class CompanyCareerPortal(TimestampMixin, Base):
+    __tablename__ = "company_career_portals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    provider_kind: Mapped[str] = mapped_column(String(60), default="direct_site")
+    base_url: Mapped[str] = mapped_column(String(500), default="")
+    board_token: Mapped[str] = mapped_column(String(255), default="")
+    health_status: Mapped[str] = mapped_column(String(40), default="unknown")
+    supports_structured_fetch: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
+class CompanyContact(TimestampMixin, Base):
+    __tablename__ = "company_contacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), default="")
+    email: Mapped[str] = mapped_column(String(255), default="")
+    linkedin_url: Mapped[str] = mapped_column(String(500), default="")
+    contact_type: Mapped[str] = mapped_column(String(40), default="recruiter")
+    source: Mapped[str] = mapped_column(String(120), default="manual")
+    source_url: Mapped[str] = mapped_column(String(500), default="")
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
 class TargetRole(TimestampMixin, Base):
     __tablename__ = "target_roles"
     __table_args__ = (UniqueConstraint("user_id", "name", name="uq_target_roles_user_name"),)
@@ -165,6 +215,7 @@ class Job(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     source_id: Mapped[int | None] = mapped_column(ForeignKey("job_sources.id"), nullable=True)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
     role_id: Mapped[int | None] = mapped_column(ForeignKey("target_roles.id"), nullable=True)
     title: Mapped[str] = mapped_column(String(255))
     company: Mapped[str] = mapped_column(String(255))

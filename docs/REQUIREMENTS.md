@@ -14,6 +14,7 @@ This document clarifies the next product expansion requested for ApplyForge:
 
 - selectable light, ATS-friendly resume themes inspired by RenderCV-style structured templates,
 - realtime role-based job scraping and feed delivery,
+- reusable company intelligence records for source resolution and recruiter context,
 - stronger job-to-resume tailoring,
 - ApplyPilot-style step-based application automation,
 - permissioned inbox and OTP retrieval for supported application flows.
@@ -25,6 +26,7 @@ The current repository already includes the following product capabilities:
 - canonical candidate profile with fact-locked tailoring constraints,
 - role registry with scrape preferences and automation thresholds,
 - near-realtime role feed backed by ingestion runs and feed events,
+- user-scoped company directory records with canonical portals and recruiter contacts,
 - three ATS-safe light resume themes with preview and export metadata,
 - RenderCV-compatible structured resume input generation with internal PDF fallback,
 - application runs with per-step status, pause gates, masked outputs, and diagnostics,
@@ -42,6 +44,7 @@ The following points are fixed requirements, not optional interpretations:
 3. ApplyForge shall not remove safety-critical prompt guardrails for truthfulness, risk detection, approval routing, or audit logging.
 4. ApplyForge may support inbox access for OTP retrieval only with explicit user consent, scoped credentials, audit logs, and a manual fallback.
 5. ApplyForge shall not attempt to bypass CAPTCHAs, anti-bot challenges, or employer security controls.
+6. Company intelligence data shall remain inspectable and user-scoped unless a future shared-directory design is explicitly introduced.
 
 ## Primary User Value
 
@@ -112,6 +115,25 @@ The following points are fixed requirements, not optional interpretations:
 7. If a job disappears or expires, the system shall preserve the record and mark it inactive rather than deleting it.
 8. The system shall support manual import by URL or pasted description alongside scheduled scraping.
 9. ATS-first sources shall remain the default ingestion scope for the MVP, with Greenhouse, Lever, and predictable direct career pages prioritized over broad consumer job boards.
+
+### 4A. Company Intelligence Directory
+
+1. The system shall support a user-scoped company directory with canonical company identity records.
+2. Each company record shall store:
+   - name,
+   - normalized name,
+   - website URL,
+   - careers URL,
+   - LinkedIn URL,
+   - headquarters location,
+   - industry,
+   - notes,
+   - active status.
+3. The system shall support one or more career portals per company, including provider kind, base URL, board token, health status, and structured-fetch capability.
+4. The system shall support recruiter or HR contacts per company, including contact type, source, confidence, and verification metadata.
+5. When a job is created manually or discovered by ingestion, the system shall attempt to resolve it to a company directory record before leaving it as an unlinked free-text company string.
+6. Company resolution may use normalized company name, application URL hostname, or known portal hostname, but it shall not overwrite a verified explicit company selection with a lower-confidence guess.
+7. The company directory shall expose linked jobs so source quality and dedupe behavior remain reviewable.
 
 ### 5. Job Matching and Tailoring
 
@@ -209,10 +231,11 @@ The following points are fixed requirements, not optional interpretations:
 ## Context Notes For Future Implementers
 
 1. If you add new job sources, keep dedupe and freshness semantics compatible with the existing role feed.
-2. If you add a new renderer, preserve the normalized resume document shape used by the current theme/export flow.
-3. If you change application execution behavior, keep `application_runs` and `application_steps` durable and human-readable.
-4. If you add richer OAuth support, preserve encrypted token storage and sanitized API responses.
-5. If you add AI model usage, prefer deterministic logic first and log masked prompt metadata.
+2. If you extend company resolution, prefer transparent matching heuristics and preserve user override paths.
+3. If you add a new renderer, preserve the normalized resume document shape used by the current theme/export flow.
+4. If you change application execution behavior, keep `application_runs` and `application_steps` durable and human-readable.
+5. If you add richer OAuth support, preserve encrypted token storage and sanitized API responses.
+6. If you add AI model usage, prefer deterministic logic first and log masked prompt metadata.
 
 ## Acceptance Criteria
 

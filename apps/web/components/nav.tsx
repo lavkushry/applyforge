@@ -15,6 +15,7 @@ const links = [
   ["Resume", "/resume"],
   ["Profile", "/profile"],
   ["Roles", "/roles"],
+  ["Companies", "/companies"],
   ["Jobs", "/jobs"],
   ["Applications", "/applications"],
   ["Settings", "/settings"],

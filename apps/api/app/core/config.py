@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     microsoft_oauth_redirect_uri: str = "http://localhost:8000/inbox/outlook/oauth/callback"
     storage_path: str = "./uploads"
     artifacts_path: str = "./artifacts"
-    prompt_root: str = Field(default="../../packages/prompts")
+    prompt_root: str = Field(default="packages/prompts")
     enable_prompt_stub_fallback: bool = True
 
     @property
@@ -37,7 +37,10 @@ class Settings(BaseSettings):
 
     @property
     def resolved_prompt_root(self) -> Path:
-        return (Path(__file__).resolve().parents[3] / self.prompt_root).resolve()
+        prompt_root = Path(self.prompt_root)
+        if prompt_root.is_absolute():
+            return prompt_root
+        return (Path(__file__).resolve().parents[4] / prompt_root).resolve()
 
 
 settings = Settings()

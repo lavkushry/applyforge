@@ -8,6 +8,7 @@ from app.schemas.common import OrmModel
 class JobCreate(BaseModel):
     title: str = Field(min_length=2, max_length=255)
     company: str = Field(min_length=2, max_length=255)
+    company_id: int | None = None
     role_id: int | None = None
     location: str = ""
     remote_type: str = "unknown"

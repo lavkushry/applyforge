@@ -32,6 +32,7 @@ export type CandidateProfile = {
 export type Job = {
   id: number;
   user_id: number;
+  company_id: number | null;
   role_id: number | null;
   title: string;
   company: string;
@@ -140,6 +141,58 @@ export type TargetRole = {
   sources: TargetRoleSource[];
   created_at: string;
   updated_at: string;
+};
+
+export type Company = {
+  id: number;
+  user_id: number;
+  name: string;
+  normalized_name: string;
+  website_url: string;
+  careers_url: string;
+  linkedin_url: string;
+  hq_location: string;
+  industry: string;
+  notes: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyPortal = {
+  id: number;
+  company_id: number;
+  provider_kind: string;
+  base_url: string;
+  board_token: string;
+  health_status: string;
+  supports_structured_fetch: boolean;
+  last_checked_at: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyContact = {
+  id: number;
+  company_id: number;
+  full_name: string;
+  title: string;
+  email: string;
+  linkedin_url: string;
+  contact_type: string;
+  source: string;
+  source_url: string;
+  confidence: number;
+  last_verified_at: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyDetail = Company & {
+  portals: CompanyPortal[];
+  contacts: CompanyContact[];
 };
 
 export type JobFeedEvent = {

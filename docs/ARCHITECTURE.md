@@ -52,6 +52,8 @@ Supporting context artifacts live under:
 ### 3. Job Intake and Scoring
 
 - Manual import by pasted description or URL metadata
+- Company directory records sit between raw discovery and normalized jobs
+- Jobs may resolve to a user-scoped `company_id` using normalized names and portal/hostname heuristics
 - Normalization infers remote type, seniority, employment type, and tags
 - Dedupe keys stop repeated inserts
 - Target roles drive scrape cadence, score weighting inputs, and automation thresholds
@@ -71,6 +73,13 @@ Supporting context artifacts live under:
 - RenderCV-compatible structured input can be produced from normalized resume content
 - ATS-oriented PDF export writes to local storage abstraction with RenderCV-first fallback behavior
 - Cover letters are generated per job and stored server-side
+
+### 4A. Company Intelligence
+
+- `companies` provide canonical user-scoped company identity records
+- `company_career_portals` preserve provider-specific careers metadata independently of jobs
+- `company_contacts` preserve recruiter or HR context independently of jobs
+- The thin company page is an internal operator surface for reviewing canonical company data, portals, contacts, and linked jobs
 
 ### 5. Inbox and OAuth Integrations
 
@@ -96,6 +105,9 @@ Primary tables:
 - `resumes`
 - `resume_versions`
 - `jobs`
+- `companies`
+- `company_career_portals`
+- `company_contacts`
 - `job_sources`
 - `target_roles`
 - `target_role_sources`
@@ -128,11 +140,13 @@ Primary tables:
 If you need to continue product work quickly, start from these files:
 
 - role discovery and job feed: [apps/api/app/services/role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
+- company matching and source resolution: [company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py), [companies.py](/home/ems/applyforge/apps/api/app/api/routes/companies.py)
 - scoring and tailoring: [apps/api/app/services/scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py), [apps/api/app/services/tailor.py](/home/ems/applyforge/apps/api/app/services/tailor.py)
 - resume themes and export: [apps/api/app/services/resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py), [apps/api/app/services/files.py](/home/ems/applyforge/apps/api/app/services/files.py)
 - inbox OAuth and OTP flows: [apps/api/app/services/inbox.py](/home/ems/applyforge/apps/api/app/services/inbox.py), [apps/api/app/api/routes/inbox.py](/home/ems/applyforge/apps/api/app/api/routes/inbox.py)
 - run timeline behavior: [apps/api/app/api/routes/applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py), [apps/api/app/automation/engine.py](/home/ems/applyforge/apps/api/app/automation/engine.py)
 - settings UX and inbox connect UI: [apps/web/components/forms/settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
+- company directory UI: [page.tsx](/home/ems/applyforge/apps/web/app/companies/page.tsx)
 
 ## Migration Strategy
 

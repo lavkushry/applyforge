@@ -29,6 +29,7 @@ This file tracks what remains after the current role-feed, themed-resume, and in
 2. Add tunable weighting for location, visa, salary, and domain fit.
 3. Expand source coverage while keeping ATS-first dedupe and freshness semantics intact.
 4. Add source-health diagnostics, retry backoff visibility, and stale-source alerts.
+5. Expand company resolution with review queues, merge tooling, and portal-health checks.
 
 ## Automation
 

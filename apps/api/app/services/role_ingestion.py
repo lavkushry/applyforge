@@ -5,6 +5,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.models.entities import CandidateProfile, Job, JobFeedEvent, JobIngestionRun, JobScore, TargetRole, TargetRoleSource
+from app.services.company_directory import resolve_company_for_job
 from app.services.job_normalizer import normalize_job_payload
 from app.services.scoring import score_job
 
@@ -145,10 +146,19 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
             for payload in fetch_jobs_for_source(source):
                 discovered_count += 1
                 normalized = normalize_job_payload({**payload, "role_id": role.id})
+                resolved_company = resolve_company_for_job(
+                    db,
+                    user_id=user_id,
+                    company_name=normalized.get("company", ""),
+                    application_url=normalized.get("application_url", ""),
+                    source_url=source.base_url,
+                )
+                normalized["company_id"] = resolved_company.id if resolved_company else None
                 existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
                 event_type = "discovered"
                 if existing:
                     existing.role_id = role.id
+                    existing.company_id = normalized.get("company_id")
                     existing.last_seen_at = utcnow()
                     existing.active = True
                     existing.expired_at = None

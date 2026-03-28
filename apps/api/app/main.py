@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import admin, application_runs, applications, auth, files, inbox, jobs, profile, resume_themes, roles
+from app.api.routes import admin, application_runs, applications, auth, companies, files, inbox, jobs, profile, resume_themes, roles
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import entities  # noqa: F401
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(roles.router)
+app.include_router(companies.router)
 app.include_router(jobs.router)
 app.include_router(applications.router)
 app.include_router(application_runs.router)

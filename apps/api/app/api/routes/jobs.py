@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.entities import CandidateProfile, CoverLetter, Job, JobFeedEvent, JobScore, Resume, ResumeVersion, TargetRole, User
+from app.models.entities import CandidateProfile, Company, CoverLetter, Job, JobFeedEvent, JobScore, Resume, ResumeVersion, TargetRole, User
 from app.schemas.jobs import (
     CoverLetterResponse,
     JobCreate,
@@ -15,6 +15,7 @@ from app.schemas.jobs import (
 )
 from app.services.job_normalizer import normalize_job_payload
 from app.services.llm import log_prompt_invocation
+from app.services.company_directory import resolve_company_for_job
 from app.services.resume_themes import get_theme_by_id
 from app.services.scoring import score_job
 from app.services.tailor import generate_cover_letter, tailor_resume
@@ -49,10 +50,33 @@ def _require_role(user_id: int, role_id: int | None, db: Session) -> TargetRole 
     return role
 
 
+def _require_company(user_id: int, company_id: int | None, db: Session) -> Company | None:
+    if not company_id:
+        return None
+    company = db.query(Company).filter(Company.id == company_id, Company.user_id == user_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return company
+
+
 @router.post("/manual", response_model=JobOut)
 def create_job(payload: JobCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Job:
     _require_role(user.id, payload.role_id, db)
-    normalized = normalize_job_payload(payload.model_dump(mode="json"))
+    selected_company = _require_company(user.id, payload.company_id, db)
+    normalized = normalize_job_payload(
+        {
+            **payload.model_dump(mode="json"),
+            "company": selected_company.name if selected_company else payload.company,
+        }
+    )
+    resolved_company = resolve_company_for_job(
+        db,
+        user_id=user.id,
+        company_name=normalized["company"],
+        application_url=normalized.get("application_url", ""),
+        explicit_company_id=selected_company.id if selected_company else None,
+    )
+    normalized["company_id"] = resolved_company.id if resolved_company else None
     if db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first():
         raise HTTPException(status_code=409, detail="Duplicate job")
     log_prompt_invocation(
@@ -78,6 +102,7 @@ def list_jobs(
     q: str | None = Query(default=None),
     remote_type: str | None = Query(default=None),
     role_id: int | None = Query(default=None),
+    company_id: int | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[Job]:
@@ -89,6 +114,8 @@ def list_jobs(
         query = query.filter(Job.remote_type == remote_type)
     if role_id:
         query = query.filter(Job.role_id == role_id)
+    if company_id:
+        query = query.filter(Job.company_id == company_id)
     return query.order_by(Job.created_at.desc()).all()
 
 

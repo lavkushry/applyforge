@@ -19,6 +19,7 @@ The repository already supports:
 - canonical profile CRUD,
 - resume upload and parsing,
 - role registry and scrape preferences,
+- company directory records, portals, and recruiter contacts,
 - near-realtime role feed from ingestion runs,
 - transparent scoring and fact-locked tailoring,
 - theme-aware resume versions,
@@ -46,9 +47,11 @@ The repository already supports:
 ### Jobs and scoring
 
 - [apps/api/app/services/job_normalizer.py](/home/ems/applyforge/apps/api/app/services/job_normalizer.py)
+- [apps/api/app/services/company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py)
 - [apps/api/app/services/scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py)
 - [apps/api/app/services/role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
 - [apps/api/app/api/routes/jobs.py](/home/ems/applyforge/apps/api/app/api/routes/jobs.py)
+- [apps/api/app/api/routes/companies.py](/home/ems/applyforge/apps/api/app/api/routes/companies.py)
 - [apps/api/app/api/routes/roles.py](/home/ems/applyforge/apps/api/app/api/routes/roles.py)
 
 ### Automation and OTP
@@ -62,6 +65,7 @@ The repository already supports:
 
 - [apps/web/app/dashboard/page.tsx](/home/ems/applyforge/apps/web/app/dashboard/page.tsx)
 - [apps/web/app/jobs/page.tsx](/home/ems/applyforge/apps/web/app/jobs/page.tsx)
+- [apps/web/app/companies/page.tsx](/home/ems/applyforge/apps/web/app/companies/page.tsx)
 - [apps/web/app/resume/page.tsx](/home/ems/applyforge/apps/web/app/resume/page.tsx)
 - [apps/web/components/forms/settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
 - [apps/web/lib/types.ts](/home/ems/applyforge/apps/web/lib/types.ts)
