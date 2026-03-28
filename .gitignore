@@ -28,6 +28,9 @@ coverage/
 out/
 
 # Local runtime data
+uploads/
+artifacts/
+rendercv_output/
 apps/api/uploads/
 apps/worker/artifacts/
 *.log

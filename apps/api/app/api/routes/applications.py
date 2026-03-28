@@ -4,8 +4,19 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.automation.engine import StepEngine
 from app.db.session import get_db
-from app.models.entities import Application, ApplicationRun, ApplicationStatus, CandidateProfile, Job, TargetRole, User
+from app.models.entities import (
+    Application,
+    ApplicationRun,
+    ApplicationStatus,
+    CandidateProfile,
+    InboxConnection,
+    Job,
+    TargetRole,
+    User,
+)
+from app.schemas.inbox import InboxOtpRequest
 from app.schemas.applications import ApplicationOut, ApplicationRunOut
+from app.services.inbox import extract_otp, record_otp_event
 from app.services.tailor import detect_risky_question, generate_application_answer
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -30,6 +41,28 @@ def _get_role(job: Job, user_id: int, db: Session) -> TargetRole | None:
     if not job.role_id:
         return None
     return db.query(TargetRole).filter(TargetRole.id == job.role_id, TargetRole.user_id == user_id).first()
+
+
+def _get_latest_run(application: Application, db: Session) -> ApplicationRun | None:
+    if application.latest_run_id:
+        run = db.query(ApplicationRun).filter(ApplicationRun.id == application.latest_run_id).first()
+        if run:
+            return run
+    return (
+        db.query(ApplicationRun)
+        .filter(ApplicationRun.application_id == application.id)
+        .order_by(ApplicationRun.started_at.desc())
+        .first()
+    )
+
+
+def _get_connected_inbox(user_id: int, db: Session) -> InboxConnection | None:
+    return (
+        db.query(InboxConnection)
+        .filter(InboxConnection.user_id == user_id, InboxConnection.status == "connected")
+        .order_by(InboxConnection.updated_at.desc())
+        .first()
+    )
 
 
 @router.post("/{job_id}/prepare", response_model=ApplicationOut)
@@ -138,6 +171,66 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
         engine.log_step("submit_application", "completed", {"submitted": False, "mode": "skeleton"}, step_kind="submission")
         engine.complete("completed")
     return run
+
+
+@router.post("/{job_id}/request-otp")
+def request_otp(
+    job_id: int,
+    payload: InboxOtpRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    application = _ensure_application(job_id, user.id, db)
+    run = _get_latest_run(application, db)
+    if not run:
+        raise HTTPException(status_code=400, detail="Start an application run before requesting OTP")
+    connection = _get_connected_inbox(user.id, db)
+    if not connection:
+        raise HTTPException(status_code=400, detail="Connect an inbox first")
+
+    result = extract_otp(payload.messages, payload.sender_hint, payload.subject_hint)
+    event = record_otp_event(
+        db,
+        connection_id=connection.id,
+        run_id=run.id,
+        status=result["status"],
+        sender=result["sender"],
+        subject=result["subject"],
+        code_last4=result["code_last4"],
+        error_message="" if result["status"] == "resolved" else "OTP requires manual review",
+    )
+    masked_code = f"***{result['code_last4']}" if result["code_last4"] else ""
+    step_status = "completed" if result["status"] == "resolved" else "paused"
+    StepEngine(db, run).log_step(
+        "retrieve_email_otp",
+        step_status,
+        {
+            "provider": connection.provider,
+            "status": result["status"],
+            "confidence": result["confidence"],
+            "sender": result["sender"],
+        },
+        masked_output={"subject": event.subject_masked, "masked_code": masked_code},
+        step_kind="otp_lookup",
+        requires_approval=step_status == "paused",
+    )
+    if step_status == "paused":
+        run.status = "paused"
+        db.commit()
+
+    return {
+        "application_id": application.id,
+        "run_id": run.id,
+        "status": result["status"],
+        "code": result["code"] if result["status"] == "resolved" else "",
+        "masked_code": masked_code,
+        "confidence": result["confidence"],
+        "provider": connection.provider,
+        "event_id": event.id,
+    }
 
 
 @router.get("")

@@ -1,4 +1,7 @@
 import hashlib
+import json
+import subprocess
+import sys
 from pathlib import Path
 from uuid import uuid4
 
@@ -8,6 +11,8 @@ from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
 from app.core.config import settings
+from app.models.entities import ResumeTheme
+from app.services.resume_themes import build_rendercv_input
 
 ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".docx", ".txt"}
 ALLOWED_UPLOAD_MIME_TYPES = {
@@ -46,7 +51,61 @@ def save_upload(filename: str, content: bytes) -> str:
     return str(target)
 
 
+def _theme_from_payload(theme: dict) -> ResumeTheme:
+    slug = theme.get("slug", "classic-ats-light")
+    return ResumeTheme(
+        slug=slug,
+        label=theme.get("label", slug.replace("-", " ").title()),
+        description=theme.get("description", ""),
+        accent_color=theme.get("accent_color", "#0f172a"),
+        layout_mode=theme.get("layout_mode", "single-column"),
+        is_ats_safe=theme.get("is_ats_safe", True),
+        metadata_json=theme.get("metadata_json", {}),
+        active=True,
+    )
+
+
+def _render_resume_pdf_with_rendercv(content: dict, theme: dict | None = None) -> str | None:
+    if not theme:
+        return None
+    try:
+        rendercv_input = build_rendercv_input(content, _theme_from_payload(theme))
+        workdir_root = ensure_directory(Path(settings.artifacts_path) / "rendercv")
+        workdir = workdir_root / f"rendercv_{uuid4().hex}"
+        workdir.mkdir(parents=True, exist_ok=True)
+        input_path = workdir / "resume_input.yaml"
+        output_path = workdir / "resume_output.pdf"
+        log_path = workdir / "rendercv.log"
+        input_path.write_text(json.dumps(rendercv_input, indent=2), encoding="utf-8")
+        command = [
+            sys.executable,
+            "-m",
+            "rendercv",
+            "render",
+            str(input_path),
+            "--dont-generate-markdown",
+            "--dont-generate-html",
+            "--dont-generate-png",
+            "--pdf-path",
+            str(output_path),
+        ]
+        completed = subprocess.run(command, check=False, capture_output=True, text=True, timeout=90)
+        log_path.write_text(
+            f"command={' '.join(command)}\n\nstdout:\n{completed.stdout}\n\nstderr:\n{completed.stderr}",
+            encoding="utf-8",
+        )
+        if completed.returncode == 0 and output_path.exists():
+            return str(output_path)
+    except Exception:
+        return None
+    return None
+
+
 def render_resume_pdf(content: dict, theme: dict | None = None) -> str:
+    rendercv_path = _render_resume_pdf_with_rendercv(content, theme)
+    if rendercv_path:
+        return rendercv_path
+
     ensure_directory(settings.storage_path)
     target = Path(settings.storage_path) / f"resume_{uuid4()}.pdf"
     c = canvas.Canvas(str(target), pagesize=letter)
