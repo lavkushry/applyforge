@@ -18,6 +18,21 @@ This document clarifies the next product expansion requested for ApplyForge:
 - ApplyPilot-style step-based application automation,
 - permissioned inbox and OTP retrieval for supported application flows.
 
+## Current Implementation Snapshot
+
+The current repository already includes the following product capabilities:
+
+- canonical candidate profile with fact-locked tailoring constraints,
+- role registry with scrape preferences and automation thresholds,
+- near-realtime role feed backed by ingestion runs and feed events,
+- three ATS-safe light resume themes with preview and export metadata,
+- RenderCV-compatible structured resume input generation with internal PDF fallback,
+- application runs with per-step status, pause gates, masked outputs, and diagnostics,
+- inbox integrations for Gmail and Outlook with encrypted token storage,
+- OAuth start and callback routes plus provider-readiness reporting for inbox setup.
+
+This means future work should build on these contracts instead of reintroducing parallel flows.
+
 ## Product Clarifications
 
 The following points are fixed requirements, not optional interpretations:
@@ -58,6 +73,7 @@ The following points are fixed requirements, not optional interpretations:
 6. Where a template contains multi-column or decorative elements, the system shall enforce ATS-safe constraints or reject that template for ATS mode.
 7. When a user requests an ATS export, the system shall use a single-column or ATS-safe layout with high text extractability.
 8. The system shall preserve a structured intermediate resume representation so export engines can be swapped later between internal rendering, HTML-to-PDF, or a RenderCV-compatible adapter.
+9. Where RenderCV is unavailable or fails at runtime, the system shall preserve export continuity with a safe internal fallback renderer and log the renderer failure for diagnostics.
 
 ### 2. Resume Upload and Canonical Profile
 
@@ -83,6 +99,7 @@ The following points are fixed requirements, not optional interpretations:
    - scrape cadence.
 3. When a target role is active, the system shall use that role definition to drive job scraping, ranking, and eligibility for automation.
 4. The system shall keep a table of role requirements and matching heuristics so each job can be scored against the intended role profile.
+5. The role registry shall remain the controlling source for scrape cadence, automation thresholds, and future multi-role strategy support.
 
 ### 4. Realtime Job Scraper Engine
 
@@ -94,6 +111,7 @@ The following points are fixed requirements, not optional interpretations:
 6. When a job feed item is clicked, the system shall show the source link, normalized details, and automation eligibility.
 7. If a job disappears or expires, the system shall preserve the record and mark it inactive rather than deleting it.
 8. The system shall support manual import by URL or pasted description alongside scheduled scraping.
+9. ATS-first sources shall remain the default ingestion scope for the MVP, with Greenhouse, Lever, and predictable direct career pages prioritized over broad consumer job boards.
 
 ### 5. Job Matching and Tailoring
 
@@ -133,6 +151,7 @@ The following points are fixed requirements, not optional interpretations:
 6. If an application contains risky, legal, compensation, or ambiguous questions, the system shall pause for explicit user approval.
 7. If an application requires unsupported controls or anti-bot validation, the system shall fail gracefully and hand control back to the user.
 8. The system shall attach the correct tailored resume variant for the active job and role.
+9. OTP retrieval and approval pauses shall be represented as first-class steps in the run timeline so runs remain inspectable after partial automation.
 
 ### 7. Inbox and OTP Access
 
@@ -143,6 +162,7 @@ The following points are fixed requirements, not optional interpretations:
 5. If OTP retrieval confidence is low, the system shall pause and require manual confirmation.
 6. The system shall store inbox credentials or tokens only through encrypted, environment-backed or secret-managed storage paths.
 7. The system shall allow a user to disable inbox access entirely and continue with manual OTP entry.
+8. Gmail and Outlook OAuth connections shall expose setup readiness, redirect URIs, and missing environment variables so operator setup can be diagnosed without reading source code.
 
 ### 8. Diagnostics and Admin
 
@@ -176,6 +196,23 @@ The following points are fixed requirements, not optional interpretations:
 1. The system shall emit structured logs for scrape runs, score generation, tailoring, export, and application automation.
 2. The system shall preserve prompt metadata and model routing information without storing raw secrets.
 3. The system shall support diagnostics on per-job, per-role, and per-run basis.
+
+## Product Invariants For Future Changes
+
+1. The canonical candidate profile stays authoritative over every generated or tailored document.
+2. Tailoring, cover-letter generation, and question answering may optimize phrasing, but they may not introduce unsupported facts.
+3. Resume templates are a presentation concern; they must not become the source of truth for user data.
+4. Role strategy drives discovery and automation policy; job-specific overrides are secondary.
+5. Application automation must always leave an audit trail with enough evidence to understand what happened.
+6. Inbox access exists only to help the candidate complete their own flow, not to expand surveillance or scrape unrelated mail.
+
+## Context Notes For Future Implementers
+
+1. If you add new job sources, keep dedupe and freshness semantics compatible with the existing role feed.
+2. If you add a new renderer, preserve the normalized resume document shape used by the current theme/export flow.
+3. If you change application execution behavior, keep `application_runs` and `application_steps` durable and human-readable.
+4. If you add richer OAuth support, preserve encrypted token storage and sanitized API responses.
+5. If you add AI model usage, prefer deterministic logic first and log masked prompt metadata.
 
 ## Acceptance Criteria
 

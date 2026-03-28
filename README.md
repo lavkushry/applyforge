@@ -101,6 +101,32 @@ Demo credentials:
 - Email: `demo@applyforge.dev`
 - Password: `demo1234`
 
+## Inbox OAuth Setup
+
+ApplyForge can connect Gmail or Outlook so application runs can fetch OTP emails directly.
+
+Required API env vars in [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example):
+
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI`
+- `MICROSOFT_OAUTH_CLIENT_ID`
+- `MICROSOFT_OAUTH_CLIENT_SECRET`
+- `MICROSOFT_OAUTH_TENANT`
+- `MICROSOFT_OAUTH_REDIRECT_URI`
+
+Recommended local redirect URIs:
+
+- Google: `http://localhost:8000/inbox/gmail/oauth/callback`
+- Microsoft: `http://localhost:8000/inbox/outlook/oauth/callback`
+
+Required provider scopes:
+
+- Gmail: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/gmail.readonly`
+- Outlook: `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/Mail.Read`
+
+After those values are set, open Settings in the web app and use the OAuth connect buttons. The settings page now shows whether each provider is configured and which env vars are still missing.
+
 ## Useful Commands
 
 ```bash
@@ -127,3 +153,4 @@ make lint
 - Enterprise multi-user, agency workflows, and S3 storage remain future phases.
 
 See [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md), [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md), and [docs/TODO.md](/home/ems/applyforge/docs/TODO.md) for more detail.
+For fast future orientation, also see [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md).

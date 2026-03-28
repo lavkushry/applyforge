@@ -185,6 +185,25 @@ def test_oauth_start_returns_provider_authorization_url(monkeypatch, user) -> No
     assert "state=" in payload["authorization_url"]
 
 
+def test_oauth_provider_statuses_report_missing_config(monkeypatch, user) -> None:
+    monkeypatch.setattr(settings, "google_oauth_client_id", "")
+    monkeypatch.setattr(settings, "google_oauth_client_secret", "")
+    monkeypatch.setattr(settings, "google_oauth_redirect_uri", "http://localhost:8000/inbox/gmail/oauth/callback")
+    monkeypatch.setattr(settings, "microsoft_oauth_client_id", "")
+    monkeypatch.setattr(settings, "microsoft_oauth_client_secret", "")
+    monkeypatch.setattr(settings, "microsoft_oauth_redirect_uri", "http://localhost:8000/inbox/outlook/oauth/callback")
+
+    payload = inbox_routes.oauth_provider_statuses(user)
+
+    assert len(payload) == 2
+    gmail = next(item for item in payload if item.provider == "gmail")
+    outlook = next(item for item in payload if item.provider == "outlook")
+    assert gmail.configured is False
+    assert "GOOGLE_OAUTH_CLIENT_ID" in gmail.missing_env
+    assert outlook.configured is False
+    assert "MICROSOFT_OAUTH_CLIENT_ID" in outlook.missing_env
+
+
 def test_oauth_callback_redirects_to_settings_on_success(db_session: Session, user, monkeypatch) -> None:
     fake_connection = create_inbox_connection(
         db_session,

@@ -9,3 +9,9 @@ path = ".codex/agents/reviewer.toml"
 
 [agents.docs_researcher]
 path = ".codex/agents/docs-researcher.toml"
+
+[agents.product_planner]
+path = ".codex/agents/product-planner.toml"
+
+[agents.ops_investigator]
+path = ".codex/agents/ops-investigator.toml"

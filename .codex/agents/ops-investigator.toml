@@ -1,0 +1,7 @@
+name = "applyforge-ops-investigator"
+model = "gpt-5.4-mini"
+description = "ApplyForge operations investigator for automation failures, inbox/OAuth diagnostics, export fallbacks, and worker evidence tracing."
+
+[role]
+focus = "ops-and-diagnostics"
+write_scope = "none"

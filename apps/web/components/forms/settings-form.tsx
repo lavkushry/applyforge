@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import type { InboxConnection, ResumeTheme } from "@/lib/types";
+import type { InboxConnection, InboxOAuthProvider, ResumeTheme } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
 const schema = z.object({
@@ -44,6 +44,10 @@ export function SettingsForm() {
   });
   const themesQuery = useQuery({ queryKey: ["resume-themes"], queryFn: () => api<ResumeTheme[]>("/resume-themes") });
   const inboxQuery = useQuery({ queryKey: ["inbox-connections"], queryFn: () => api<InboxConnection[]>("/inbox/connections") });
+  const oauthProvidersQuery = useQuery({
+    queryKey: ["inbox-oauth-providers"],
+    queryFn: () => api<InboxOAuthProvider[]>("/inbox/oauth/providers"),
+  });
 
   useEffect(() => {
     const automation = settingsQuery.data?.automation_preferences as Record<string, unknown> | undefined;
@@ -173,29 +177,37 @@ export function SettingsForm() {
           <p className="text-sm font-medium text-white">Inbox OTP access</p>
           <p className="text-sm text-slate-400">Use provider OAuth to let ApplyForge read recent OTP emails. Tokens stay encrypted at rest and masked in logs.</p>
         </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {oauthProvidersQuery.data?.map((provider) => (
+            <div key={provider.provider} className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-white capitalize">{provider.provider}</p>
+                  <p className="text-xs text-slate-400">{provider.redirect_uri}</p>
+                </div>
+                <Badge tone={provider.configured ? "success" : "warning"}>
+                  {provider.configured ? "Ready" : "Needs config"}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400">Scopes: {provider.scopes.join(", ")}</p>
+              {!provider.configured ? (
+                <p className="text-xs text-amber-300">Missing env: {provider.missing_env.join(", ")}</p>
+              ) : null}
+              <Button
+                disabled={oauthStartMutation.isPending || !provider.authorization_enabled}
+                onClick={async () => {
+                  const result = await oauthStartMutation.mutateAsync(provider.provider as "gmail" | "outlook");
+                  window.location.href = result.authorization_url;
+                }}
+                type="button"
+                variant="secondary"
+              >
+                {oauthStartMutation.isPending ? "Starting…" : `Connect ${provider.provider === "outlook" ? "Outlook" : "Gmail"}`}
+              </Button>
+            </div>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-3">
-          <Button
-            disabled={oauthStartMutation.isPending}
-            onClick={async () => {
-              const result = await oauthStartMutation.mutateAsync("gmail");
-              window.location.href = result.authorization_url;
-            }}
-            type="button"
-            variant="secondary"
-          >
-            {oauthStartMutation.isPending ? "Starting…" : "Connect Gmail"}
-          </Button>
-          <Button
-            disabled={oauthStartMutation.isPending}
-            onClick={async () => {
-              const result = await oauthStartMutation.mutateAsync("outlook");
-              window.location.href = result.authorization_url;
-            }}
-            type="button"
-            variant="secondary"
-          >
-            {oauthStartMutation.isPending ? "Starting…" : "Connect Outlook"}
-          </Button>
           {inboxQuery.data?.map((connection) => (
             <div key={connection.id} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm text-slate-200">
               <Badge tone="success">{connection.provider}</Badge>

@@ -1,0 +1,7 @@
+name = "applyforge-product-planner"
+model = "gpt-5.4"
+description = "ApplyForge product planner for requirements alignment, feature scoping, and invariant-aware implementation sequencing."
+
+[role]
+focus = "product-and-spec"
+write_scope = "docs-and-plans"

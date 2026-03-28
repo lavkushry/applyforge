@@ -21,6 +21,12 @@ ApplyForge is organized as a monorepo with three runtime applications:
    - Playwright runtime
    - Step-oriented assisted-apply skeleton with screenshots and pause-before-submit checkpoints
 
+Supporting context artifacts live under:
+
+- `docs` for product and architecture requirements,
+- `.agents/skills` for ApplyForge-specific domain and operations guidance,
+- `.codex/agents` for project-local Codex role definitions.
+
 ## Domain Boundaries
 
 ### 1. Authentication
@@ -48,6 +54,8 @@ ApplyForge is organized as a monorepo with three runtime applications:
 - Manual import by pasted description or URL metadata
 - Normalization infers remote type, seniority, employment type, and tags
 - Dedupe keys stop repeated inserts
+- Target roles drive scrape cadence, score weighting inputs, and automation thresholds
+- Job feed events preserve discovered, updated, and freshness-related lifecycle signals
 - Scoring engine returns:
   - overall score
   - score breakdown
@@ -59,14 +67,24 @@ ApplyForge is organized as a monorepo with three runtime applications:
 ### 4. Tailoring and Documents
 
 - Tailored resume versions link a canonical resume to a job
-- ATS-oriented PDF export writes to local storage abstraction
+- Resume themes are stored independently from canonical profile data
+- RenderCV-compatible structured input can be produced from normalized resume content
+- ATS-oriented PDF export writes to local storage abstraction with RenderCV-first fallback behavior
 - Cover letters are generated per job and stored server-side
 
-### 5. Automation Runs
+### 5. Inbox and OAuth Integrations
+
+- Gmail and Outlook inbox connections are stored as user-scoped integrations
+- OAuth start and callback routes issue signed state and PKCE for provider auth flows
+- Access tokens are stored encrypted in metadata and sanitized out of API responses
+- OTP retrieval can search provider inboxes directly or accept manually supplied messages
+
+### 6. Automation Runs
 
 - `applications` hold job-level progression states
 - `application_runs` hold execution attempts
 - `application_steps` hold checkpoint-level status, outputs, retries, and screenshots
+- OTP lookup and approval gates are modeled as explicit step kinds
 - Risky questions remain gated for explicit review
 
 ## Data Model Summary
@@ -79,11 +97,18 @@ Primary tables:
 - `resume_versions`
 - `jobs`
 - `job_sources`
+- `target_roles`
+- `target_role_sources`
+- `job_ingestion_runs`
+- `job_feed_events`
 - `job_scores`
 - `cover_letters`
 - `applications`
 - `application_runs`
 - `application_steps`
+- `resume_themes`
+- `inbox_connections`
+- `inbox_otp_events`
 - `uploaded_files`
 - `settings`
 - `audit_logs`
@@ -95,6 +120,19 @@ Primary tables:
 - Dedupe keys for job imports
 - Prompt invocation logs stored in `audit_logs` with masked payload fragments
 - Step-based application execution so paused and failed states are inspectable
+- OAuth token material encrypted before storage and stripped from response payloads
+- Provider readiness endpoints so setup failures can be diagnosed through the UI
+
+## Context Landmarks For Future Work
+
+If you need to continue product work quickly, start from these files:
+
+- role discovery and job feed: [apps/api/app/services/role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
+- scoring and tailoring: [apps/api/app/services/scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py), [apps/api/app/services/tailor.py](/home/ems/applyforge/apps/api/app/services/tailor.py)
+- resume themes and export: [apps/api/app/services/resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py), [apps/api/app/services/files.py](/home/ems/applyforge/apps/api/app/services/files.py)
+- inbox OAuth and OTP flows: [apps/api/app/services/inbox.py](/home/ems/applyforge/apps/api/app/services/inbox.py), [apps/api/app/api/routes/inbox.py](/home/ems/applyforge/apps/api/app/api/routes/inbox.py)
+- run timeline behavior: [apps/api/app/api/routes/applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py), [apps/api/app/automation/engine.py](/home/ems/applyforge/apps/api/app/automation/engine.py)
+- settings UX and inbox connect UI: [apps/web/components/forms/settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
 
 ## Migration Strategy
 
