@@ -23,7 +23,7 @@ direct_sites:
     label: JobSpy India Engineering Boards
     kind: jobspy_search
     base_url: https://github.com/speedyapply/JobSpy
-    notes: Regional engineering search using LinkedIn, Google, Indeed, Naukri, and BDJobs with India defaults.
+    notes: Regional engineering search using LinkedIn, Google, Indeed, and Naukri with India defaults.
     tags:
       - jobspy
       - india
@@ -34,7 +34,6 @@ direct_sites:
         - google
         - indeed
         - naukri
-        - bdjobs
       location: India
       country_indeed: India
       results_wanted: 40

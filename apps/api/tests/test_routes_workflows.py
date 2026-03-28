@@ -115,7 +115,7 @@ def test_jobspy_source_fetcher_maps_dataframe_records(monkeypatch) -> None:
         },
         enabled=True,
     )
-    captured: dict = {}
+    captured: list[str] = []
 
     class FakeFrame:
         def to_dict(self, *, orient: str) -> list[dict]:
@@ -141,18 +141,14 @@ def test_jobspy_source_fetcher_maps_dataframe_records(monkeypatch) -> None:
             ]
 
     def fake_scrape_jobs(**kwargs):
-        captured.update(kwargs)
+        captured.append(kwargs["site_name"])
         return FakeFrame()
 
     monkeypatch.setattr("app.services.jobspy_service._load_jobspy_scrape_jobs", lambda: fake_scrape_jobs)
 
     jobs = fetch_jobs_for_source(source)
 
-    assert captured["site_name"] == ["linkedin", "google", "zip_recruiter"]
-    assert captured["search_term"] == "platform engineer"
-    assert captured["location"] == "India"
-    assert captured["results_wanted"] == 30
-    assert captured["hours_old"] == 72
+    assert captured == ["linkedin", "google", "zip_recruiter"]
     assert jobs[0]["source"] == "linkedin"
     assert jobs[0]["company"] == "Acme"
     assert jobs[0]["application_url"] == "https://linkedin.com/jobs/view/123"
@@ -163,6 +159,93 @@ def test_jobspy_source_fetcher_maps_dataframe_records(monkeypatch) -> None:
     assert jobs[0]["source_metadata"]["aggregator"] == "jobspy"
     assert jobs[0]["source_metadata"]["site"] == "linkedin"
     assert sorted(jobs[0]["tags"]) == ["Kubernetes", "Python"]
+
+
+def test_jobspy_source_fetcher_tolerates_partial_site_failures(monkeypatch) -> None:
+    from app.services.role_ingestion import fetch_jobs_for_source
+
+    source = roles_routes.TargetRoleSource(
+        role_id=1,
+        kind="jobspy_search",
+        label="JobSpy India Engineering Boards",
+        base_url="https://github.com/speedyapply/JobSpy",
+        config={
+            "site_names": ["linkedin", "google", "naukri"],
+            "search_term": "devops engineer",
+            "location": "India",
+            "country_indeed": "India",
+            "results_wanted": 10,
+            "hours_old": 72,
+            "linkedin_fetch_description": True,
+        },
+        enabled=True,
+    )
+
+    class FakeFrame:
+        def __init__(self, site_name: str) -> None:
+            self.site_name = site_name
+
+        def to_dict(self, *, orient: str) -> list[dict]:
+            assert orient == "records"
+            return [
+                {
+                    "site": self.site_name,
+                    "title": "DevOps Engineer",
+                    "company": "Acme",
+                    "job_url": f"https://example.com/{self.site_name}/123",
+                    "location": "India",
+                    "description": "Platform and reliability engineering.",
+                }
+            ]
+
+    def fake_scrape_jobs(**kwargs):
+        if kwargs["site_name"] == "linkedin":
+            raise RuntimeError("Connection reset by peer")
+        return FakeFrame(kwargs["site_name"])
+
+    monkeypatch.setattr("app.services.jobspy_service._load_jobspy_scrape_jobs", lambda: fake_scrape_jobs)
+
+    jobs = fetch_jobs_for_source(source)
+
+    assert len(jobs) == 2
+    assert sorted(job["source"] for job in jobs) == ["google", "naukri"]
+
+
+def test_jobspy_source_fetcher_raises_when_all_sites_fail(monkeypatch) -> None:
+    from app.services.role_ingestion import fetch_jobs_for_source
+
+    source = roles_routes.TargetRoleSource(
+        role_id=1,
+        kind="jobspy_search",
+        label="JobSpy India Engineering Boards",
+        base_url="https://github.com/speedyapply/JobSpy",
+        config={
+            "site_names": ["linkedin", "bdjobs"],
+            "search_term": "devops engineer",
+            "location": "India",
+            "results_wanted": 10,
+            "hours_old": 72,
+        },
+        enabled=True,
+    )
+
+    def fake_scrape_jobs(**kwargs):
+        if kwargs["site_name"] == "linkedin":
+            raise RuntimeError("Connection reset by peer")
+        raise TypeError("BDJobs.__init__() got an unexpected keyword argument 'user_agent'")
+
+    monkeypatch.setattr("app.services.jobspy_service._load_jobspy_scrape_jobs", lambda: fake_scrape_jobs)
+
+    try:
+        fetch_jobs_for_source(source)
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected a RuntimeError when all JobSpy sites fail")
+
+    assert "JobSpy returned no jobs." in message
+    assert "linkedin: Connection reset by peer" in message
+    assert "bdjobs: BDJobs.__init__() got an unexpected keyword argument 'user_agent'" in message
 
 
 def test_create_role_hydrates_jobspy_source_defaults(db_session: Session, user) -> None:

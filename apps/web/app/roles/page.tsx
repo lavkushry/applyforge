@@ -21,11 +21,22 @@ export default function RolesPage() {
 
   const scrapeMutation = useMutation({
     mutationFn: (roleId: number) => api<IngestionRun>(`/roles/${roleId}/scrape-now`, { method: "POST" }),
-    onSuccess: () => {
+    onSuccess: (run) => {
       queryClient.invalidateQueries({ queryKey: ["jobs-feed"] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       queryClient.invalidateQueries({ queryKey: ["ingestion-runs"] });
-      pushToast({ title: "Scrape run completed", tone: "success" });
+      if (run.status === "failed") {
+        pushToast({
+          title: run.error_message ? `Scrape failed: ${run.error_message.slice(0, 120)}` : "Scrape run failed",
+          tone: "error",
+        });
+        return;
+      }
+      if (run.discovered_count === 0) {
+        pushToast({ title: "Scrape completed: 0 jobs found", tone: "info" });
+        return;
+      }
+      pushToast({ title: `Scrape run completed: ${run.discovered_count} jobs found`, tone: "success" });
     },
     onError: () => pushToast({ title: "Scrape run failed", tone: "error" }),
   });
@@ -97,8 +108,12 @@ export default function RolesPage() {
                       <Badge>{run.status}</Badge>
                     </div>
                     <p className="text-sm text-slate-400">
-                      {run.discovered_count} discovered · {run.inserted_count} inserted · {run.updated_count} updated
+                      {run.discovered_count} discovered · {run.inserted_count} inserted · {run.updated_count} updated ·{" "}
+                      {run.failed_count} failed
                     </p>
+                    {run.error_message ? (
+                      <p className="mt-2 text-sm text-rose-300">{run.error_message}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>

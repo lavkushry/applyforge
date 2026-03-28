@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from collections.abc import Iterable
 from typing import Any
 
@@ -53,6 +54,8 @@ INDEED_COUNTRY_HINTS = {
     "germany": "Germany",
     "berlin": "Germany",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _clean_string(value: Any) -> str:
@@ -193,6 +196,41 @@ def _records_from_jobspy_result(result: Any) -> list[dict]:
     return [record for record in records if isinstance(record, dict)]
 
 
+def _jobspy_kwargs_for_site(config: dict[str, Any], site_name: str) -> dict[str, Any]:
+    search_term = _clean_string(config.get("search_term"))
+    if not search_term:
+        raise RuntimeError("JobSpy sources require a search_term in source.config.")
+
+    kwargs: dict[str, Any] = {
+        "site_name": site_name,
+        "search_term": search_term,
+        "results_wanted": _coerce_positive_int(config.get("results_wanted"), 25),
+        "hours_old": _coerce_positive_int(config.get("hours_old"), 168),
+    }
+    location = _clean_string(config.get("location"))
+    if location:
+        kwargs["location"] = location
+    google_search_term = _clean_string(config.get("google_search_term"))
+    if google_search_term:
+        kwargs["google_search_term"] = google_search_term
+    country_indeed = _clean_string(config.get("country_indeed"))
+    if country_indeed and site_name in {"indeed", "glassdoor"}:
+        kwargs["country_indeed"] = country_indeed
+    if isinstance(config.get("is_remote"), bool):
+        kwargs["is_remote"] = config["is_remote"]
+    job_type = _clean_string(config.get("job_type"))
+    if job_type:
+        kwargs["job_type"] = job_type
+    if isinstance(config.get("linkedin_fetch_description"), bool) and site_name == "linkedin":
+        kwargs["linkedin_fetch_description"] = config["linkedin_fetch_description"]
+    return kwargs
+
+
+def _summarize_jobspy_error(site_name: str, exc: Exception) -> str:
+    message = _clean_string(exc) or exc.__class__.__name__
+    return f"{site_name}: {message}"
+
+
 def _format_amount(value: Any) -> str:
     try:
         amount = float(value)
@@ -261,37 +299,30 @@ def _jobspy_remote_type(record: dict, location: str, description: str) -> str:
 def fetch_jobspy_jobs(source: TargetRoleSource) -> list[dict]:
     config = dict(source.config or {})
     site_names = parse_jobspy_site_names(config.get("site_names") or config.get("site_name")) or list(JOBSPY_DEFAULT_SITES)
-    search_term = _clean_string(config.get("search_term"))
-    if not search_term:
-        raise RuntimeError("JobSpy sources require a search_term in source.config.")
-
-    kwargs: dict[str, Any] = {
-        "site_name": site_names,
-        "search_term": search_term,
-        "results_wanted": _coerce_positive_int(config.get("results_wanted"), 25),
-        "hours_old": _coerce_positive_int(config.get("hours_old"), 168),
-    }
-    location = _clean_string(config.get("location"))
-    if location:
-        kwargs["location"] = location
-    google_search_term = _clean_string(config.get("google_search_term"))
-    if google_search_term:
-        kwargs["google_search_term"] = google_search_term
-    country_indeed = _clean_string(config.get("country_indeed"))
-    if country_indeed and any(site in {"indeed", "glassdoor"} for site in site_names):
-        kwargs["country_indeed"] = country_indeed
-    if isinstance(config.get("is_remote"), bool):
-        kwargs["is_remote"] = config["is_remote"]
-    job_type = _clean_string(config.get("job_type"))
-    if job_type:
-        kwargs["job_type"] = job_type
-    if isinstance(config.get("linkedin_fetch_description"), bool):
-        kwargs["linkedin_fetch_description"] = config["linkedin_fetch_description"]
-
     scrape_jobs = _load_jobspy_scrape_jobs()
-    result = scrape_jobs(**kwargs)
+    search_term = _clean_string(config.get("search_term"))
+    records: list[dict] = []
+    errors: list[str] = []
+
+    for site_name in site_names:
+        try:
+            result = scrape_jobs(**_jobspy_kwargs_for_site(config, site_name))
+        except Exception as exc:
+            error_summary = _summarize_jobspy_error(site_name, exc)
+            logger.warning("jobspy_site_failed: %s", error_summary)
+            errors.append(error_summary)
+            continue
+        records.extend(_records_from_jobspy_result(result))
+
+    if not records and errors:
+        raise RuntimeError(
+            "JobSpy returned no jobs. "
+            + "; ".join(errors[:4])
+            + ("; additional site failures omitted" if len(errors) > 4 else "")
+        )
+
     jobs: list[dict] = []
-    for record in _records_from_jobspy_result(result):
+    for record in records:
         title = _clean_string(record.get("title"))
         company = _clean_string(record.get("company"))
         application_url = _clean_string(record.get("job_url"))
