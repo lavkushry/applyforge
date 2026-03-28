@@ -4,7 +4,21 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import admin, application_runs, applications, auth, companies, files, inbox, jobs, profile, resume_themes, roles, setup
+from app.api.routes import (
+    admin,
+    application_runs,
+    applications,
+    auth,
+    companies,
+    files,
+    inbox,
+    jobs,
+    profile,
+    resume_templates,
+    resume_themes,
+    roles,
+    setup,
+)
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import entities  # noqa: F401
@@ -44,6 +58,7 @@ app.include_router(applications.router)
 app.include_router(application_runs.router)
 app.include_router(files.router)
 app.include_router(resume_themes.router)
+app.include_router(resume_templates.router)
 app.include_router(inbox.router)
 app.include_router(setup.router)
 app.include_router(admin.router)

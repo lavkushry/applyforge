@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { api } from "@/lib/api";
-import type { ResumeTheme } from "@/lib/types";
+import type { ResumeTemplateCatalog, ResumeTemplateRender, ResumeTheme } from "@/lib/types";
 import { stringifyJson } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
 
@@ -18,7 +18,13 @@ export default function ResumePage() {
   const [fileId, setFileId] = useState<number | null>(null);
   const [parsedPreview, setParsedPreview] = useState<string>("");
   const [selectedTheme, setSelectedTheme] = useState<string>("classic-ats-light");
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>("");
+  const [renderedTemplatePreview, setRenderedTemplatePreview] = useState<string>("");
   const themesQuery = useQuery({ queryKey: ["resume-themes"], queryFn: () => api<ResumeTheme[]>("/resume-themes") });
+  const templateCatalogQuery = useQuery({
+    queryKey: ["resume-templates"],
+    queryFn: () => api<ResumeTemplateCatalog>("/resume/templates"),
+  });
 
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => api<{ file_id: number }>("/profile/upload-resume", { method: "POST", body: formData }),
@@ -54,7 +60,30 @@ export default function ResumePage() {
     onSuccess: () => pushToast({ title: "Default resume theme saved", tone: "success" }),
   });
 
+  const templateRenderMutation = useMutation({
+    mutationFn: async (templateKey: string) =>
+      api<ResumeTemplateRender>("/resume/templates/render", {
+        method: "POST",
+        body: JSON.stringify({ template_key: templateKey }),
+      }),
+    onSuccess: (result) => {
+      setRenderedTemplatePreview(result.rendered_content);
+      pushToast({ title: `${result.template.label} rendered from your current profile`, tone: "success" });
+    },
+    onError: () => pushToast({ title: "Could not render the starter template from your profile", tone: "error" }),
+  });
+
   const themes = themesQuery.data || [];
+  const templateCatalog = templateCatalogQuery.data;
+  const selectedTemplate = templateCatalog?.templates.find((template) => template.key === selectedTemplateKey) ?? null;
+  const selectedTemplateSections =
+    templateCatalog?.sections.filter((section) => selectedTemplate?.section_keys.includes(section.key)) ?? [];
+
+  useEffect(() => {
+    if (!selectedTemplateKey && templateCatalog?.templates.length) {
+      setSelectedTemplateKey(templateCatalog.templates[0].key);
+    }
+  }, [selectedTemplateKey, templateCatalog]);
 
   return (
     <ProtectedPage>
@@ -141,6 +170,75 @@ export default function ResumePage() {
             ))}
           </div>
         </Card>
+
+        <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Structured starter templates</h2>
+                <p className="text-sm text-slate-400">
+                  ResumeCraftr-style source templates for Markdown and LaTeX inspection, editing, and export workflows.
+                </p>
+              </div>
+              <Button
+                disabled={!selectedTemplateKey || templateRenderMutation.isPending}
+                onClick={() => selectedTemplateKey && templateRenderMutation.mutate(selectedTemplateKey)}
+                variant="secondary"
+              >
+                {templateRenderMutation.isPending ? "Rendering…" : "Render from current profile"}
+              </Button>
+            </div>
+            <div className="grid gap-3">
+              {templateCatalog?.templates.map((template) => (
+                <button
+                  key={template.key}
+                  className={`rounded-[1.5rem] border p-4 text-left transition ${
+                    selectedTemplateKey === template.key
+                      ? "border-cyan-300/60 bg-cyan-400/10"
+                      : "border-white/10 bg-slate-950/60 hover:border-cyan-300/30"
+                  }`}
+                  onClick={() => setSelectedTemplateKey(template.key)}
+                  type="button"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-white">{template.label}</h3>
+                      <p className="mt-1 text-sm text-slate-400">{template.description}</p>
+                    </div>
+                    <Badge>{template.format.toUpperCase()}</Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {template.section_keys.map((key) => (
+                      <Badge key={key}>
+                        {key}
+                      </Badge>
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Selected template</h3>
+              <p className="mt-2 text-base font-semibold text-white">{selectedTemplate?.label || "Choose a template"}</p>
+              <div className="mt-3 space-y-2 text-sm text-slate-300">
+                {selectedTemplateSections.map((section) => (
+                  <div key={section.key}>
+                    <p className="font-medium text-white">{section.label}</p>
+                    <p className="text-slate-400">{section.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Rendered source preview</h2>
+            <pre className="min-h-[420px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {renderedTemplatePreview ||
+                "Render a starter template from your current canonical profile to inspect the Markdown or LaTeX source."}
+            </pre>
+          </Card>
+        </div>
       </section>
     </ProtectedPage>
   );

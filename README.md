@@ -28,6 +28,7 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 ### Phase 2
 - Tailored resume generation with fact-locked content reuse.
 - ATS-friendly PDF export for resume versions.
+- Packaged Markdown and LaTeX resume starter templates plus developer CLI helpers.
 - Cover-letter generation flow.
 - Applications tracker board and settings page.
 
@@ -151,6 +152,26 @@ Required provider scopes:
 - Outlook: `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/Mail.Read`
 
 After those values are set, open Settings in the web app and use the OAuth connect buttons. The settings page now shows whether each provider is configured and which env vars are still missing.
+
+## Resume Template Catalog And CLI
+
+ApplyForge now ships a small packaged resume-template layer inspired by ResumeCraftr-style source assets:
+
+- `packages/config/resume/sections.json`
+- `packages/config/resume/resume_template.md`
+- `packages/config/resume/resume_template.tex`
+
+These power:
+
+- `GET /resume/templates`
+- `POST /resume/templates/render`
+- `python -m app.cli.main list-templates`
+- `python -m app.cli.main render-template --input /path/to/resume.json --template-key ats-markdown-starter`
+
+In the web app:
+
+- `/resume` now lets a user browse Markdown and LaTeX starter templates and render them from the current canonical profile.
+- the main PDF export path still uses the product's resume export pipeline, including RenderCV compatibility plus internal fallback.
 
 ## Useful Commands
 

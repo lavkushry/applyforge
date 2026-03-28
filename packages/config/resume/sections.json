@@ -1,0 +1,66 @@
+[
+  {
+    "key": "header",
+    "label": "Header",
+    "description": "Name, headline, contact details, and top links.",
+    "repeatable": false,
+    "required": true,
+    "placeholder": "Alex Builder | Staff Full-Stack Engineer | alex@example.com"
+  },
+  {
+    "key": "summary",
+    "label": "Summary",
+    "description": "Concise role-targeted summary grounded in canonical profile facts.",
+    "repeatable": false,
+    "required": true,
+    "placeholder": "Staff engineer building AI-powered workflow systems."
+  },
+  {
+    "key": "skills",
+    "label": "Skills",
+    "description": "Core skills prioritized for ATS scanning and recruiter review.",
+    "repeatable": false,
+    "required": true,
+    "placeholder": "Python, FastAPI, TypeScript, React"
+  },
+  {
+    "key": "experience",
+    "label": "Experience",
+    "description": "Chronological work history with scoped highlights and outcomes.",
+    "repeatable": true,
+    "required": true,
+    "placeholder": "Staff Engineer - Forge Labs"
+  },
+  {
+    "key": "projects",
+    "label": "Projects",
+    "description": "Selected project work relevant to the target role.",
+    "repeatable": true,
+    "required": false,
+    "placeholder": "ApplyForge - AI job hunt operating system"
+  },
+  {
+    "key": "education",
+    "label": "Education",
+    "description": "Degrees, institutions, and supporting academic details.",
+    "repeatable": true,
+    "required": false,
+    "placeholder": "B.Tech - Example Institute"
+  },
+  {
+    "key": "certifications",
+    "label": "Certifications",
+    "description": "Relevant certifications that support the target role.",
+    "repeatable": true,
+    "required": false,
+    "placeholder": "AWS Certified Developer"
+  },
+  {
+    "key": "links",
+    "label": "Links",
+    "description": "LinkedIn, GitHub, portfolio, or other supporting links.",
+    "repeatable": true,
+    "required": false,
+    "placeholder": "LinkedIn: https://linkedin.com/in/example"
+  }
+]

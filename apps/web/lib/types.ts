@@ -116,6 +116,36 @@ export type ResumePreview = {
   blocks: Array<{ title: string; lines: string[] }>;
 };
 
+export type ResumeTemplateSection = {
+  key: string;
+  label: string;
+  description: string;
+  repeatable: boolean;
+  required: boolean;
+  placeholder: string;
+};
+
+export type ResumeTemplate = {
+  key: string;
+  label: string;
+  description: string;
+  format: string;
+  asset_name: string;
+  recommended_theme_slugs: string[];
+  section_keys: string[];
+};
+
+export type ResumeTemplateCatalog = {
+  templates: ResumeTemplate[];
+  sections: ResumeTemplateSection[];
+};
+
+export type ResumeTemplateRender = {
+  template: ResumeTemplate;
+  rendered_content: string;
+  sections: ResumeTemplateSection[];
+};
+
 export type TargetRoleSource = {
   id: number;
   role_id: number;
