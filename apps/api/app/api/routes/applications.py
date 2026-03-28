@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.automation.engine import StepEngine
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models.entities import (
     Application,
@@ -357,9 +358,17 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
 def request_otp(
     job_id: int,
     payload: InboxOtpRequest,
+    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    enforce_rate_limit(
+        bucket="applications.request_otp",
+        request=request,
+        limit=10,
+        window_seconds=300,
+        subject_suffix=f"{user.id}:{job_id}",
+    )
     job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

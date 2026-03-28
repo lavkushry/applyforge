@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
+import { api, apiText } from "@/lib/api";
 import type { InboxConnection, InboxOAuthProvider, ResumeTheme } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
@@ -47,6 +47,10 @@ export function SettingsForm() {
   const oauthProvidersQuery = useQuery({
     queryKey: ["inbox-oauth-providers"],
     queryFn: () => api<InboxOAuthProvider[]>("/inbox/oauth/providers"),
+  });
+  const preferencesExportQuery = useQuery({
+    queryKey: ["user-preferences-export"],
+    queryFn: () => apiText("/profile/preferences/export?format=text"),
   });
 
   useEffect(() => {
@@ -221,6 +225,23 @@ export function SettingsForm() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-white">Automation preference profile</p>
+            <p className="text-sm text-slate-400">
+              Portable Jobber-style snapshot of the candidate profile, role targets, filters, and saved answers that drive ApplyForge automation.
+            </p>
+          </div>
+          <Button onClick={() => preferencesExportQuery.refetch()} type="button" variant="secondary">
+            Refresh export
+          </Button>
+        </div>
+        <pre className="max-h-[360px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+          {preferencesExportQuery.data || "Generating automation preference export…"}
+        </pre>
       </div>
     </Card>
   );

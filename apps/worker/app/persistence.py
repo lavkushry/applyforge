@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.db import SessionLocal
 from app.models import Application, ApplicationRun, ApplicationStep, UploadedFile
+from app.run_fsm import transition_run_state
 
 
 def utcnow() -> datetime:
@@ -23,11 +24,22 @@ class RunRecorder:
             run = db.query(ApplicationRun).filter(ApplicationRun.id == self.run_id).first()
             if not run:
                 return
-            run.status = status
-            run.current_step = current_step
-            run.error_message = error_message
-            if status in {"completed", "failed", "paused", "uncertain"}:
-                run.finished_at = utcnow()
+            event = {
+                "queued": "queue_requested",
+                "running": "worker_started",
+                "paused": "pause_requested",
+                "failed": "failure_recorded",
+                "completed": "completion_recorded",
+                "uncertain": "uncertainty_recorded",
+            }.get(status)
+            if event:
+                transition_run_state(run, event=event, current_step=current_step, error_message=error_message)
+            else:
+                run.status = status
+                run.current_step = current_step
+                run.error_message = error_message
+                if status in {"completed", "failed", "paused", "uncertain"}:
+                    run.finished_at = utcnow()
             if status == "completed":
                 application = db.query(Application).filter(Application.id == run.application_id).first()
                 if application:

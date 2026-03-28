@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.entities import ApplicationRun, ApplicationStep
+from app.services.application_fsm import transition_run
 
 
 class StepEngine:
@@ -40,6 +41,17 @@ class StepEngine:
         return step
 
     def complete(self, status: str) -> None:
-        self.run.status = status
-        self.run.finished_at = datetime.utcnow()
+        event = {
+            "queued": "queue_requested",
+            "running": "worker_started",
+            "paused": "pause_requested",
+            "failed": "failure_recorded",
+            "completed": "completion_recorded",
+            "uncertain": "uncertainty_recorded",
+        }.get(status)
+        if event:
+            transition_run(self.run, event=event, current_step=self.run.current_step or "workflow_complete")
+        else:
+            self.run.status = status
+            self.run.finished_at = datetime.utcnow()
         self.db.commit()

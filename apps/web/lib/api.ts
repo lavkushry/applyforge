@@ -36,3 +36,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   return (await response.json()) as T;
 }
+
+export async function apiText(path: string, options: RequestInit = {}): Promise<string> {
+  const headers = new Headers(options.headers);
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: "include",
+    headers,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(body || "Request failed", response.status);
+  }
+
+  return response.text();
+}

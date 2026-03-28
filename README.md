@@ -41,6 +41,12 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 - Worker-backed job enrichment and score-change feed events.
 - Apply control center with pipeline-stage visibility and manual operator actions.
 - Setup wizard page with readiness checks and one-click role bootstrapping from packaged templates.
+- Formal run-state transitions plus reusable user-preference export for automation.
+
+### Phase 4 foundations
+- User-scoped company intelligence directory with portals and contacts.
+- Resume template catalog and developer CLI aligned to structured Markdown and LaTeX workflows.
+- Portable automation preference export visible in Settings.
 
 ## Monorepo Layout
 
@@ -172,6 +178,29 @@ In the web app:
 
 - `/resume` now lets a user browse Markdown and LaTeX starter templates and render them from the current canonical profile.
 - the main PDF export path still uses the product's resume export pipeline, including RenderCV compatibility plus internal fallback.
+
+## Automation Preferences And FSM
+
+ApplyForge now includes Jobber-style equivalents for portable user preferences and a formal application run state machine:
+
+- `GET /profile/preferences/export?format=text`
+- `GET /profile/preferences/export?format=json`
+- `apps/api/app/services/user_preferences.py`
+- `apps/api/app/services/application_fsm.py`
+
+In the web app:
+
+- `/settings` now shows the exported automation preference profile that combines canonical profile data, saved answers, target roles, keyword filters, and resume defaults.
+- application runs now use explicit transition rules for `queued`, `running`, `paused`, `failed`, `completed`, and `uncertain`.
+
+## Documentation Map
+
+- [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md): current product requirements and invariants
+- [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md): runtime and data-flow architecture
+- [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md): fast orientation guide for future sessions
+- [docs/TODO.md](/home/ems/applyforge/docs/TODO.md): remaining hardening and follow-on work
+- [docs/FEATURE_REQUESTS/applypilot-core-roadmap.md](/home/ems/applyforge/docs/FEATURE_REQUESTS/applypilot-core-roadmap.md): status of the ApplyPilot-style roadmap
+- [docs/IDEAS/company-intelligence-directory.md](/home/ems/applyforge/docs/IDEAS/company-intelligence-directory.md): status of the company directory foundation
 
 ## Useful Commands
 

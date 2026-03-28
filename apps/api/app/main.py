@@ -20,9 +20,12 @@ from app.api.routes import (
     setup,
 )
 from app.core.config import settings
+from app.core.observability import RequestContextMiddleware, configure_logging
 from app.db.session import Base, engine
 from app.models import entities  # noqa: F401
 from app.services.resume_themes import seed_resume_themes
+
+configure_logging()
 
 
 @asynccontextmanager
@@ -48,6 +51,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestContextMiddleware)
 
 app.include_router(auth.router)
 app.include_router(profile.router)

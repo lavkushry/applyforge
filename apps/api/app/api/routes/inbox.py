@@ -1,11 +1,12 @@
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models.entities import InboxConnection, User
 from app.schemas.inbox import (
@@ -61,8 +62,16 @@ def oauth_provider_status(provider: str, user: User = Depends(get_current_user))
 def oauth_start(
     provider: str,
     return_to: str = "/settings",
+    request: Request | None = None,
     user: User = Depends(get_current_user),
 ) -> dict:
+    enforce_rate_limit(
+        bucket=f"inbox.oauth_start.{provider}",
+        request=request,
+        limit=10,
+        window_seconds=300,
+        subject_suffix=str(user.id),
+    )
     try:
         return build_oauth_authorization_url(provider, user.id, return_to)
     except ValueError as exc:
@@ -105,9 +114,17 @@ def list_connections(user: User = Depends(get_current_user), db: Session = Depen
 @router.post("/gmail/connect", response_model=InboxConnectionOut)
 def connect_gmail(
     payload: InboxConnectionCreate,
+    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InboxConnectionOut:
+    enforce_rate_limit(
+        bucket="inbox.manual_connect.gmail",
+        request=request,
+        limit=5,
+        window_seconds=300,
+        subject_suffix=payload.email,
+    )
     if payload.provider != "gmail":
         raise HTTPException(status_code=400, detail="Provider mismatch")
     return _serialize_connection(create_inbox_connection(db, user.id, payload.provider, payload.email, payload.token, payload.scopes))
@@ -116,9 +133,17 @@ def connect_gmail(
 @router.post("/outlook/connect", response_model=InboxConnectionOut)
 def connect_outlook(
     payload: InboxConnectionCreate,
+    request: Request | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InboxConnectionOut:
+    enforce_rate_limit(
+        bucket="inbox.manual_connect.outlook",
+        request=request,
+        limit=5,
+        window_seconds=300,
+        subject_suffix=payload.email,
+    )
     if payload.provider != "outlook":
         raise HTTPException(status_code=400, detail="Provider mismatch")
     return _serialize_connection(create_inbox_connection(db, user.id, payload.provider, payload.email, payload.token, payload.scopes))
@@ -140,7 +165,19 @@ def disconnect_connection(connection_id: int, user: User = Depends(get_current_u
 
 
 @router.post("/request-otp")
-def request_otp(payload: InboxOtpRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def request_otp(
+    payload: InboxOtpRequest,
+    request: Request | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    enforce_rate_limit(
+        bucket="inbox.request_otp",
+        request=request,
+        limit=12,
+        window_seconds=300,
+        subject_suffix=str(user.id),
+    )
     connection = (
         db.query(InboxConnection)
         .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -15,6 +16,7 @@ from app.schemas.profile import (
 from app.services.files import save_upload, sha256_bytes, validate_resume_upload
 from app.services.llm import log_prompt_invocation
 from app.services.resume_parser import extract_resume_text, parse_resume_file
+from app.services.user_preferences import build_user_preferences_snapshot, render_user_preferences_text
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -149,3 +151,15 @@ def update_settings(
             db.add(Setting(user_id=user.id, key=key, value=value))
     db.commit()
     return Message(message="Settings updated")
+
+
+@router.get("/preferences/export")
+def export_user_preferences(
+    format: str = Query(default="text", pattern="^(text|json)$"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    snapshot = build_user_preferences_snapshot(db, user.id)
+    if format == "json":
+        return JSONResponse(snapshot)
+    return PlainTextResponse(render_user_preferences_text(snapshot))

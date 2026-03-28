@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.entities import Application, ApplicationRun, ApplicationStep, User
 from app.schemas.applications import ApplicationRunDetail, ApplicationRunOut, ApplicationStepOut
 from app.services.application_dispatch import dispatch_application_run
+from app.services.application_fsm import transition_run
 
 router = APIRouter(prefix="/application-runs", tags=["application-runs"])
 
@@ -54,10 +55,7 @@ def resume_run(run_id: int, user: User = Depends(get_current_user), db: Session 
         step_kind="control",
     )
 
-    run.status = "queued"
-    run.current_step = "resume_requested"
-    run.error_message = ""
-    run.finished_at = None
+    transition_run(run, event="resume_requested", current_step="resume_requested")
     run.external_task_id = dispatch_application_run(run.mode, run.id, run.prepared_payload)
     db.commit()
     db.refresh(run)

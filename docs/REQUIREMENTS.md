@@ -28,7 +28,10 @@ The current repository already includes the following product capabilities:
 - near-realtime role feed backed by ingestion runs and feed events,
 - user-scoped company directory records with canonical portals and recruiter contacts,
 - three ATS-safe light resume themes with preview and export metadata,
+- packaged Markdown and LaTeX resume starter templates,
 - RenderCV-compatible structured resume input generation with internal PDF fallback,
+- exported user-preference profile combining settings, role strategy, and saved answers,
+- formal application packets and run-state transitions,
 - application runs with per-step status, pause gates, masked outputs, and diagnostics,
 - inbox integrations for Gmail and Outlook with encrypted token storage,
 - OAuth start and callback routes plus provider-readiness reporting for inbox setup.
