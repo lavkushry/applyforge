@@ -92,6 +92,9 @@ class TargetRoleOut(OrmModel):
 class JobIngestionRunOut(OrmModel):
     id: int
     role_id: int
+    company_id: int | None = None
+    company_portal_id: int | None = None
+    trigger_kind: str
     status: str
     source_count: int
     discovered_count: int

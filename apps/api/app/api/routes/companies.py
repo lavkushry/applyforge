@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.entities import Company, CompanyCareerPortal, CompanyContact, User
+from app.models.entities import Company, CompanyCareerPortal, CompanyContact, JobIngestionRun, TargetRole, User
 from app.schemas.companies import (
     CompanyContactCreate,
     CompanyContactOut,
@@ -13,9 +13,13 @@ from app.schemas.companies import (
     CompanyOut,
     CompanyPortalCreate,
     CompanyPortalOut,
+    CompanyScrapeRequest,
     CompanyUpdate,
 )
+from app.schemas.roles import JobIngestionRunOut
 from app.services.company_directory import normalize_company_name
+from app.services.company_ingestion import ingest_company
+from app.services.company_portal_resolution import resolve_company_portals as resolve_company_portals_service
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -47,6 +51,13 @@ def _contact_or_404(company_id: int, contact_id: int, db: Session) -> CompanyCon
     if not contact:
         raise HTTPException(status_code=404, detail="Company contact not found")
     return contact
+
+
+def _role_or_404(role_id: int, user_id: int, db: Session) -> TargetRole:
+    role = db.query(TargetRole).filter(TargetRole.id == role_id, TargetRole.user_id == user_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    return role
 
 
 def _ensure_company_name_available(company_id: int | None, user_id: int, name: str, db: Session) -> str:
@@ -149,6 +160,16 @@ def list_company_portals(
     )
 
 
+@router.post("/{company_id}/resolve-portals", response_model=list[CompanyPortalOut])
+def resolve_company_portals(
+    company_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[CompanyCareerPortal]:
+    company = _company_or_404(company_id, user.id, db)
+    return resolve_company_portals_service(db, company=company)
+
+
 @router.post("/{company_id}/portals", response_model=CompanyPortalOut)
 def create_company_portal(
     company_id: int,
@@ -162,6 +183,38 @@ def create_company_portal(
     db.commit()
     db.refresh(portal)
     return portal
+
+
+@router.post("/{company_id}/scrape-now", response_model=JobIngestionRunOut)
+def scrape_company_jobs(
+    company_id: int,
+    payload: CompanyScrapeRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobIngestionRun:
+    company = _company_or_404(company_id, user.id, db)
+    role = _role_or_404(payload.role_id, user.id, db)
+    if payload.portal_id is not None:
+        _portal_or_404(company_id, payload.portal_id, db)
+    elif not db.query(CompanyCareerPortal).filter(CompanyCareerPortal.company_id == company.id).first():
+        resolve_company_portals_service(db, company=company)
+    return ingest_company(db, user_id=user.id, company=company, role=role, portal_id=payload.portal_id)
+
+
+@router.get("/{company_id}/ingestion-runs", response_model=list[JobIngestionRunOut])
+def list_company_ingestion_runs(
+    company_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[JobIngestionRun]:
+    _company_or_404(company_id, user.id, db)
+    return (
+        db.query(JobIngestionRun)
+        .filter(JobIngestionRun.company_id == company_id)
+        .order_by(JobIngestionRun.started_at.desc())
+        .limit(50)
+        .all()
+    )
 
 
 @router.put("/{company_id}/portals/{portal_id}", response_model=CompanyPortalOut)

@@ -50,6 +50,11 @@ class CompanyContactCreate(BaseModel):
 class CompanyPortalOut(CompanyPortalCreate, OrmModel):
     id: int
     company_id: int
+    last_success_at: datetime | None = None
+    last_error: str = ""
+    last_job_count: int = 0
+    last_run_id: int | None = None
+    resolution_metadata: dict = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +77,11 @@ class CompanyOut(CompanyBase, OrmModel):
 class CompanyDetailOut(CompanyOut):
     portals: list[CompanyPortalOut] = Field(default_factory=list)
     contacts: list[CompanyContactOut] = Field(default_factory=list)
+
+
+class CompanyScrapeRequest(BaseModel):
+    role_id: int
+    portal_id: int | None = None
 
 
 CompanyDeleteResponse = Message

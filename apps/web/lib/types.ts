@@ -262,6 +262,11 @@ export type CompanyPortal = {
   health_status: string;
   supports_structured_fetch: boolean;
   last_checked_at: string | null;
+  last_success_at: string | null;
+  last_error: string;
+  last_job_count: number;
+  last_run_id: number | null;
+  resolution_metadata: Record<string, unknown>;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -304,6 +309,9 @@ export type JobFeedEvent = {
 export type IngestionRun = {
   id: number;
   role_id: number;
+  company_id?: number | null;
+  company_portal_id?: number | null;
+  trigger_kind?: string;
   role_name?: string;
   status: string;
   source_count: number;

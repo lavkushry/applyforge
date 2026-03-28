@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { Textarea } from "@/components/ui/textarea";
-import { api } from "@/lib/api";
-import type { Company, CompanyContact, CompanyDetail, CompanyPortal, Job } from "@/lib/types";
+import { api, ApiError } from "@/lib/api";
+import type { Company, CompanyContact, CompanyDetail, CompanyPortal, IngestionRun, Job, TargetRole } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
 const emptyCompany = {
@@ -49,9 +49,36 @@ const emptyContact = {
 
 const emptyCompanies: Company[] = [];
 const emptyJobs: Job[] = [];
+const emptyRuns: IngestionRun[] = [];
+const emptyRoles: TargetRole[] = [];
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return "Never";
+  }
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return value;
+  }
+  return timestamp.toLocaleString();
+}
+
+function describeApiError(error: unknown, fallback: string): string {
+  if (!(error instanceof ApiError)) {
+    return fallback;
+  }
+  try {
+    const payload = JSON.parse(error.message) as { detail?: string };
+    return payload.detail || fallback;
+  } catch {
+    return error.message || fallback;
+  }
+}
 
 export default function CompaniesPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [selectedPortalId, setSelectedPortalId] = useState<string>("");
   const [companyForm, setCompanyForm] = useState(emptyCompany);
   const [portalForm, setPortalForm] = useState(emptyPortal);
   const [contactForm, setContactForm] = useState(emptyContact);
@@ -64,6 +91,11 @@ export default function CompaniesPage() {
   });
 
   const companies = companiesQuery.data ?? emptyCompanies;
+  const rolesQuery = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => api<TargetRole[]>("/roles"),
+  });
+  const roles = rolesQuery.data ?? emptyRoles;
 
   useEffect(() => {
     if (!companies.length) {
@@ -75,6 +107,16 @@ export default function CompaniesPage() {
     }
   }, [companies, selectedCompanyId]);
 
+  useEffect(() => {
+    if (!roles.length) {
+      setSelectedRoleId("");
+      return;
+    }
+    if (!selectedRoleId || !roles.some((role) => String(role.id) === selectedRoleId)) {
+      setSelectedRoleId(String(roles[0].id));
+    }
+  }, [roles, selectedRoleId]);
+
   const companyDetailQuery = useQuery({
     queryKey: ["company", selectedCompanyId],
     queryFn: () => api<CompanyDetail>(`/companies/${selectedCompanyId}`),
@@ -84,6 +126,11 @@ export default function CompaniesPage() {
   const linkedJobsQuery = useQuery({
     queryKey: ["company-jobs", selectedCompanyId],
     queryFn: () => api<Job[]>(`/jobs?company_id=${selectedCompanyId}`),
+    enabled: Boolean(selectedCompanyId),
+  });
+  const companyRunsQuery = useQuery({
+    queryKey: ["company-ingestion-runs", selectedCompanyId],
+    queryFn: () => api<IngestionRun[]>(`/companies/${selectedCompanyId}/ingestion-runs`),
     enabled: Boolean(selectedCompanyId),
   });
 
@@ -103,11 +150,15 @@ export default function CompaniesPage() {
   });
 
   const createPortalMutation = useMutation({
-    mutationFn: (payload: typeof emptyPortal) =>
-      api<CompanyPortal>(`/companies/${selectedCompanyId}/portals`, {
+    mutationFn: (payload: typeof emptyPortal) => {
+      if (!selectedCompanyId) {
+        throw new Error("No company selected");
+      }
+      return api<CompanyPortal>(`/companies/${selectedCompanyId}/portals`, {
         method: "POST",
         body: JSON.stringify(payload),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company", selectedCompanyId] });
       setPortalForm(emptyPortal);
@@ -117,11 +168,15 @@ export default function CompaniesPage() {
   });
 
   const createContactMutation = useMutation({
-    mutationFn: (payload: typeof emptyContact) =>
-      api<CompanyContact>(`/companies/${selectedCompanyId}/contacts`, {
+    mutationFn: (payload: typeof emptyContact) => {
+      if (!selectedCompanyId) {
+        throw new Error("No company selected");
+      }
+      return api<CompanyContact>(`/companies/${selectedCompanyId}/contacts`, {
         method: "POST",
         body: JSON.stringify(payload),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company", selectedCompanyId] });
       setContactForm(emptyContact);
@@ -129,13 +184,85 @@ export default function CompaniesPage() {
     },
     onError: () => pushToast({ title: "Failed to add contact", tone: "error" }),
   });
+  const resolvePortalsMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedCompanyId) {
+        throw new Error("No company selected");
+      }
+      return api<CompanyPortal[]>(`/companies/${selectedCompanyId}/resolve-portals`, { method: "POST" });
+    },
+    onSuccess: (portals) => {
+      queryClient.invalidateQueries({ queryKey: ["company", selectedCompanyId] });
+      if (!selectedPortalId && portals.length === 1) {
+        setSelectedPortalId(String(portals[0].id));
+      }
+      if (!portals.length) {
+        pushToast({ title: "No portals resolved from the current careers URL", tone: "info" });
+        return;
+      }
+      pushToast({ title: `Resolved ${portals.length} portal${portals.length === 1 ? "" : "s"}`, tone: "success" });
+    },
+    onError: (error) => pushToast({ title: describeApiError(error, "Failed to resolve portals"), tone: "error" }),
+  });
+  const scrapeCompanyMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedCompanyId) {
+        throw new Error("No company selected");
+      }
+      if (!selectedRoleId) {
+        throw new Error("No role selected");
+      }
+      return api<IngestionRun>(`/companies/${selectedCompanyId}/scrape-now`, {
+        method: "POST",
+        body: JSON.stringify({
+          role_id: Number(selectedRoleId),
+          ...(selectedPortalId ? { portal_id: Number(selectedPortalId) } : {}),
+        }),
+      });
+    },
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: ["company", selectedCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ["company-jobs", selectedCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ["company-ingestion-runs", selectedCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["ingestion-runs"] });
+      if (run.status === "failed") {
+        pushToast({
+          title: run.error_message ? `Company scrape failed: ${run.error_message.slice(0, 140)}` : "Company scrape failed",
+          tone: "error",
+        });
+        return;
+      }
+      if (run.discovered_count === 0) {
+        pushToast({ title: "Company scrape completed: 0 jobs found", tone: "info" });
+        return;
+      }
+      pushToast({ title: `Company scrape captured ${run.discovered_count} jobs`, tone: "success" });
+    },
+    onError: (error) => pushToast({ title: describeApiError(error, "Failed to scrape company jobs"), tone: "error" }),
+  });
 
   const detail = companyDetailQuery.data || null;
   const linkedJobs = linkedJobsQuery.data ?? emptyJobs;
+  const companyRuns = companyRunsQuery.data ?? emptyRuns;
+  const selectedRole = roles.find((role) => String(role.id) === selectedRoleId) || null;
+  const selectedPortal = detail?.portals.find((portal) => String(portal.id) === selectedPortalId) || null;
   const activeCompanyLabel = useMemo(
     () => companies.find((company) => company.id === selectedCompanyId)?.name || "No company selected",
     [companies, selectedCompanyId],
   );
+
+  useEffect(() => {
+    if (!detail?.portals.length) {
+      setSelectedPortalId("");
+      return;
+    }
+    if (selectedPortalId && detail.portals.some((portal) => String(portal.id) === selectedPortalId)) {
+      return;
+    }
+    setSelectedPortalId("");
+  }, [detail?.portals, selectedPortalId]);
 
   const handleCompanySubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -265,7 +392,7 @@ export default function CompaniesPage() {
                 {detail ? <Badge>{detail.normalized_name}</Badge> : null}
               </div>
               {detail ? (
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-3">
                   <div className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Core profile</p>
                     <p className="text-sm text-white">{detail.website_url || "No website set"}</p>
@@ -277,6 +404,59 @@ export default function CompaniesPage() {
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Linked jobs</p>
                     <p className="text-3xl font-semibold text-white">{linkedJobs.length}</p>
                     <p className="text-sm text-slate-400">Jobs matched to this company through manual import or role ingestion.</p>
+                  </div>
+                  <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Scrape controls</p>
+                      <p className="text-sm text-slate-300">Resolve canonical portals, choose a role policy, and ingest linked jobs.</p>
+                    </div>
+                    <select
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
+                      value={selectedRoleId}
+                      onChange={(event) => setSelectedRoleId(event.target.value)}
+                    >
+                      <option value="">Select role strategy</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
+                      value={selectedPortalId}
+                      onChange={(event) => setSelectedPortalId(event.target.value)}
+                    >
+                      <option value="">All company portals</option>
+                      {detail.portals.map((portal) => (
+                        <option key={portal.id} value={portal.id}>
+                          {portal.provider_kind} · {portal.board_token || portal.base_url || `Portal #${portal.id}`}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        disabled={!selectedCompanyId || resolvePortalsMutation.isPending}
+                        onClick={() => resolvePortalsMutation.mutate()}
+                        type="button"
+                        variant="secondary"
+                      >
+                        {resolvePortalsMutation.isPending ? "Resolving…" : "Resolve portals"}
+                      </Button>
+                      <Button
+                        disabled={!selectedCompanyId || !selectedRole || scrapeCompanyMutation.isPending}
+                        onClick={() => scrapeCompanyMutation.mutate()}
+                        type="button"
+                      >
+                        {scrapeCompanyMutation.isPending ? "Scraping…" : "Scrape jobs"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {selectedRole
+                        ? `Scoring will use ${selectedRole.name}.`
+                        : "Create a role strategy first so discovered jobs can be scored and routed correctly."}
+                      {selectedPortal ? ` Scraping is scoped to ${selectedPortal.provider_kind}.` : " Scraping will use every configured portal for this company."}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -321,12 +501,20 @@ export default function CompaniesPage() {
                       <div key={portal.id} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold text-white">{portal.provider_kind}</p>
-                          <Badge tone={portal.supports_structured_fetch ? "success" : "default"}>
-                            {portal.supports_structured_fetch ? "Structured" : "Manual"}
-                          </Badge>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge>{portal.health_status || "unknown"}</Badge>
+                            <Badge tone={portal.supports_structured_fetch ? "success" : "default"}>
+                              {portal.supports_structured_fetch ? "Structured" : "Manual"}
+                            </Badge>
+                          </div>
                         </div>
                         <p className="text-sm text-slate-300">{portal.base_url || "No base URL"}</p>
                         <p className="text-xs text-slate-500">{portal.board_token || "No board token"}</p>
+                        <p className="mt-2 text-xs text-slate-400">
+                          Last success: {formatTimestamp(portal.last_success_at)} · Last check: {formatTimestamp(portal.last_checked_at)} · Last jobs:{" "}
+                          {portal.last_job_count}
+                        </p>
+                        {portal.last_error ? <p className="mt-2 text-xs text-rose-300">{portal.last_error}</p> : null}
                       </div>
                     ))}
                   </div>
@@ -390,6 +578,42 @@ export default function CompaniesPage() {
                 )}
               </Card>
             </div>
+
+            <Card className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold text-white">Recent company scrape runs</h3>
+                <p className="text-sm text-slate-400">Company-scoped ingestion runs keep source identity and role policy attached before jobs land in the board.</p>
+              </div>
+              {companyRuns.length ? (
+                <div className="space-y-3">
+                  {companyRuns.slice(0, 6).map((run) => (
+                    <div key={run.id} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {run.trigger_kind === "company_portal_scrape" ? "Portal scrape" : "Company scrape"}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            Role #{run.role_id}
+                            {run.company_portal_id ? ` · Portal #${run.company_portal_id}` : " · All portals"}
+                          </p>
+                        </div>
+                        <Badge>{run.status}</Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">
+                        {run.discovered_count} discovered · {run.inserted_count} inserted · {run.updated_count} updated · {run.failed_count} failed
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Started {formatTimestamp(run.started_at)}{run.finished_at ? ` · Finished ${formatTimestamp(run.finished_at)}` : ""}
+                      </p>
+                      {run.error_message ? <p className="mt-2 text-sm text-rose-300">{run.error_message}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No company scrape runs yet" description="Resolve portals and run the first company scrape from this page." />
+              )}
+            </Card>
 
             <Card className="space-y-4">
               <div className="space-y-1">

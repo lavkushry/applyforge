@@ -21,6 +21,7 @@ from app.api.routes import (
 )
 from app.core.config import settings
 from app.core.observability import RequestContextMiddleware, configure_logging
+from app.db.runtime_migrations import ensure_runtime_schema_upgrades
 from app.db.session import Base, engine
 from app.models import entities  # noqa: F401
 from app.services.bootstrap import ensure_bootstrap_default_user
@@ -32,6 +33,7 @@ configure_logging()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema_upgrades(engine)
     Path(settings.storage_path).mkdir(parents=True, exist_ok=True)
     Path(settings.artifacts_path).mkdir(parents=True, exist_ok=True)
     from app.db.session import SessionLocal

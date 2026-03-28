@@ -3,8 +3,14 @@ from sqlalchemy.orm import Session
 from app.api.routes import companies as companies_routes
 from app.api.routes import jobs as jobs_routes
 from app.api.routes import roles as roles_routes
-from app.models.entities import Job, TargetRole
-from app.schemas.companies import CompanyContactCreate, CompanyCreate, CompanyPortalCreate, CompanyUpdate
+from app.models.entities import CompanyCareerPortal, Job, JobIngestionRun, TargetRole
+from app.schemas.companies import (
+    CompanyContactCreate,
+    CompanyCreate,
+    CompanyPortalCreate,
+    CompanyScrapeRequest,
+    CompanyUpdate,
+)
 from app.schemas.jobs import JobCreate
 from app.schemas.roles import TargetRoleIn, TargetRoleSourceIn
 
@@ -219,3 +225,126 @@ def test_role_ingestion_links_job_to_company_directory(db_session: Session, user
     job = db_session.query(Job).filter(Job.company == "Acme").first()
     assert job is not None
     assert job.company_id is not None
+
+
+def test_company_resolve_portals_creates_structured_greenhouse_portal(db_session: Session, user) -> None:
+    company = companies_routes.create_company(
+        CompanyCreate(
+            name="Acme",
+            website_url="https://acme.dev",
+            careers_url="https://boards.greenhouse.io/acme",
+            active=True,
+        ),
+        user,
+        db_session,
+    )
+
+    portals = companies_routes.resolve_company_portals(company.id, user, db_session)
+
+    assert len(portals) == 1
+    assert portals[0].provider_kind == "greenhouse"
+    assert portals[0].board_token == "acme"
+    assert portals[0].supports_structured_fetch is True
+    assert portals[0].resolution_metadata["resolved_from"] == "https://boards.greenhouse.io/acme"
+
+
+def test_company_scrape_run_tracks_company_and_portal_context(db_session: Session, user, profile, monkeypatch) -> None:
+    company = companies_routes.create_company(
+        CompanyCreate(
+            name="Acme",
+            website_url="https://acme.dev",
+            careers_url="https://boards.greenhouse.io/acme",
+            active=True,
+        ),
+        user,
+        db_session,
+    )
+    portal = companies_routes.create_company_portal(
+        company.id,
+        CompanyPortalCreate(
+            provider_kind="greenhouse",
+            base_url="https://boards.greenhouse.io/acme",
+            board_token="acme",
+            supports_structured_fetch=True,
+            notes="Canonical board",
+        ),
+        user,
+        db_session,
+    )
+    role = roles_routes.create_role(
+        TargetRoleIn(
+            name="Senior Platform Engineer",
+            aliases=["Platform Engineer"],
+            keywords=["python", "platform", "kubernetes"],
+            preferred_locations=["Remote"],
+            remote_preference="remote",
+            salary_target="$180k+",
+            visa_preference="no_sponsorship_needed",
+            seniority="senior",
+            companies_include=[],
+            companies_exclude=[],
+            scrape_cadence_minutes=15,
+            automation_enabled=True,
+            min_auto_apply_score=85,
+            active=True,
+            sources=[],
+        ),
+        user,
+        db_session,
+    )
+    role_row = db_session.query(TargetRole).filter(TargetRole.id == role.id).first()
+    assert role_row is not None
+
+    def fake_fetch_jobs_for_source(_source) -> list[dict]:
+        return [
+            {
+                "title": "Senior Platform Engineer",
+                "company": "Acme",
+                "location": "Remote",
+                "remote_type": "remote",
+                "salary": "$190,000",
+                "application_url": "https://jobs.acme.dev/platform",
+                "description": "Python Kubernetes platform automation and reliability engineering.",
+                "source": "greenhouse",
+                "source_metadata": {"source_label": "Acme"},
+            }
+        ]
+
+    monkeypatch.setattr("app.services.company_ingestion.fetch_jobs_for_source", fake_fetch_jobs_for_source)
+    monkeypatch.setattr("app.services.company_ingestion.dispatch_job_enrichment", lambda **_kwargs: "task-123")
+
+    run = companies_routes.scrape_company_jobs(
+        company.id,
+        CompanyScrapeRequest(role_id=role.id, portal_id=portal.id),
+        user,
+        db_session,
+    )
+    runs = companies_routes.list_company_ingestion_runs(company.id, user, db_session)
+
+    assert run.company_id == company.id
+    assert run.company_portal_id == portal.id
+    assert run.role_id == role.id
+    assert run.trigger_kind == "company_portal_scrape"
+    assert run.source_count == 1
+    assert run.discovered_count == 1
+    assert run.inserted_count == 1
+    assert len(runs) == 1
+    assert runs[0].id == run.id
+
+    stored_portal = db_session.query(CompanyCareerPortal).filter(CompanyCareerPortal.id == portal.id).first()
+    assert stored_portal is not None
+    assert stored_portal.last_run_id == run.id
+    assert stored_portal.last_job_count == 1
+    assert stored_portal.last_success_at is not None
+    assert stored_portal.last_error == ""
+
+    job = db_session.query(Job).filter(Job.company == "Acme").first()
+    assert job is not None
+    assert job.company_id == company.id
+    assert job.company_portal_id == portal.id
+    assert job.role_id == role.id
+
+    run_row = db_session.query(JobIngestionRun).filter(JobIngestionRun.id == run.id).first()
+    assert run_row is not None
+    assert run_row.company_id == company.id
+    assert run_row.company_portal_id == portal.id

@@ -317,7 +317,7 @@ def _expire_missing_jobs(db: Session, *, user_id: int, role: TargetRole, seen_de
 
 
 def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngestionRun:
-    run = JobIngestionRun(role_id=role.id, status="running")
+    run = JobIngestionRun(role_id=role.id, trigger_kind="role_scrape", status="running")
     db.add(run)
     db.flush()
     sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id, TargetRoleSource.enabled.is_(True)).all()

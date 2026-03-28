@@ -1,0 +1,19 @@
+-- ApplyForge Phase 1 company-ingestion schema reference.
+-- Runtime still applies compatible column upgrades on boot through
+-- `app.db.runtime_migrations.ensure_runtime_schema_upgrades`.
+--
+-- Intended columns:
+-- company_career_portals
+--   - last_success_at DATETIME NULL
+--   - last_error TEXT NOT NULL DEFAULT ''
+--   - last_job_count INTEGER NOT NULL DEFAULT 0
+--   - last_run_id INTEGER NULL
+--   - resolution_metadata JSON NOT NULL DEFAULT '{}'
+--
+-- job_ingestion_runs
+--   - company_id INTEGER NULL
+--   - company_portal_id INTEGER NULL
+--   - trigger_kind VARCHAR(40) NOT NULL DEFAULT 'role_scrape'
+--
+-- jobs
+--   - company_portal_id INTEGER NULL

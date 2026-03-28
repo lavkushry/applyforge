@@ -1,5 +1,6 @@
 from app.core.config import settings
 from app.core.security import hash_password
+from app.db.runtime_migrations import ensure_runtime_schema_upgrades
 from app.db.session import Base, SessionLocal, engine
 from app.models.entities import (
     Application,
@@ -25,6 +26,7 @@ from app.services.tailor import generate_cover_letter, tailor_resume
 
 def run() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema_upgrades(engine)
     db = SessionLocal()
     seed_resume_themes(db)
 

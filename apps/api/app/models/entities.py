@@ -139,6 +139,11 @@ class CompanyCareerPortal(TimestampMixin, Base):
     health_status: Mapped[str] = mapped_column(String(40), default="unknown")
     supports_structured_fetch: Mapped[bool] = mapped_column(Boolean, default=False)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    last_job_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_run_id: Mapped[int | None] = mapped_column(ForeignKey("job_ingestion_runs.id"), nullable=True)
+    resolution_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     notes: Mapped[str] = mapped_column(Text, default="")
 
 
@@ -199,6 +204,9 @@ class JobIngestionRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     role_id: Mapped[int] = mapped_column(ForeignKey("target_roles.id"))
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+    company_portal_id: Mapped[int | None] = mapped_column(ForeignKey("company_career_portals.id"), nullable=True)
+    trigger_kind: Mapped[str] = mapped_column(String(40), default="role_scrape")
     status: Mapped[str] = mapped_column(String(30), default="queued")
     source_count: Mapped[int] = mapped_column(Integer, default=0)
     discovered_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -220,6 +228,7 @@ class Job(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     source_id: Mapped[int | None] = mapped_column(ForeignKey("job_sources.id"), nullable=True)
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
+    company_portal_id: Mapped[int | None] = mapped_column(ForeignKey("company_career_portals.id"), nullable=True)
     role_id: Mapped[int | None] = mapped_column(ForeignKey("target_roles.id"), nullable=True)
     title: Mapped[str] = mapped_column(String(255))
     company: Mapped[str] = mapped_column(String(255))
