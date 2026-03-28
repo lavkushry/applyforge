@@ -83,7 +83,7 @@ def scrape_now(role_id: int, user: User = Depends(get_current_user), db: Session
 
 @router.get("/ingestion-runs", response_model=list[JobIngestionRunOut])
 def list_ingestion_runs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[JobIngestionRun]:
-    role_ids = [role.id for role in db.query(TargetRole.id).filter(TargetRole.user_id == user.id).all()]
+    role_ids = [role.id for role in db.query(TargetRole).filter(TargetRole.user_id == user.id).all()]
     if not role_ids:
         return []
     return (

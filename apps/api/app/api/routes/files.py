@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.entities import Resume, ResumeVersion, UploadedFile, User
 from app.schemas.applications import ExportResumePdfRequest
+from app.services.resume_themes import get_theme_by_id
 from app.services.files import render_resume_pdf
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -31,7 +32,15 @@ def export_resume_pdf(
     resume = db.query(Resume).filter(Resume.id == resume_version.resume_id, Resume.user_id == user.id).first()
     if not resume:
         raise HTTPException(status_code=404, detail="Resume version not found")
-    path = render_resume_pdf(resume_version.content_json)
+    theme = get_theme_by_id(db, resume_version.theme_id)
+    path = render_resume_pdf(
+        resume_version.content_json,
+        {
+            "slug": theme.slug,
+            "accent_color": theme.accent_color,
+            "metadata_json": theme.metadata_json,
+        },
+    )
     uploaded = UploadedFile(
         user_id=user.id,
         original_name=f"resume-version-{resume_version.id}.pdf",
@@ -41,5 +50,6 @@ def export_resume_pdf(
     db.add(uploaded)
     db.flush()
     resume_version.pdf_file_id = uploaded.id
+    resume_version.export_status = "exported"
     db.commit()
     return {"file_id": uploaded.id, "path": path}

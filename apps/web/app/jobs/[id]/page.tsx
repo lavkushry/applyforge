@@ -23,13 +23,18 @@ export default function JobDetailPage() {
     queryFn: () => api<Job>(`/jobs/${id}`),
     enabled: Boolean(session.user),
   });
+  const eligibilityQuery = useQuery({
+    queryKey: ["job-eligibility", id],
+    queryFn: () => api<Record<string, unknown>>(`/jobs/${id}/eligibility`),
+    enabled: Boolean(session.user),
+  });
 
   const scoreMutation = useMutation({
     mutationFn: () => api<JobScore>(`/jobs/${id}/score`, { method: "POST" }),
     onSuccess: () => pushToast({ title: "Job scored", tone: "success" }),
   });
   const tailorMutation = useMutation({
-    mutationFn: () => api<ResumeVersion>(`/jobs/${id}/tailor`, { method: "POST" }),
+    mutationFn: () => api<ResumeVersion>(`/jobs/${id}/tailor`, { method: "POST", body: JSON.stringify({ ats_mode: true }) }),
     onSuccess: () => pushToast({ title: "Tailored resume generated", tone: "success" }),
   });
   const coverLetterMutation = useMutation({
@@ -60,6 +65,11 @@ export default function JobDetailPage() {
                 <p className="text-lg font-semibold text-white">{job.company}</p>
                 <p className="text-sm text-slate-300">{job.location || "Location not provided"}</p>
                 <p className="text-sm text-slate-400">{job.salary || "Salary not specified"}</p>
+                {job.application_url ? (
+                  <a className="text-sm text-cyan-300" href={job.application_url} rel="noreferrer" target="_blank">
+                    Open source application
+                  </a>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-white">Description</h2>
@@ -95,6 +105,15 @@ export default function JobDetailPage() {
                 <Link href={`/cover-letters/${id}`} className="text-sm text-cyan-300">
                   Cover letter
                 </Link>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm text-slate-300">
+                  Latest score: <span className="font-medium text-white">{Math.round(job.latest_score || 0)}</span>
+                </p>
+                <p className="text-sm text-slate-300">
+                  Eligibility: <span className="font-medium text-white">{String(eligibilityQuery.data?.reason || "Pending")}</span>
+                </p>
               </div>
 
               <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">

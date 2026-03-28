@@ -10,10 +10,11 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import type { Job } from "@/lib/types";
+import type { Job, TargetRole } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
 const schema = z.object({
+  role_id: z.string().default(""),
   title: z.string().min(2),
   company: z.string().min(2),
   location: z.string().optional(),
@@ -24,7 +25,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function JobCreateForm({ onCreated }: { onCreated: (job: Job) => void }) {
+export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => void; roles: TargetRole[] }) {
   const pushToast = useAppStore((state) => state.pushToast);
   const {
     register,
@@ -34,6 +35,7 @@ export function JobCreateForm({ onCreated }: { onCreated: (job: Job) => void }) 
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      role_id: "",
       title: "Senior Full Stack Engineer",
       company: "Nimbus AI",
       location: "Remote, US",
@@ -50,6 +52,7 @@ export function JobCreateForm({ onCreated }: { onCreated: (job: Job) => void }) 
         method: "POST",
         body: JSON.stringify({
           ...values,
+          role_id: values.role_id ? Number(values.role_id) : null,
           remote_type: values.location?.toLowerCase().includes("remote") ? "remote" : "unknown",
           source: "manual",
           seniority: "",
@@ -73,6 +76,20 @@ export function JobCreateForm({ onCreated }: { onCreated: (job: Job) => void }) 
         <CardDescription>Paste a job description or capture a role you found elsewhere.</CardDescription>
       </div>
       <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
+        <div className="space-y-2">
+          <label className="text-sm text-slate-300">Role strategy</label>
+          <select
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
+            {...register("role_id")}
+          >
+            <option value="">No linked role</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-2">
           <label className="text-sm text-slate-300">Role</label>
           <Input {...register("title")} />

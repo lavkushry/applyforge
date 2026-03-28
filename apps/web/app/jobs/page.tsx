@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { JobCreateForm } from "@/components/forms/job-create-form";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -13,13 +14,36 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import type { Job } from "@/lib/types";
+import type { Job, JobFeedEvent, TargetRole } from "@/lib/types";
+import { useAppStore } from "@/store/app-store";
 
 export default function JobsPage() {
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const session = useSession();
   const queryClient = useQueryClient();
-  const jobsQuery = useQuery({ queryKey: ["jobs"], queryFn: () => api<Job[]>("/jobs"), enabled: Boolean(session.user) });
+  const pushToast = useAppStore((state) => state.pushToast);
+  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: () => api<TargetRole[]>("/roles"), enabled: Boolean(session.user) });
+  const jobsQuery = useQuery({
+    queryKey: ["jobs", roleFilter],
+    queryFn: () => api<Job[]>(roleFilter ? `/jobs?role_id=${roleFilter}` : "/jobs"),
+    enabled: Boolean(session.user),
+  });
+  const feedQuery = useQuery({
+    queryKey: ["jobs-feed", roleFilter],
+    queryFn: () => api<JobFeedEvent[]>(roleFilter ? `/jobs/feed?role_id=${roleFilter}` : "/jobs/feed"),
+    enabled: Boolean(session.user),
+    refetchInterval: 20000,
+  });
+  const scrapeMutation = useMutation({
+    mutationFn: (roleId: number) => api(`/roles/${roleId}/scrape-now`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      pushToast({ title: "Role scrape completed", tone: "success" });
+    },
+    onError: () => pushToast({ title: "Role scrape failed", tone: "error" }),
+  });
 
   const filtered = useMemo(() => {
     const jobs = jobsQuery.data || [];
@@ -35,25 +59,88 @@ export default function JobsPage() {
     );
   }, [jobsQuery.data, search]);
 
+  const roles = rolesQuery.data || [];
+  const feed = feedQuery.data || [];
+  const selectedRole = roles.find((role) => String(role.id) === roleFilter) || null;
+
   return (
     <ProtectedPage>
       <section className="space-y-6">
         <PageHeader
           eyebrow="Discovery"
           title="Job pipeline"
-          description="Import opportunities, keep them normalized, and move the best matches into tailored application flows."
+          description="Track a live role-based job feed, link scraped jobs back to sources, and move the best matches into tailored application flows."
         />
         <JobCreateForm
+          roles={roles}
           onCreated={(job) => {
-            queryClient.setQueryData<Job[]>(["jobs"], (current) => [job, ...(current || [])]);
+            queryClient.setQueryData<Job[]>(["jobs", roleFilter], (current) => [job, ...(current || [])]);
           }}
         />
 
         <Card className="space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <h2 className="text-xl font-semibold text-white">Tracked jobs</h2>
-            <div className="w-full max-w-sm">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-white">Live feed</h2>
+              <p className="text-sm text-slate-400">Polling every 20 seconds for fresh role-linked activity.</p>
+            </div>
+            <div className="flex w-full max-w-2xl flex-col gap-3 lg:flex-row">
+              <select
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 lg:max-w-xs"
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+              >
+                <option value="">All roles</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search role, company, or tags" />
+              <Button
+                disabled={!selectedRole || scrapeMutation.isPending}
+                onClick={() => selectedRole && scrapeMutation.mutate(selectedRole.id)}
+                variant="secondary"
+              >
+                {scrapeMutation.isPending ? "Running…" : "Scrape selected role"}
+              </Button>
+            </div>
+          </div>
+          {feed.length ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {feed.slice(0, 8).map((event) => (
+                <Card key={event.id} className="space-y-3 border-white/5 bg-slate-950/60">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{event.job?.title || "Job update"}</p>
+                      <p className="text-sm text-slate-400">{event.role_name || "Unassigned role"}</p>
+                    </div>
+                    <Badge>{event.event_type}</Badge>
+                  </div>
+                  <p className="text-sm text-slate-300">{event.job?.company || "Unknown company"}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {event.job?.application_url ? (
+                      <a className="text-sm text-cyan-300" href={event.job.application_url} rel="noreferrer" target="_blank">
+                        Source link
+                      </a>
+                    ) : null}
+                    {event.job?.latest_score ? <Badge tone="success">{Math.round(event.job.latest_score)} match</Badge> : null}
+                    {event.job?.latest_recommendation ? <Badge>{event.job.latest_recommendation}</Badge> : null}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No feed events yet" description="Create a role with a scrape source or add jobs manually." />
+          )}
+        </Card>
+
+        <Card className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <h2 className="text-xl font-semibold text-white">Tracked jobs</h2>
+            <div className="flex items-center gap-2">
+              {selectedRole ? <Badge>{selectedRole.name}</Badge> : <Badge tone="default">All roles</Badge>}
             </div>
           </div>
           {filtered.length ? (
@@ -66,7 +153,10 @@ export default function JobsPage() {
                         <h3 className="text-lg font-semibold text-white">{job.title}</h3>
                         <p className="text-sm text-slate-300">{job.company}</p>
                       </div>
-                      <Badge>{job.remote_type}</Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge>{job.remote_type}</Badge>
+                        {job.latest_score ? <Badge tone="success">{Math.round(job.latest_score)} match</Badge> : null}
+                      </div>
                     </div>
                     <p className="text-sm text-slate-400">{job.location || "Location not provided"}</p>
                     <p className="text-sm text-slate-300">{job.description.slice(0, 180)}…</p>

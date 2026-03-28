@@ -32,6 +32,7 @@ export type CandidateProfile = {
 export type Job = {
   id: number;
   user_id: number;
+  role_id: number | null;
   title: string;
   company: string;
   location: string;
@@ -47,6 +48,13 @@ export type Job = {
   tags: string[];
   stack_tags: string[];
   domain_tags: string[];
+  source_metadata: Record<string, unknown>;
+  latest_score: number;
+  latest_recommendation: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  expired_at: string | null;
+  active: boolean;
   dedupe_key: string;
   created_at: string;
 };
@@ -54,6 +62,7 @@ export type Job = {
 export type JobScore = {
   id: number;
   job_id: number;
+  role_id: number | null;
   overall_score: number;
   score_breakdown: Record<string, number>;
   missing_skills: string[];
@@ -67,10 +76,119 @@ export type ResumeVersion = {
   id: number;
   resume_id: number;
   job_id: number | null;
+  theme_id: number | null;
   title: string;
   variant: string;
+  theme_variant: string;
+  ats_mode: boolean;
   content_json: Record<string, unknown>;
+  diff_metadata: Record<string, unknown>;
+  export_status: string;
   pdf_file_id: number | null;
+  created_at: string;
+};
+
+export type ResumeTheme = {
+  id: number;
+  slug: string;
+  label: string;
+  description: string;
+  accent_color: string;
+  layout_mode: string;
+  is_ats_safe: boolean;
+  metadata_json: Record<string, unknown>;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResumePreview = {
+  theme: ResumeTheme;
+  blocks: Array<{ title: string; lines: string[] }>;
+};
+
+export type TargetRoleSource = {
+  id: number;
+  role_id: number;
+  kind: string;
+  label: string;
+  base_url: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  last_checked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TargetRole = {
+  id: number;
+  user_id: number;
+  name: string;
+  aliases: string[];
+  keywords: string[];
+  preferred_locations: string[];
+  remote_preference: string;
+  salary_target: string;
+  visa_preference: string;
+  seniority: string;
+  companies_include: string[];
+  companies_exclude: string[];
+  scrape_cadence_minutes: number;
+  automation_enabled: boolean;
+  min_auto_apply_score: number;
+  active: boolean;
+  sources: TargetRoleSource[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobFeedEvent = {
+  id: number;
+  role_id: number;
+  role_name: string;
+  job_id: number;
+  run_id: number | null;
+  event_type: string;
+  event_metadata: Record<string, unknown>;
+  created_at: string;
+  job: Job | null;
+};
+
+export type IngestionRun = {
+  id: number;
+  role_id: number;
+  status: string;
+  source_count: number;
+  discovered_count: number;
+  inserted_count: number;
+  updated_count: number;
+  error_message: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type InboxConnection = {
+  id: number;
+  user_id: number;
+  provider: string;
+  email: string;
+  status: string;
+  scopes: string[];
+  token_masked: string;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InboxOtpEvent = {
+  id: number;
+  connection_id: number;
+  run_id: number | null;
+  status: string;
+  sender: string;
+  subject_masked: string;
+  code_last4: string;
+  error_message: string;
   created_at: string;
 };
 
@@ -100,11 +218,13 @@ export type Application = {
 export type ApplicationRun = {
   id: number;
   application_id: number;
+  role_id: number | null;
   mode: string;
   status: string;
   current_step: string;
   external_task_id: string;
   error_message: string;
+  policy_snapshot: Record<string, unknown>;
   started_at: string;
   finished_at: string | null;
 };
@@ -114,8 +234,11 @@ export type ApplicationStep = {
   run_id: number;
   name: string;
   status: string;
+  step_kind: string;
+  requires_approval: boolean;
   screenshot_file_id: number | null;
   output: Record<string, unknown>;
+  masked_output: Record<string, unknown>;
   retry_count: number;
   started_at: string;
   completed_at: string | null;

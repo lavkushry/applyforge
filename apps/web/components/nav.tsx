@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +14,7 @@ const links = [
   ["Dashboard", "/dashboard"],
   ["Resume", "/resume"],
   ["Profile", "/profile"],
+  ["Roles", "/roles"],
   ["Jobs", "/jobs"],
   ["Applications", "/applications"],
   ["Settings", "/settings"],
@@ -30,7 +32,7 @@ export function Nav() {
         {links.map(([label, href]) => (
           <Link
             key={href}
-            href={href}
+            href={href as Route}
             className={cn(
               "rounded-full border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/40 hover:text-white",
             )}

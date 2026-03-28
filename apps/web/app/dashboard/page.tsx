@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import type { Application, CandidateProfile, Job } from "@/lib/types";
+import type { Application, CandidateProfile, Job, JobFeedEvent, TargetRole } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -21,6 +21,8 @@ export default function DashboardPage() {
     queryFn: () => api<Application[]>("/applications"),
     enabled: Boolean(session.user),
   });
+  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: () => api<TargetRole[]>("/roles"), enabled: Boolean(session.user) });
+  const feedQuery = useQuery({ queryKey: ["jobs-feed"], queryFn: () => api<JobFeedEvent[]>("/jobs/feed"), enabled: Boolean(session.user) });
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
@@ -36,6 +38,8 @@ export default function DashboardPage() {
 
   const jobs = jobsQuery.data || [];
   const applications = applicationsQuery.data || [];
+  const roles = rolesQuery.data || [];
+  const feed = feedQuery.data || [];
 
   return (
     <ProtectedPage>
@@ -49,9 +53,9 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           <StatCard label="Jobs tracked" value={String(jobs.length)} hint="Normalized opportunities across your active search." />
           <StatCard
-            label="Applications"
-            value={String(applications.length)}
-            hint="Runs, statuses, and review checkpoints captured in one board."
+            label="Role strategies"
+            value={String(roles.length)}
+            hint="Each role drives scraping, scoring thresholds, and automation policy."
           />
           <StatCard
             label="Profile status"
@@ -103,10 +107,8 @@ export default function DashboardPage() {
                 profileQuery.data
                   ? "Profile is loaded. Parse a fresher resume if your experience has changed."
                   : "Upload a resume and create your canonical candidate profile.",
-                jobs.length ? "Generate scores for newly added jobs and inspect fit explanations." : "Import jobs from URLs or pasted descriptions.",
-                applications.length
-                  ? "Open a paused run to review risky questions before submit."
-                  : "Prepare an application run after tailoring a resume.",
+                roles.length ? `You have ${roles.length} role strategies. Run a scrape to refresh the feed.` : "Create your first role strategy before running a scrape.",
+                feed.length ? `Feed has ${feed.length} recent events. Review fresh matches from the jobs page.` : "No feed activity yet. Attach a scrape source to a role.",
               ].map((item) => (
                 <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
                   {item}
@@ -114,6 +116,11 @@ export default function DashboardPage() {
               ))}
             </div>
           </Card>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <StatCard label="Applications" value={String(applications.length)} hint="Runs, statuses, and review checkpoints captured in one board." />
+          <StatCard label="Feed events" value={String(feed.length)} hint="Recent discoveries and updates across your active role strategies." />
         </div>
       </section>
     </ProtectedPage>

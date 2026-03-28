@@ -9,12 +9,15 @@ from app.models.entities import (
     CandidateProfile,
     Job,
     JobScore,
+    ResumeTheme,
     Resume,
     ResumeVersion,
     Setting,
+    TargetRole,
     User,
 )
 from app.services.job_normalizer import normalize_job_payload
+from app.services.resume_themes import seed_resume_themes
 from app.services.scoring import score_job
 from app.services.tailor import generate_cover_letter, tailor_resume
 
@@ -22,6 +25,7 @@ from app.services.tailor import generate_cover_letter, tailor_resume
 def run() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
+    seed_resume_themes(db)
 
     user = db.query(User).filter(User.email == "demo@applyforge.dev").first()
     if not user:
@@ -83,9 +87,26 @@ def run() -> None:
         db.refresh(resume)
 
     if db.query(Job).filter(Job.user_id == user.id).count() == 0:
+        role = db.query(TargetRole).filter(TargetRole.user_id == user.id, TargetRole.name == "Senior Full Stack Engineer").first()
+        if not role:
+            role = TargetRole(
+                user_id=user.id,
+                name="Senior Full Stack Engineer",
+                aliases=["Full Stack Engineer", "Staff Engineer"],
+                keywords=["python", "fastapi", "react", "typescript", "ai"],
+                preferred_locations=["remote", "india"],
+                remote_preference="remote",
+                seniority="senior",
+                automation_enabled=True,
+                min_auto_apply_score=80.0,
+            )
+            db.add(role)
+            db.commit()
+            db.refresh(role)
         seed_jobs = [
             normalize_job_payload(
                 {
+                    "role_id": role.id,
                     "title": "Senior Full Stack Engineer",
                     "company": "Nimbus AI",
                     "location": "Remote, US",
@@ -102,6 +123,7 @@ def run() -> None:
             ),
             normalize_job_payload(
                 {
+                    "role_id": role.id,
                     "title": "Platform Engineer",
                     "company": "Atlas Cloud",
                     "location": "Hybrid - Bengaluru",
@@ -121,6 +143,7 @@ def run() -> None:
         db.commit()
 
     jobs = db.query(Job).filter(Job.user_id == user.id).all()
+    default_theme = db.query(ResumeTheme).filter(ResumeTheme.slug == "classic-ats-light").first()
     for job in jobs:
         if not db.query(JobScore).filter(JobScore.job_id == job.id).first():
             score_payload = score_job(
@@ -136,6 +159,7 @@ def run() -> None:
                     "location": job.location,
                     "remote_type": job.remote_type,
                     "seniority": job.seniority,
+                    "salary": job.salary,
                     "tags": job.tags,
                 },
             )
@@ -162,9 +186,12 @@ def run() -> None:
                 ResumeVersion(
                     resume_id=resume.id,
                     job_id=job.id,
+                    theme_id=default_theme.id if default_theme else None,
                     title=f"{job.company} - {job.title}",
                     variant="tailored",
                     content_json=tailored,
+                    theme_variant=default_theme.slug if default_theme else "classic-ats-light",
+                    export_status="ready",
                 )
             )
 
@@ -209,6 +236,7 @@ def run() -> None:
             [
                 Setting(user_id=user.id, key="automation_preferences", value={"mode": "assisted", "pause_on_risk": True}),
                 Setting(user_id=user.id, key="job_filters", value={"remote_only": False, "keyword_focus": ["python", "ai"]}),
+                Setting(user_id=user.id, key="resume_preferences", value={"default_theme": "classic-ats-light", "ats_mode": True}),
             ]
         )
         db.commit()

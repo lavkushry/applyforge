@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.automation.engine import StepEngine
 from app.db.session import get_db
-from app.models.entities import Application, ApplicationRun, ApplicationStatus, CandidateProfile, Job, User
+from app.models.entities import Application, ApplicationRun, ApplicationStatus, CandidateProfile, Job, TargetRole, User
 from app.schemas.applications import ApplicationOut, ApplicationRunOut
 from app.services.tailor import detect_risky_question, generate_application_answer
 
@@ -26,6 +26,12 @@ def _get_profile(user_id: int, db: Session) -> CandidateProfile | None:
     return db.query(CandidateProfile).filter(CandidateProfile.user_id == user_id).first()
 
 
+def _get_role(job: Job, user_id: int, db: Session) -> TargetRole | None:
+    if not job.role_id:
+        return None
+    return db.query(TargetRole).filter(TargetRole.id == job.role_id, TargetRole.user_id == user_id).first()
+
+
 @router.post("/{job_id}/prepare", response_model=ApplicationOut)
 def prepare(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Application:
     if not db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first():
@@ -39,18 +45,35 @@ def run_assisted(job_id: int, user: User = Depends(get_current_user), db: Sessio
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     application = _ensure_application(job_id, user.id, db)
-    run = ApplicationRun(application_id=application.id, mode="assisted", status="running")
+    role = _get_role(job, user.id, db)
+    run = ApplicationRun(
+        application_id=application.id,
+        role_id=role.id if role else None,
+        mode="assisted",
+        status="running",
+        policy_snapshot={
+            "role_name": role.name if role else "",
+            "automation_enabled": role.automation_enabled if role else False,
+            "min_auto_apply_score": role.min_auto_apply_score if role else 85.0,
+        },
+    )
     db.add(run)
     db.flush()
     application.latest_run_id = run.id
     db.commit()
     db.refresh(run)
     engine = StepEngine(db, run)
-    engine.log_step("open_application_url", "completed", {"url": job.application_url})
-    engine.log_step("fill_contact_fields", "completed", {"email": user.email})
+    engine.log_step("open_application_url", "completed", {"url": job.application_url}, step_kind="navigation")
+    engine.log_step("fill_contact_fields", "completed", {"email": user.email}, step_kind="form_fill")
     risk = detect_risky_question("Confirm salary expectations and visa status before submit")
-    engine.log_step("risk_review", "paused", risk)
-    engine.log_step("pause_before_submit", "paused", {"requires_user_approval": True})
+    engine.log_step("risk_review", "paused", risk, step_kind="risk_review", requires_approval=True)
+    engine.log_step(
+        "pause_before_submit",
+        "paused",
+        {"requires_user_approval": True},
+        step_kind="approval_gate",
+        requires_approval=True,
+    )
     engine.complete("paused")
     return run
 
@@ -61,7 +84,20 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     application = _ensure_application(job_id, user.id, db)
-    run = ApplicationRun(application_id=application.id, mode="auto", status="running")
+    role = _get_role(job, user.id, db)
+    threshold = role.min_auto_apply_score if role else 85.0
+    run = ApplicationRun(
+        application_id=application.id,
+        role_id=role.id if role else None,
+        mode="auto",
+        status="running",
+        policy_snapshot={
+            "role_name": role.name if role else "",
+            "automation_enabled": role.automation_enabled if role else False,
+            "min_auto_apply_score": threshold,
+            "latest_score": job.latest_score,
+        },
+    )
     db.add(run)
     db.flush()
     application.latest_run_id = run.id
@@ -69,7 +105,17 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
     db.refresh(run)
     engine = StepEngine(db, run)
     profile = _get_profile(user.id, db)
-    engine.log_step("open_application_url", "completed", {"url": job.application_url})
+    engine.log_step("open_application_url", "completed", {"url": job.application_url}, step_kind="navigation")
+    if not role or not role.automation_enabled or job.latest_score < threshold:
+        engine.log_step(
+            "auto_apply_policy_gate",
+            "paused",
+            {"reason": "Role automation disabled or score below threshold", "latest_score": job.latest_score},
+            step_kind="approval_gate",
+            requires_approval=True,
+        )
+        engine.complete("paused")
+        return run
     answer = generate_application_answer(
         "What is your work authorization status?",
         {
@@ -78,12 +124,18 @@ def run_auto(job_id: int, user: User = Depends(get_current_user), db: Session = 
             "links": profile.links if profile else [],
         },
     )
-    engine.log_step("answer_common_questions", "completed", answer)
+    engine.log_step("answer_common_questions", "completed", answer, step_kind="question_answering")
     if answer["requires_review"]:
-        engine.log_step("pause_before_submit", "paused", {"reason": "Unknown work authorization answer"})
+        engine.log_step(
+            "pause_before_submit",
+            "paused",
+            {"reason": "Unknown work authorization answer"},
+            step_kind="approval_gate",
+            requires_approval=True,
+        )
         engine.complete("paused")
     else:
-        engine.log_step("submit_application", "completed", {"submitted": False, "mode": "skeleton"})
+        engine.log_step("submit_application", "completed", {"submitted": False, "mode": "skeleton"}, step_kind="submission")
         engine.complete("completed")
     return run
 

@@ -28,6 +28,16 @@ export default function AdminPage() {
     queryFn: () => api<Array<Record<string, unknown>>>("/admin/prompt-logs"),
     enabled,
   });
+  const ingestionQuery = useQuery({
+    queryKey: ["ingestion-runs"],
+    queryFn: () => api<Array<Record<string, unknown>>>("/admin/ingestion-runs"),
+    enabled,
+  });
+  const otpQuery = useQuery({
+    queryKey: ["otp-events"],
+    queryFn: () => api<Array<Record<string, unknown>>>("/admin/otp-events"),
+    enabled,
+  });
   const healthQuery = useQuery({ queryKey: ["health"], queryFn: () => api<HealthStatus>("/admin/health"), enabled });
 
   return (
@@ -73,6 +83,21 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold text-white">Prompt logs</h2>
             <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
               {JSON.stringify(logsQuery.data || [], null, 2)}
+            </pre>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold text-white">Ingestion runs</h2>
+            <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {JSON.stringify(ingestionQuery.data || [], null, 2)}
+            </pre>
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold text-white">OTP events</h2>
+            <pre className="overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
+              {JSON.stringify(otpQuery.data || [], null, 2)}
             </pre>
           </Card>
         </div>
