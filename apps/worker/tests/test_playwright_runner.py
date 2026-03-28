@@ -14,6 +14,7 @@ sys.modules.setdefault("playwright", playwright_module)
 sys.modules["playwright.sync_api"] = sync_api_module
 
 from app.field_adapters import resolve_field_action
+from app.persistence import estimate_retry_backoff_seconds, merge_retry_metadata
 from app.playwright_runner import classify_required_fields, detect_manual_challenge_signals
 
 
@@ -141,3 +142,32 @@ def test_resolve_field_action_normalizes_date_answers() -> None:
     assert action is not None
     assert action["type"] == "fill"
     assert action["value"] == "2026-04-15"
+
+
+def test_merge_retry_metadata_keeps_latest_attempt_and_history_window() -> None:
+    metadata = {}
+    for index in range(12):
+        metadata = merge_retry_metadata(
+            metadata,
+            {
+                "event": "retry_scheduled",
+                "attempt_count": index + 1,
+                "retry_count": index,
+                "max_retries": 3,
+                "task_id": f"task-{index}",
+                "timestamp": f"2026-03-28T00:00:{index:02d}Z",
+                "next_retry_delay_seconds": 2,
+            },
+        )
+
+    assert metadata["attempt_count"] == 12
+    assert metadata["max_retries"] == 3
+    assert metadata["task_id"] == "task-11"
+    assert len(metadata["history"]) == 10
+
+
+def test_estimate_retry_backoff_seconds_caps_growth() -> None:
+    assert estimate_retry_backoff_seconds(0) == 1
+    assert estimate_retry_backoff_seconds(1) == 2
+    assert estimate_retry_backoff_seconds(5) == 32
+    assert estimate_retry_backoff_seconds(7) == 60

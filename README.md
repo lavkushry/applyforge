@@ -195,6 +195,8 @@ In the web app:
 
 ## Documentation Map
 
+- [docs/LOCAL_DOCKER.md](/home/ems/applyforge/docs/LOCAL_DOCKER.md): local full-stack Docker startup, seed flow, smoke checks, and troubleshooting
+- [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md): deployment topology, env setup, smoke checks, and rollout caveats
 - [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md): current product requirements and invariants
 - [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md): runtime and data-flow architecture
 - [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md): fast orientation guide for future sessions

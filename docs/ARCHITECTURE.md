@@ -72,6 +72,13 @@ Those subsystems share one product invariant: the canonical candidate profile is
   - certifications
   - links
 - `candidate_profiles` remains fact-locked and authoritative
+- the web profile editor now exposes section-based editing for:
+  - experience
+  - projects
+  - education
+  - certifications
+  - links
+  - apply-critical preferences and saved answers
 - profile settings persist:
   - automation preferences
   - job filters
@@ -175,6 +182,7 @@ Those subsystems share one product invariant: the canonical candidate profile is
 - worker writes directly into shared database and file storage
 - `RunRecorder` persists step rows and status changes
 - screenshots are persisted as `uploaded_files`
+- application runs now persist retry and backoff history directly on the run record
 - application runner currently supports:
   - navigation
   - common text fields
@@ -264,6 +272,7 @@ Primary tables:
 - dedupe keys protect discovery from duplicate inserts
 - diagnostics expose enrichment retry and run retry controls
 - request IDs and structured logs improve API and worker traceability
+- run history now exposes screenshot evidence and retry metadata to the operator UI
 - provider tokens and OTPs stay masked or encrypted
 - worker evidence remains durable after partial failure
 

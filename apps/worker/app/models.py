@@ -52,6 +52,7 @@ class JobIngestionRun(Base):
     failed_count: Mapped[int] = mapped_column(Integer, default=0)
     expired_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str] = mapped_column(Text, default="")
+    retry_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -134,6 +135,7 @@ class ApplicationRun(Base):
     error_message: Mapped[str] = mapped_column(Text, default="")
     policy_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
     prepared_payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    retry_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

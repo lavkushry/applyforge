@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -13,6 +14,8 @@ import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
 import type { ApplicationRun, RunDetail } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 export default function RunViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +79,14 @@ export default function RunViewPage() {
                   ) : null}
                 </div>
                 <p className="mt-3 text-sm text-slate-300">Task ID: {run.run.external_task_id || "Not dispatched"}</p>
+                {typeof run.run.retry_metadata?.attempt_count === "number" ? (
+                  <p className="mt-2 text-sm text-slate-300">
+                    Attempts {String(run.run.retry_metadata.attempt_count)} / {String(run.run.retry_metadata.max_retries ?? 0)}
+                    {run.run.retry_metadata.last_retry_delay_seconds
+                      ? ` · last backoff ${String(run.run.retry_metadata.last_retry_delay_seconds)}s`
+                      : ""}
+                  </p>
+                ) : null}
                 {run.run.error_message ? <p className="mt-2 text-sm text-rose-300">{run.run.error_message}</p> : null}
               </div>
               {handoffSteps.length ? (
@@ -118,14 +129,21 @@ export default function RunViewPage() {
                     </Badge>
                   </div>
                   {step.screenshot_file_id ? (
-                    <a
-                      className="mt-3 inline-flex text-sm text-cyan-300"
-                      href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/files/${step.screenshot_file_id}`}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Open screenshot
-                    </a>
+                    <div className="mt-3 space-y-3">
+                      <a
+                        className="inline-flex text-sm text-cyan-300"
+                        href={`${API_BASE}/files/${step.screenshot_file_id}`}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Open screenshot
+                      </a>
+                      <img
+                        alt={`${step.name} screenshot`}
+                        className="max-h-80 w-full rounded-2xl border border-white/10 object-cover"
+                        src={`${API_BASE}/files/${step.screenshot_file_id}`}
+                      />
+                    </div>
                   ) : null}
                   <pre className="mt-3 overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
                     {JSON.stringify(

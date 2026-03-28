@@ -22,6 +22,8 @@ import type {
 } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 type PromptLog = {
   id: number;
   action: string;
@@ -155,6 +157,14 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <p className="mt-3 text-sm text-slate-300">Step: {run.current_step}</p>
+                    {typeof run.retry_metadata?.attempt_count === "number" ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Attempts {String(run.retry_metadata.attempt_count)} / {String(run.retry_metadata.max_retries ?? 0) || "0"}
+                        {run.retry_metadata.last_retry_delay_seconds
+                          ? ` · last backoff ${String(run.retry_metadata.last_retry_delay_seconds)}s`
+                          : ""}
+                      </p>
+                    ) : null}
                     {run.error_message ? <p className="mt-1 text-sm text-amber-200">{run.error_message}</p> : null}
                     {run.external_task_id ? (
                       <p className="mt-1 text-xs text-slate-500">Task: {run.external_task_id}</p>
@@ -218,6 +228,19 @@ export default function AdminPage() {
                   </div>
                   <p className="mt-2 text-sm font-medium text-white">{step.name}</p>
                   <p className="mt-2 text-sm text-slate-300">{String(step.output.reason || step.output.error || "Manual review required")}</p>
+                  {step.retry_count ? (
+                    <p className="mt-1 text-xs text-slate-500">Retry attempt {step.retry_count}</p>
+                  ) : null}
+                  {step.screenshot_file_id ? (
+                    <a
+                      className="mt-2 inline-flex text-sm text-cyan-300"
+                      href={`${API_BASE}/files/${step.screenshot_file_id}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open screenshot
+                    </a>
+                  ) : null}
                 </div>
               ))}
               {!stepErrors.length ? <EmptyState title="No paused or failed steps" description="Recent run steps look clean." /> : null}

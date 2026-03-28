@@ -15,6 +15,28 @@ def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def estimate_retry_backoff_seconds(retry_count: int) -> int:
+    return min(60, max(1, 2 ** max(0, retry_count)))
+
+
+def merge_retry_metadata(existing: dict | None, event: dict) -> dict:
+    metadata = dict(existing or {})
+    history = list(metadata.get("history", []))
+    history.append(event)
+    metadata["history"] = history[-10:]
+    metadata["attempt_count"] = max(int(metadata.get("attempt_count", 0)), int(event.get("attempt_count", 0)))
+    metadata["max_retries"] = max(int(metadata.get("max_retries", 0)), int(event.get("max_retries", 0)))
+    metadata["last_event"] = event.get("event", "")
+    metadata["last_retry_at"] = event.get("timestamp", "")
+    if event.get("next_retry_delay_seconds") is not None:
+        metadata["last_retry_delay_seconds"] = int(event["next_retry_delay_seconds"])
+    if event.get("task_id"):
+        metadata["task_id"] = str(event["task_id"])
+    if event.get("error"):
+        metadata["last_error"] = str(event["error"])
+    return metadata
+
+
 class RunRecorder:
     def __init__(self, run_id: int):
         self.run_id = run_id
@@ -75,6 +97,34 @@ class RunRecorder:
             run = db.query(ApplicationRun).filter(ApplicationRun.id == self.run_id).first()
             if run:
                 run.current_step = name
+            db.commit()
+
+    def record_retry_event(
+        self,
+        *,
+        event: str,
+        retry_count: int,
+        max_retries: int,
+        task_id: str = "",
+        error: str = "",
+        next_retry_delay_seconds: int | None = None,
+    ) -> None:
+        with SessionLocal() as db:
+            run = db.query(ApplicationRun).filter(ApplicationRun.id == self.run_id).first()
+            if not run:
+                return
+            payload = {
+                "event": event,
+                "attempt_count": retry_count + 1,
+                "retry_count": retry_count,
+                "max_retries": max_retries,
+                "task_id": task_id,
+                "error": error,
+                "timestamp": utcnow().isoformat(),
+            }
+            if next_retry_delay_seconds is not None:
+                payload["next_retry_delay_seconds"] = next_retry_delay_seconds
+            run.retry_metadata = merge_retry_metadata(run.retry_metadata, payload)
             db.commit()
 
 

@@ -46,6 +46,7 @@ def runs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) 
             "current_step": run.current_step,
             "error_message": run.error_message,
             "external_task_id": run.external_task_id,
+            "retry_metadata": run.retry_metadata,
             "started_at": run.started_at,
             "finished_at": run.finished_at,
         }
@@ -104,6 +105,8 @@ def errors(user: User = Depends(get_current_user), db: Session = Depends(get_db)
             "step_kind": step.step_kind,
             "status": step.status,
             "requires_approval": step.requires_approval,
+            "screenshot_file_id": step.screenshot_file_id,
+            "retry_count": step.retry_count,
             "output": step.masked_output or step.output,
         }
         for step, run, application in rows

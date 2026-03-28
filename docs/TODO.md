@@ -17,11 +17,10 @@ This file tracks what still remains after the current resume-template, company-d
 
 ## Resume and document system
 
-1. Replace JSON textareas in the profile editor with richer section-level editors.
-2. Add multiple resume strategies and reusable tailored variants by role family.
-3. Complete live RenderCV production validation and artifact retention rules.
-4. Improve preview fidelity so web previews more closely match exported artifacts.
-5. Add richer LaTeX or Typst-grade theme support while preserving ATS-safe defaults.
+1. Add multiple resume strategies and reusable tailored variants by role family.
+2. Complete live RenderCV production validation and artifact retention rules.
+3. Improve preview fidelity so web previews more closely match exported artifacts.
+4. Add richer LaTeX or Typst-grade theme support while preserving ATS-safe defaults.
 
 ## Discovery and enrichment
 
@@ -40,8 +39,7 @@ This file tracks what still remains after the current resume-template, company-d
 
 1. Expand generic field adapters further for file variants, address composites, and more site-specific controls.
 2. Add richer resume-from-last-checkpoint semantics for partially completed runs.
-3. Persist worker retry attempts and backoff metadata directly on run history.
-4. Add broader site-specific adapters while keeping graceful fallback behavior.
+3. Add broader site-specific adapters while keeping graceful fallback behavior.
 
 ## Inbox and OAuth
 

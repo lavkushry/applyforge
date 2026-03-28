@@ -479,7 +479,6 @@ def run_application_flow(run_id: int, packet: dict) -> dict:
             output={"error": str(exc)},
             step_kind="worker_error",
         )
-        recorder.set_status("failed", "worker_execution_failed", error_message=str(exc))
         raise
 
     final_status = "completed" if confirmed else "uncertain"

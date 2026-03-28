@@ -13,17 +13,45 @@ export type CandidateBasics = {
   preferred_locations: string[];
 };
 
+export type ExperienceItem = {
+  title: string;
+  company: string;
+  start_date: string;
+  end_date: string;
+  highlights: string[];
+};
+
+export type ProjectItem = {
+  name: string;
+  highlights: string[];
+};
+
+export type EducationItem = {
+  institution: string;
+  degree: string;
+};
+
+export type CertificationItem = {
+  name: string;
+  issuer: string;
+};
+
+export type LinkItem = {
+  label: string;
+  url: string;
+};
+
 export type CandidateProfile = {
   id: number;
   user_id: number;
   basics: CandidateBasics;
   summary: string;
   skills: string[];
-  experience: Array<Record<string, unknown>>;
-  projects: Array<Record<string, unknown>>;
-  education: Array<Record<string, unknown>>;
-  certifications: Array<Record<string, unknown>>;
-  links: Array<{ label: string; url: string }>;
+  experience: ExperienceItem[];
+  projects: ProjectItem[];
+  education: EducationItem[];
+  certifications: CertificationItem[];
+  links: LinkItem[];
   preferences: Record<string, unknown>;
   saved_answers: Record<string, unknown>;
   fact_locked: boolean;
@@ -384,6 +412,7 @@ export type ApplicationRun = {
   external_task_id: string;
   error_message: string;
   policy_snapshot: Record<string, unknown>;
+  retry_metadata: Record<string, unknown>;
   started_at: string;
   finished_at: string | null;
 };
@@ -449,6 +478,7 @@ export type AdminRun = {
   current_step: string;
   error_message: string;
   external_task_id: string;
+  retry_metadata: Record<string, unknown>;
   started_at: string;
   finished_at: string | null;
 };
@@ -462,6 +492,8 @@ export type AdminStepError = {
   step_kind: string;
   status: string;
   requires_approval: boolean;
+  screenshot_file_id?: number | null;
+  retry_count?: number;
   output: Record<string, unknown>;
 };
 

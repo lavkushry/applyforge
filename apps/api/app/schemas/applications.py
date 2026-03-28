@@ -43,6 +43,7 @@ class ApplicationRunOut(OrmModel):
     external_task_id: str
     error_message: str
     policy_snapshot: dict
+    retry_metadata: dict
     started_at: datetime
     finished_at: datetime | None
 
