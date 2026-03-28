@@ -16,10 +16,15 @@ const schema = z.object({
   name: z.string().min(2),
   keywords: z.string().default("python, fastapi, react, typescript"),
   preferred_locations: z.string().default("remote, india"),
-  source_kind: z.enum(["manual", "greenhouse_board", "lever_board", "workday_board", "direct_url"]).default("manual"),
+  source_kind: z.enum(["manual", "greenhouse_board", "lever_board", "workday_board", "direct_url", "jobspy_search"]).default("manual"),
   source_label: z.string().default(""),
   source_url: z.string().url().or(z.literal("")).default(""),
   source_preset_key: z.string().default(""),
+  jobspy_sites: z.string().default("linkedin, indeed, glassdoor, google"),
+  jobspy_location: z.string().default(""),
+  jobspy_country_indeed: z.string().default(""),
+  jobspy_results_wanted: z.coerce.number().int().min(1).max(200).default(25),
+  jobspy_hours_old: z.coerce.number().int().min(1).max(720).default(168),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -41,15 +46,40 @@ export function RoleCreateForm() {
       source_label: "",
       source_url: "",
       source_preset_key: "",
+      jobspy_sites: "linkedin, indeed, glassdoor, google",
+      jobspy_location: "",
+      jobspy_country_indeed: "",
+      jobspy_results_wanted: 25,
+      jobspy_hours_old: 168,
     },
   });
 
+  const selectedSourceKind = form.watch("source_kind");
   const sourcePresetKey = form.watch("source_preset_key");
   const selectedPreset = presetsQuery.data?.source_presets.find((preset) => preset.key === sourcePresetKey);
+  const resolvedSourceKind = selectedPreset?.kind || selectedSourceKind;
+  const isJobSpySource = resolvedSourceKind === "jobspy_search";
 
   const mutation = useMutation({
-    mutationFn: async (values: FormValues) =>
-      api<TargetRole>("/roles", {
+    mutationFn: async (values: FormValues) => {
+      const resolvedKind = selectedPreset?.kind || values.source_kind;
+      const customJobSpySites = values.jobspy_sites
+        .split(",")
+        .map((value) => value.trim().toLowerCase().replaceAll("-", "_"))
+        .filter(Boolean);
+      const jobSpyConfig = {
+        site_names: customJobSpySites.length ? customJobSpySites : ["linkedin", "indeed", "glassdoor", "google"],
+        ...(values.jobspy_location.trim() ? { location: values.jobspy_location.trim() } : {}),
+        ...(values.jobspy_country_indeed.trim() ? { country_indeed: values.jobspy_country_indeed.trim() } : {}),
+        results_wanted: values.jobspy_results_wanted,
+        hours_old: values.jobspy_hours_old,
+        linkedin_fetch_description: true,
+      };
+      const sourceConfig = selectedPreset?.config || (resolvedKind === "jobspy_search" ? jobSpyConfig : {});
+      const sourceLabel =
+        selectedPreset?.label || values.source_label || (resolvedKind === "jobspy_search" ? "JobSpy multi-board search" : "");
+      const sourceBaseUrl = selectedPreset?.base_url || (resolvedKind === "jobspy_search" ? "" : values.source_url);
+      return api<TargetRole>("/roles", {
         method: "POST",
         body: JSON.stringify({
           name: values.name,
@@ -67,19 +97,20 @@ export function RoleCreateForm() {
           min_auto_apply_score: 85,
           active: true,
           sources:
-            ((selectedPreset?.kind || values.source_kind) !== "manual" && (selectedPreset?.base_url || values.source_url))
+            (resolvedKind !== "manual" && (sourceBaseUrl || resolvedKind === "jobspy_search"))
               ? [
                   {
-                    kind: selectedPreset?.kind || values.source_kind,
-                    label: selectedPreset?.label || values.source_label,
-                    base_url: selectedPreset?.base_url || values.source_url,
-                    config: selectedPreset?.config || {},
+                    kind: resolvedKind,
+                    label: sourceLabel,
+                    base_url: sourceBaseUrl,
+                    config: sourceConfig,
                     enabled: true,
                   },
                 ]
               : [],
         }),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       pushToast({ title: "Role strategy saved", tone: "success" });
@@ -119,6 +150,7 @@ export function RoleCreateForm() {
             <option value="lever_board">Lever board</option>
             <option value="workday_board">Workday board</option>
             <option value="direct_url">Direct careers URL</option>
+            <option value="jobspy_search">JobSpy multi-board search</option>
           </select>
         </div>
         <div className="space-y-2">
@@ -139,14 +171,41 @@ export function RoleCreateForm() {
           <label className="text-sm text-slate-300">Source label</label>
           <Input {...form.register("source_label")} placeholder="Nimbus AI Careers" disabled={Boolean(selectedPreset)} />
         </div>
-        <div className="space-y-2">
-          <label className="text-sm text-slate-300">Source URL</label>
-          <Input
-            {...form.register("source_url")}
-            placeholder="https://boards.greenhouse.io/example"
-            disabled={Boolean(selectedPreset)}
-          />
-        </div>
+        {!isJobSpySource ? (
+          <div className="space-y-2">
+            <label className="text-sm text-slate-300">Source URL</label>
+            <Input
+              {...form.register("source_url")}
+              placeholder="https://boards.greenhouse.io/example"
+              disabled={Boolean(selectedPreset)}
+            />
+          </div>
+        ) : null}
+        {isJobSpySource && !selectedPreset ? (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Job boards</label>
+              <Input {...form.register("jobspy_sites")} placeholder="linkedin, indeed, glassdoor, google, zip_recruiter" />
+              <p className="text-xs text-slate-400">Supported: linkedin, indeed, glassdoor, google, zip_recruiter, naukri, bayt, bdjobs.</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Search location</label>
+              <Input {...form.register("jobspy_location")} placeholder="India, Remote, San Francisco, CA" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Indeed / Glassdoor country</label>
+              <Input {...form.register("jobspy_country_indeed")} placeholder="India, USA, United Arab Emirates" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Results per site</label>
+              <Input {...form.register("jobspy_results_wanted", { valueAsNumber: true })} min={1} max={200} type="number" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Hours old</label>
+              <Input {...form.register("jobspy_hours_old", { valueAsNumber: true })} min={1} max={720} type="number" />
+            </div>
+          </>
+        ) : null}
         {selectedPreset ? (
           <div className="lg:col-span-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm text-cyan-50">
             Using preset <span className="font-semibold">{selectedPreset.label}</span>. The source kind, URL, and config will be attached automatically.

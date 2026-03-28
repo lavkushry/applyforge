@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -21,18 +22,33 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 type AuthMode = "signin" | "signup";
 
+const defaultSignInValues = {
+  email: "defaultuser@applyforge.dev",
+  password: "defaultuser123",
+};
+
+const enableBootstrapLogin = process.env.NEXT_PUBLIC_ENABLE_BOOTSTRAP_LOGIN === "1";
+
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const pushToast = useAppStore((state) => state.pushToast);
   const setSession = useAppStore((state) => state.setSession);
+  const session = useAppStore((state) => state.session);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: mode === "signin" ? { email: "demo@applyforge.dev", password: "demo1234" } : undefined,
+    defaultValues: mode === "signin" && enableBootstrapLogin ? defaultSignInValues : undefined,
   });
+
+  useEffect(() => {
+    if (mode === "signin" && session) {
+      router.replace("/dashboard");
+    }
+  }, [mode, router, session]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) =>
@@ -41,12 +57,13 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         body: JSON.stringify(values),
       }),
     onSuccess: (result) => {
+      queryClient.setQueryData(["session"], result.user);
       setSession(result.user);
       pushToast({
         title: mode === "signin" ? "Signed in to ApplyForge" : "Account created successfully",
         tone: "success",
       });
-      router.push("/dashboard");
+      router.replace("/dashboard");
     },
     onError: () => {
       pushToast({ title: "Authentication failed", tone: "error" });
@@ -62,6 +79,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             ? "Sign in to continue your job hunt pipeline."
             : "Start building your AI-powered application workflow."}
         </CardDescription>
+        {mode === "signin" && enableBootstrapLogin ? (
+          <p className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100">
+            First local login: defaultuser@applyforge.dev / defaultuser123
+          </p>
+        ) : null}
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>

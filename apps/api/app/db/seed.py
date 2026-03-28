@@ -1,3 +1,4 @@
+from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models.entities import (
@@ -27,9 +28,12 @@ def run() -> None:
     db = SessionLocal()
     seed_resume_themes(db)
 
-    user = db.query(User).filter(User.email == "demo@applyforge.dev").first()
+    user = db.query(User).filter(User.email == settings.bootstrap_default_user_email).first()
     if not user:
-        user = User(email="demo@applyforge.dev", password_hash=hash_password("demo1234"))
+        user = User(
+            email=settings.bootstrap_default_user_email,
+            password_hash=hash_password(settings.bootstrap_default_user_password),
+        )
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -252,7 +256,10 @@ def run() -> None:
         db.commit()
 
     db.close()
-    print("Seed complete: demo@applyforge.dev / demo1234")
+    print(
+        f"Seed complete: {settings.bootstrap_default_user_email} / "
+        f"{settings.bootstrap_default_user_password}"
+    )
 
 
 if __name__ == "__main__":

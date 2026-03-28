@@ -168,6 +168,20 @@ For HTTPS deployment:
 
 The API currently derives CORS from `WEB_ORIGIN`, so a mismatch here will break auth and browser API calls.
 
+Port reminder:
+
+- API is HTTP on `8000`
+- web is HTTP on `3000`
+- Flower is HTTP on `5555`
+- Redis uses `redis://...:6379/0`
+
+For example, on a host with IP `172.24.28.220`:
+
+- web: `http://172.24.28.220:3000`
+- API: `http://172.24.28.220:8000`
+- Flower: `http://172.24.28.220:5555`
+- Redis: `redis://172.24.28.220:6379/0`
+
 ### Example rollout order
 
 1. provision PostgreSQL and Redis

@@ -12,6 +12,7 @@ from app.schemas.roles import (
     TargetRoleSourceOut,
 )
 from app.services.discovery_registry import load_discovery_registry
+from app.services.jobspy_service import prepare_target_role_source_payload
 from app.services.role_ingestion import ingest_target_role
 
 router = APIRouter(prefix="/roles", tags=["roles"])
@@ -67,7 +68,17 @@ def create_role(payload: TargetRoleIn, user: User = Depends(get_current_user), d
     db.add(role)
     db.flush()
     for source in payload.sources:
-        db.add(TargetRoleSource(role_id=role.id, **source.model_dump(mode="json")))
+        db.add(
+            TargetRoleSource(
+                role_id=role.id,
+                **prepare_target_role_source_payload(
+                    **source.model_dump(mode="json"),
+                    role_name=payload.name,
+                    preferred_locations=payload.preferred_locations,
+                    remote_preference=payload.remote_preference,
+                ),
+            )
+        )
     db.commit()
     db.refresh(role)
     return _serialize_role(role, db)
@@ -81,7 +92,17 @@ def update_role(role_id: int, payload: TargetRoleIn, user: User = Depends(get_cu
     db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id).delete()
     db.flush()
     for source in payload.sources:
-        db.add(TargetRoleSource(role_id=role.id, **source.model_dump(mode="json")))
+        db.add(
+            TargetRoleSource(
+                role_id=role.id,
+                **prepare_target_role_source_payload(
+                    **source.model_dump(mode="json"),
+                    role_name=payload.name,
+                    preferred_locations=payload.preferred_locations,
+                    remote_preference=payload.remote_preference,
+                ),
+            )
+        )
     db.commit()
     db.refresh(role)
     return _serialize_role(role, db)

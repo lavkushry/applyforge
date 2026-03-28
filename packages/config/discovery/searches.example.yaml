@@ -18,6 +18,7 @@ search_templates:
     seniority: senior
     source_preset_keys:
       - acme-workday
+      - jobspy-global-tech
       - openai-careers
   - key: platform-engineering
     label: Platform Engineering
@@ -37,5 +38,6 @@ search_templates:
     remote_preference: remote
     seniority: senior
     source_preset_keys:
+      - jobspy-india-engineering
       - nimbus-workday
       - stripe-jobs

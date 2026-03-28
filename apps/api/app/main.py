@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.core.observability import RequestContextMiddleware, configure_logging
 from app.db.session import Base, engine
 from app.models import entities  # noqa: F401
+from app.services.bootstrap import ensure_bootstrap_default_user
 from app.services.resume_themes import seed_resume_themes
 
 configure_logging()
@@ -38,6 +39,7 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         seed_resume_themes(db)
+        ensure_bootstrap_default_user(db)
     finally:
         db.close()
     yield

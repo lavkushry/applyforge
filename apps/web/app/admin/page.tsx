@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { StatCard } from "@/components/ui/stat-card";
 import { useSession } from "@/hooks/use-session";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 import type {
   AdminEnrichmentError,
   AdminRun,
@@ -21,8 +21,6 @@ import type {
   IngestionRun,
 } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 type PromptLog = {
   id: number;

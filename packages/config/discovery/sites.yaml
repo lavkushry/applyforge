@@ -1,4 +1,67 @@
 direct_sites:
+  - key: jobspy-global-tech
+    label: JobSpy Global Tech Boards
+    kind: jobspy_search
+    base_url: https://github.com/speedyapply/JobSpy
+    notes: Aggregated search across LinkedIn, Indeed, Glassdoor, Google, and ZipRecruiter using the JobSpy scraper.
+    tags:
+      - jobspy
+      - multi-board
+      - engineering
+      - remote
+    config:
+      site_names:
+        - linkedin
+        - indeed
+        - glassdoor
+        - google
+        - zip_recruiter
+      results_wanted: 40
+      hours_old: 168
+      linkedin_fetch_description: true
+  - key: jobspy-india-engineering
+    label: JobSpy India Engineering Boards
+    kind: jobspy_search
+    base_url: https://github.com/speedyapply/JobSpy
+    notes: Regional engineering search using LinkedIn, Google, Indeed, Naukri, and BDJobs with India defaults.
+    tags:
+      - jobspy
+      - india
+      - engineering
+    config:
+      site_names:
+        - linkedin
+        - google
+        - indeed
+        - naukri
+        - bdjobs
+      location: India
+      country_indeed: India
+      results_wanted: 40
+      hours_old: 168
+      linkedin_fetch_description: true
+  - key: jobspy-middle-east-platform
+    label: JobSpy Middle East Platform Boards
+    kind: jobspy_search
+    base_url: https://github.com/speedyapply/JobSpy
+    notes: Regional platform search using Bayt plus the major global boards for UAE and GCC roles.
+    tags:
+      - jobspy
+      - uae
+      - bayt
+      - platform
+    config:
+      site_names:
+        - linkedin
+        - google
+        - indeed
+        - glassdoor
+        - bayt
+      location: United Arab Emirates
+      country_indeed: United Arab Emirates
+      results_wanted: 40
+      hours_old: 168
+      linkedin_fetch_description: true
   - key: openai-careers
     label: OpenAI Careers
     kind: direct_url

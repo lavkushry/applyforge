@@ -25,6 +25,7 @@ def test_roles_source_presets_return_packaged_catalog(db_session: Session, user)
     assert payload["search_templates"]
     assert "linkedin.com" in payload["blocked_domains"]
     assert any(item["kind"] == "workday_board" for item in payload["source_presets"])
+    assert any(item["kind"] == "jobspy_search" for item in payload["source_presets"])
     assert any(item["key"] == "senior-fullstack-remote" for item in payload["search_templates"])
 
 
@@ -46,6 +47,7 @@ def test_setup_wizard_summary_and_bootstrap_role(db_session: Session, user, prof
     assert bootstrapped["name"] == "Senior Full-Stack Engineer"
     assert bootstrapped["sources"]
     assert any(source["kind"] == "workday_board" for source in bootstrapped["sources"])
+    assert any(source["kind"] == "jobspy_search" for source in bootstrapped["sources"])
 
     repeat = setup_routes.bootstrap_role(
         setup_routes.WizardBootstrapRequest(template_key="senior-fullstack-remote"),
@@ -92,6 +94,119 @@ def test_workday_source_fetcher_maps_common_payload(monkeypatch) -> None:
     assert jobs[0]["source"] == "workday"
     assert jobs[0]["title"] == "Staff Platform Engineer"
     assert jobs[0]["application_url"].startswith("https://acme.wd1.myworkdayjobs.com/careers/")
+
+
+def test_jobspy_source_fetcher_maps_dataframe_records(monkeypatch) -> None:
+    from app.services.role_ingestion import fetch_jobs_for_source
+
+    source = roles_routes.TargetRoleSource(
+        role_id=1,
+        kind="jobspy_search",
+        label="JobSpy Global Tech Boards",
+        base_url="https://github.com/speedyapply/JobSpy",
+        config={
+            "site_names": ["linkedin", "google", "zip_recruiter"],
+            "search_term": "platform engineer",
+            "location": "India",
+            "country_indeed": "India",
+            "results_wanted": 30,
+            "hours_old": 72,
+            "linkedin_fetch_description": True,
+        },
+        enabled=True,
+    )
+    captured: dict = {}
+
+    class FakeFrame:
+        def to_dict(self, *, orient: str) -> list[dict]:
+            assert orient == "records"
+            return [
+                {
+                    "site": "linkedin",
+                    "title": "Platform Engineer",
+                    "company": "Acme",
+                    "job_url": "https://linkedin.com/jobs/view/123",
+                    "company_url": "https://linkedin.com/company/acme",
+                    "location": {"city": "Bengaluru", "state": "Karnataka", "country": "India"},
+                    "is_remote": True,
+                    "description": "Own Kubernetes platform reliability and developer tooling.",
+                    "job_type": "fulltime",
+                    "interval": "yearly",
+                    "min_amount": 2400000,
+                    "max_amount": 3600000,
+                    "currency": "INR",
+                    "date_posted": "2026-03-20",
+                    "skills": ["Kubernetes", "Python"],
+                }
+            ]
+
+    def fake_scrape_jobs(**kwargs):
+        captured.update(kwargs)
+        return FakeFrame()
+
+    monkeypatch.setattr("app.services.jobspy_service._load_jobspy_scrape_jobs", lambda: fake_scrape_jobs)
+
+    jobs = fetch_jobs_for_source(source)
+
+    assert captured["site_name"] == ["linkedin", "google", "zip_recruiter"]
+    assert captured["search_term"] == "platform engineer"
+    assert captured["location"] == "India"
+    assert captured["results_wanted"] == 30
+    assert captured["hours_old"] == 72
+    assert jobs[0]["source"] == "linkedin"
+    assert jobs[0]["company"] == "Acme"
+    assert jobs[0]["application_url"] == "https://linkedin.com/jobs/view/123"
+    assert jobs[0]["location"] == "Bengaluru, Karnataka, India"
+    assert jobs[0]["remote_type"] == "remote"
+    assert jobs[0]["employment_type"] == "fulltime"
+    assert jobs[0]["salary"] == "INR 2,400,000 - 3,600,000 / yearly"
+    assert jobs[0]["source_metadata"]["aggregator"] == "jobspy"
+    assert jobs[0]["source_metadata"]["site"] == "linkedin"
+    assert sorted(jobs[0]["tags"]) == ["Kubernetes", "Python"]
+
+
+def test_create_role_hydrates_jobspy_source_defaults(db_session: Session, user) -> None:
+    role = roles_routes.create_role(
+        TargetRoleIn(
+            name="Senior Platform Engineer",
+            aliases=[],
+            keywords=["python", "kubernetes", "platform"],
+            preferred_locations=["Remote", "India"],
+            remote_preference="remote",
+            salary_target="",
+            visa_preference="unknown",
+            seniority="senior",
+            companies_include=[],
+            companies_exclude=[],
+            scrape_cadence_minutes=30,
+            automation_enabled=True,
+            min_auto_apply_score=85,
+            active=True,
+            sources=[
+                TargetRoleSourceIn(
+                    kind="jobspy_search",
+                    label="JobSpy search",
+                    base_url="",
+                    config={"site_names": ["linkedin", "indeed", "naukri"]},
+                    enabled=True,
+                )
+            ],
+        ),
+        user,
+        db_session,
+    )
+
+    source = role.sources[0]
+
+    assert source.kind == "jobspy_search"
+    assert source.config["search_term"] == "Senior Platform Engineer"
+    assert source.config["location"] == "India"
+    assert source.config["country_indeed"] == "India"
+    assert source.config["site_names"] == ["linkedin", "indeed", "naukri"]
+    assert source.config["results_wanted"] == 25
+    assert source.config["hours_old"] == 168
+    assert source.config["is_remote"] is True
+    assert source.config["linkedin_fetch_description"] is True
 
 
 def test_role_scrape_now_populates_feed_and_scores(db_session: Session, user, profile, monkeypatch) -> None:

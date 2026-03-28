@@ -26,7 +26,7 @@ The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.ym
 The current Compose file is development-oriented:
 
 - it mounts the source tree into the containers
-- it points `env_file` at the example env files
+- it reads the example env files first, then optional real local env files if they exist
 - the web container runs the Next.js dev server
 - the API creates tables at startup
 
@@ -61,6 +61,20 @@ Then open:
 
 This is the quickest path for a first local test.
 
+If you are opening the stack from another machine on the same network, replace `localhost` with your Docker host IP.
+
+For your current host that means:
+
+- web: `http://172.24.28.220:3000`
+- API docs: `http://172.24.28.220:8000/docs`
+- Flower: `http://172.24.28.220:5555`
+
+Important:
+
+- `6379` is the Redis port, not the API port
+- Redis is not an HTTP service
+- the correct Redis URL is `redis://172.24.28.220:6379/0`, not `http://172.24.28.220:6379/`
+
 ## Option 2: Local Startup With Your Own Env Values
 
 If you want real local secrets or OAuth credentials, create local env files first:
@@ -69,13 +83,14 @@ If you want real local secrets or OAuth credentials, create local env files firs
 cp /home/ems/applyforge/apps/api/.env.example /home/ems/applyforge/apps/api/.env
 cp /home/ems/applyforge/apps/web/.env.example /home/ems/applyforge/apps/web/.env.local
 cp /home/ems/applyforge/apps/worker/.env.example /home/ems/applyforge/apps/worker/.env
+cp /home/ems/applyforge/infra/.env.example /home/ems/applyforge/infra/.env
 ```
 
-Then update [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) so `env_file` points at:
+Then set the host IP in `/home/ems/applyforge/infra/.env`:
 
-- `../apps/api/.env`
-- `../apps/web/.env.local`
-- `../apps/worker/.env`
+```bash
+PUBLIC_HOST=172.24.28.220
+```
 
 Then start:
 
@@ -83,6 +98,17 @@ Then start:
 cd /home/ems/applyforge/infra
 docker compose up --build
 ```
+
+With `PUBLIC_HOST=172.24.28.220`, the browser-facing URLs become:
+
+- web: `http://172.24.28.220:3000`
+- API docs: `http://172.24.28.220:8000/docs`
+- Flower: `http://172.24.28.220:5555`
+
+Docker-internal traffic still uses service names:
+
+- Postgres: `db:5432`
+- Redis: `redis:6379`
 
 ## Seed Demo Data
 
@@ -93,10 +119,12 @@ cd /home/ems/applyforge/infra
 docker compose exec api python -m app.db.seed
 ```
 
-Demo credentials:
+First local login credentials:
 
-- email: `demo@applyforge.dev`
-- password: `demo1234`
+- email: `defaultuser@applyforge.dev`
+- password: `defaultuser123`
+
+That bootstrap account is enabled only by local Docker Compose. It is no longer on by default in generic non-production environments.
 
 ## Smoke Check
 
@@ -142,6 +170,13 @@ http://localhost:5555
 ```
 
 Flower should show the Celery worker if startup succeeded.
+
+If you are testing from another machine on the network, use:
+
+- API root: `http://172.24.28.220:8000/`
+- health: `http://172.24.28.220:8000/admin/health`
+- web: `http://172.24.28.220:3000`
+- Flower: `http://172.24.28.220:5555`
 
 ## Useful Local Commands
 
@@ -241,4 +276,3 @@ Make sure your API env file includes:
 - [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md)
 - [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md)
 - [README.md](/home/ems/applyforge/README.md)
-

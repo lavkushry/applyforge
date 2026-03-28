@@ -9,6 +9,7 @@ from app.services.company_directory import resolve_company_for_job
 from app.services.job_dispatch import dispatch_job_enrichment
 from app.services.job_enrichment import enrich_job_record
 from app.services.job_normalizer import normalize_job_payload
+from app.services.jobspy_service import fetch_jobspy_jobs
 from app.services.scoring import score_job
 
 
@@ -139,6 +140,8 @@ def fetch_jobs_for_source(source: TargetRoleSource) -> list[dict]:
         return _fetch_workday_jobs(source)
     if source.kind == "direct_url":
         return _fetch_direct_jobs(source)
+    if source.kind == "jobspy_search":
+        return fetch_jobspy_jobs(source)
     return []
 
 

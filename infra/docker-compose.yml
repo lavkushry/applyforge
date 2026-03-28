@@ -18,8 +18,20 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/api.Dockerfile
-    env_file: ../apps/api/.env.example
-    volumes: ["../apps/api:/app"]
+    env_file:
+      - path: ../apps/api/.env.example
+      - path: ../apps/api/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg2://applyforge:applyforge@db:5432/applyforge
+      REDIS_URL: redis://redis:6379/0
+      WEB_ORIGIN: http://${PUBLIC_HOST:-localhost}:3000
+      BOOTSTRAP_DEFAULT_USER: "true"
+      GOOGLE_OAUTH_REDIRECT_URI: http://${PUBLIC_HOST:-localhost}:8000/inbox/gmail/oauth/callback
+      MICROSOFT_OAUTH_REDIRECT_URI: http://${PUBLIC_HOST:-localhost}:8000/inbox/outlook/oauth/callback
+    volumes:
+      - ../apps/api:/app
+      - ../packages:/app/packages:ro
     ports: ["8000:8000"]
     depends_on: [db, redis]
 
@@ -27,7 +39,13 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/worker.Dockerfile
-    env_file: ../apps/worker/.env.example
+    env_file:
+      - path: ../apps/worker/.env.example
+      - path: ../apps/worker/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg2://applyforge:applyforge@db:5432/applyforge
+      REDIS_URL: redis://redis:6379/0
     volumes: ["../apps/worker:/app"]
     depends_on: [api, redis, db]
 
@@ -35,8 +53,20 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/web.Dockerfile
-    env_file: ../apps/web/.env.example
-    volumes: ["../apps/web:/app"]
+    env_file:
+      - path: ../apps/web/.env.example
+      - path: ../apps/web/.env.local
+        required: false
+    environment:
+      NEXT_RUNTIME_MODE: production
+      NEXT_PUBLIC_API_BASE_URL: http://${PUBLIC_HOST:-localhost}:8000
+      NEXT_PUBLIC_ALLOWED_DEV_ORIGINS: http://${PUBLIC_HOST:-localhost}:3000
+      NEXT_PUBLIC_ENABLE_BOOTSTRAP_LOGIN: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ../apps/web:/app
+      - web_node_modules:/app/node_modules
+      - web_next:/app/.next
     ports: ["3000:3000"]
     depends_on: [api]
 
@@ -48,3 +78,5 @@ services:
 
 volumes:
   pg_data:
+  web_node_modules:
+  web_next:

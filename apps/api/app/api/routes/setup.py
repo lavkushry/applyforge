@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.entities import CandidateProfile, InboxConnection, Job, Resume, ResumeVersion, TargetRole, TargetRoleSource, User
 from app.schemas.setup import WizardBootstrapRequest, WizardSummaryOut
 from app.services.discovery_registry import get_search_template, get_source_preset, load_discovery_registry
+from app.services.jobspy_service import prepare_target_role_source_payload
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -127,11 +128,16 @@ def bootstrap_role(
         db.add(
             TargetRoleSource(
                 role_id=role.id,
-                kind=preset["kind"],
-                label=preset["label"],
-                base_url=preset["base_url"],
-                config=preset.get("config", {}),
-                enabled=True,
+                **prepare_target_role_source_payload(
+                    kind=preset["kind"],
+                    label=preset["label"],
+                    base_url=preset["base_url"],
+                    config=preset.get("config", {}),
+                    enabled=True,
+                    role_name=template["role_name"],
+                    preferred_locations=template.get("preferred_locations", []),
+                    remote_preference=template.get("remote_preference", "remote"),
+                ),
             )
         )
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,18 +9,47 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { api } from "@/lib/api";
-import type { ResumeTemplateCatalog, ResumeTemplateRender, ResumeTheme } from "@/lib/types";
+import type { CandidateProfile, ResumeTemplateCatalog, ResumeTemplateRender, ResumeTheme } from "@/lib/types";
 import { stringifyJson } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
 
+type ResumePreviewContent = Omit<CandidateProfile, "id" | "user_id">;
+
+function nonEmpty(values: Array<string | null | undefined>) {
+  return values.map((value) => value?.trim() || "").filter(Boolean);
+}
+
+function formatContactLine(profile: ResumePreviewContent) {
+  const basics = profile.basics || {};
+  return nonEmpty([basics.email || "", basics.phone, basics.location]).join(" • ");
+}
+
+function formatLinkLine(profile: ResumePreviewContent) {
+  return (profile.links || [])
+    .map((link) => nonEmpty([link.label, link.url]).join(": "))
+    .filter(Boolean)
+    .join(" • ");
+}
+
+function formatDateLine(start?: string, end?: string) {
+  return nonEmpty([start, end]).join(" - ");
+}
+
 export default function ResumePage() {
+  const queryClient = useQueryClient();
   const pushToast = useAppStore((state) => state.pushToast);
   const [fileId, setFileId] = useState<number | null>(null);
   const [parsedPreview, setParsedPreview] = useState<string>("");
   const [selectedTheme, setSelectedTheme] = useState<string>("classic-ats-light");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>("");
   const [renderedTemplatePreview, setRenderedTemplatePreview] = useState<string>("");
+  const [previewProfile, setPreviewProfile] = useState<ResumePreviewContent | null>(null);
   const themesQuery = useQuery({ queryKey: ["resume-themes"], queryFn: () => api<ResumeTheme[]>("/resume-themes") });
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => api<CandidateProfile>("/profile"),
+    retry: false,
+  });
   const templateCatalogQuery = useQuery({
     queryKey: ["resume-templates"],
     queryFn: () => api<ResumeTemplateCatalog>("/resume/templates"),
@@ -36,9 +65,11 @@ export default function ResumePage() {
   });
 
   const parseMutation = useMutation({
-    mutationFn: async (id: number) => api<{ parsed: unknown }>(`/profile/parse-resume?file_id=${id}`, { method: "POST" }),
+    mutationFn: async (id: number) => api<{ parsed: ResumePreviewContent }>(`/profile/parse-resume?file_id=${id}`, { method: "POST" }),
     onSuccess: (result) => {
       setParsedPreview(stringifyJson(result.parsed));
+      setPreviewProfile(result.parsed);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       pushToast({ title: "Resume parsed into your profile", tone: "success" });
     },
     onError: () => pushToast({ title: "Resume parsing failed", tone: "error" }),
@@ -75,9 +106,18 @@ export default function ResumePage() {
 
   const themes = themesQuery.data || [];
   const templateCatalog = templateCatalogQuery.data;
+  const activeProfile = previewProfile || profileQuery.data || null;
   const selectedTemplate = templateCatalog?.templates.find((template) => template.key === selectedTemplateKey) ?? null;
   const selectedTemplateSections =
     templateCatalog?.sections.filter((section) => selectedTemplate?.section_keys.includes(section.key)) ?? [];
+  const previewAccent = themes.find((theme) => theme.slug === selectedTheme)?.accent_color || "#22d3ee";
+  const hasSummary = Boolean(activeProfile?.summary?.trim());
+  const hasSkills = Boolean(activeProfile?.skills?.length);
+  const hasExperience = Boolean(activeProfile?.experience?.length);
+  const hasProjects = Boolean(activeProfile?.projects?.length);
+  const hasEducation = Boolean(activeProfile?.education?.length);
+  const hasCertifications = Boolean(activeProfile?.certifications?.length);
+  const hasLinks = Boolean(activeProfile?.links?.length);
 
   useEffect(() => {
     if (!selectedTemplateKey && templateCatalog?.templates.length) {
@@ -232,11 +272,170 @@ export default function ResumePage() {
           </Card>
 
           <Card className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">Rendered source preview</h2>
-            <pre className="min-h-[420px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
-              {renderedTemplatePreview ||
-                "Render a starter template from your current canonical profile to inspect the Markdown or LaTeX source."}
-            </pre>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Resume preview</h2>
+                <p className="text-sm text-slate-400">
+                  Readable preview of your current resume content using the selected template sections.
+                </p>
+              </div>
+              {selectedTemplate ? <Badge>{selectedTemplate.format.toUpperCase()} source available below</Badge> : null}
+            </div>
+            <div className="min-h-[420px] rounded-[2rem] border border-white/10 bg-white p-8 text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.35)]">
+              {activeProfile ? (
+                <div className="space-y-6">
+                  <header className="border-b border-slate-200 pb-5">
+                    <h3 className="text-3xl font-semibold tracking-tight text-slate-950">
+                      {activeProfile.basics?.full_name || "Candidate Name"}
+                    </h3>
+                    <p className="mt-2 text-sm font-medium uppercase tracking-[0.18em]" style={{ color: previewAccent }}>
+                      {activeProfile.basics?.headline || "Professional headline"}
+                    </p>
+                    <p className="mt-3 text-sm text-slate-600">
+                      {formatContactLine(activeProfile) || "Add email, phone, and location to complete the header."}
+                    </p>
+                    {formatLinkLine(activeProfile) ? (
+                      <p className="mt-2 text-sm text-slate-600">{formatLinkLine(activeProfile)}</p>
+                    ) : null}
+                  </header>
+
+                  {selectedTemplate?.section_keys.includes("summary") && hasSummary ? (
+                    <section className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Summary
+                      </h4>
+                      <p className="text-sm leading-6 text-slate-700">{activeProfile.summary}</p>
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("skills") && hasSkills ? (
+                    <section className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Skills
+                      </h4>
+                      <p className="text-sm leading-6 text-slate-700">{activeProfile.skills.join(", ")}</p>
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("experience") && hasExperience ? (
+                    <section className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Experience
+                      </h4>
+                      {activeProfile.experience.map((item, index) => {
+                        const dateLine = formatDateLine(item.start_date, item.end_date);
+                        return (
+                          <article key={`${item.title}-${item.company}-${index}`} className="space-y-2">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <div>
+                                <p className="text-base font-semibold text-slate-900">
+                                  {nonEmpty([item.title, item.company]).join(" · ") || "Experience entry"}
+                                </p>
+                              </div>
+                              {dateLine ? (
+                                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{dateLine}</p>
+                              ) : null}
+                            </div>
+                            {item.highlights?.length ? (
+                              <ul className="space-y-1 pl-5 text-sm leading-6 text-slate-700">
+                                {item.highlights.map((highlight, highlightIndex) => (
+                                  <li key={`${highlight}-${highlightIndex}`} className="list-disc">
+                                    {highlight}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("projects") && hasProjects ? (
+                    <section className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Projects
+                      </h4>
+                      {activeProfile.projects.map((project, index) => (
+                        <article key={`${project.name}-${index}`} className="space-y-1">
+                          <p className="text-base font-semibold text-slate-900">{project.name || "Project entry"}</p>
+                          {project.highlights?.length ? (
+                            <ul className="space-y-1 pl-5 text-sm leading-6 text-slate-700">
+                              {project.highlights.map((highlight, highlightIndex) => (
+                                <li key={`${highlight}-${highlightIndex}`} className="list-disc">
+                                  {highlight}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </article>
+                      ))}
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("education") && hasEducation ? (
+                    <section className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Education
+                      </h4>
+                      <div className="space-y-2 text-sm text-slate-700">
+                        {activeProfile.education.map((item, index) => (
+                          <p key={`${item.degree}-${item.institution}-${index}`}>
+                            <span className="font-semibold text-slate-900">{item.degree || "Degree"}</span>
+                            {item.institution ? ` · ${item.institution}` : ""}
+                          </p>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("certifications") && hasCertifications ? (
+                    <section className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Certifications
+                      </h4>
+                      <ul className="space-y-1 pl-5 text-sm leading-6 text-slate-700">
+                        {activeProfile.certifications.map((item, index) => (
+                          <li key={`${item.name}-${index}`} className="list-disc">
+                            {nonEmpty([item.name, item.issuer]).join(" · ")}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+
+                  {selectedTemplate?.section_keys.includes("links") && hasLinks ? (
+                    <section className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: previewAccent }}>
+                        Links
+                      </h4>
+                      <ul className="space-y-1 text-sm leading-6 text-slate-700">
+                        {activeProfile.links.map((item, index) => (
+                          <li key={`${item.label}-${item.url}-${index}`}>
+                            <span className="font-semibold text-slate-900">{item.label || "Link"}</span>
+                            {item.url ? `: ${item.url}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex min-h-[360px] items-center justify-center text-center text-sm text-slate-500">
+                  Parse a resume or complete your profile to preview the rendered resume here.
+                </div>
+              )}
+            </div>
+
+            <details className="rounded-2xl border border-white/10 bg-slate-950/80">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-200">
+                View rendered source
+              </summary>
+              <pre className="overflow-auto border-t border-white/10 p-4 text-xs text-slate-300">
+                {renderedTemplatePreview ||
+                  "Render a starter template from your current canonical profile to inspect the Markdown or LaTeX source."}
+              </pre>
+            </details>
           </Card>
         </div>
       </section>

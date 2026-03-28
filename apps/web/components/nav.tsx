@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +26,7 @@ const links = [
 
 export function Nav() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const session = useSession();
   const pushToast = useAppStore((state) => state.pushToast);
 
@@ -50,9 +52,10 @@ export function Nav() {
             variant="ghost"
             onClick={async () => {
               await api("/auth/logout", { method: "POST" });
+              queryClient.setQueryData(["session"], null);
               useAppStore.getState().setSession(null);
               pushToast({ title: "Signed out", tone: "info" });
-              router.push("/signin");
+              router.replace("/signin");
             }}
           >
             Sign out

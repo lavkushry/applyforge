@@ -15,7 +15,7 @@ from app.schemas.profile import (
 )
 from app.services.files import save_upload, sha256_bytes, validate_resume_upload
 from app.services.llm import log_prompt_invocation
-from app.services.resume_parser import extract_resume_text, parse_resume_file
+from app.services.resume_parser import extract_resume_text, parse_resume_text
 from app.services.user_preferences import build_user_preferences_snapshot, render_user_preferences_text
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -98,7 +98,7 @@ def parse_resume(
     if not uploaded:
         raise HTTPException(status_code=404, detail="File not found")
     raw_text = extract_resume_text(uploaded.path)
-    parsed = parse_resume_file(uploaded.path)
+    parsed = parse_resume_text(raw_text)
     log_prompt_invocation(
         db,
         user_id=user.id,

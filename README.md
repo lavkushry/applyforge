@@ -109,10 +109,10 @@ Then in a separate shell:
 make seed
 ```
 
-Demo credentials:
+First local login credentials:
 
-- Email: `demo@applyforge.dev`
-- Password: `demo1234`
+- Email: `defaultuser@applyforge.dev`
+- Password: `defaultuser123`
 
 ## Discovery Presets And Wizard
 

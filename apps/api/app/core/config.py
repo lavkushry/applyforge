@@ -4,6 +4,33 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _resolve_existing_path(raw_path: str, *, anchor: Path | None = None, cwd: Path | None = None) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+
+    anchor_path = (anchor or Path(__file__)).resolve()
+    search_roots: list[Path] = []
+
+    if cwd is not None:
+        search_roots.append(cwd.resolve())
+    else:
+        search_roots.append(Path.cwd().resolve())
+
+    search_roots.extend([anchor_path.parent, *anchor_path.parents, Path("/")])
+
+    seen: set[Path] = set()
+    for root in search_roots:
+        if root in seen:
+            continue
+        seen.add(root)
+        candidate = (root / path).resolve()
+        if candidate.exists():
+            return candidate
+
+    raise FileNotFoundError(f"Could not resolve path '{raw_path}' from anchor '{anchor_path}'")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 
@@ -28,6 +55,9 @@ class Settings(BaseSettings):
     microsoft_oauth_redirect_uri: str = "http://localhost:8000/inbox/outlook/oauth/callback"
     storage_path: str = "./uploads"
     artifacts_path: str = "./artifacts"
+    bootstrap_default_user: bool = False
+    bootstrap_default_user_email: str = "defaultuser@applyforge.dev"
+    bootstrap_default_user_password: str = "defaultuser123"
     prompt_root: str = Field(default="packages/prompts")
     enable_prompt_stub_fallback: bool = True
 
@@ -37,14 +67,11 @@ class Settings(BaseSettings):
 
     @property
     def resolved_prompt_root(self) -> Path:
-        prompt_root = Path(self.prompt_root)
-        if prompt_root.is_absolute():
-            return prompt_root
-        return (Path(__file__).resolve().parents[4] / prompt_root).resolve()
+        return _resolve_existing_path(self.prompt_root)
 
     @property
     def resolved_config_root(self) -> Path:
-        return (Path(__file__).resolve().parents[4] / "packages" / "config").resolve()
+        return _resolve_existing_path("packages/config")
 
 
 settings = Settings()
