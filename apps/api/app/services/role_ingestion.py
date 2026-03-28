@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import CandidateProfile, Job, JobFeedEvent, JobIngestionRun, JobScore, TargetRole, TargetRoleSource
 from app.services.company_directory import resolve_company_for_job
+from app.services.job_dispatch import dispatch_job_enrichment
 from app.services.job_enrichment import enrich_job_record
 from app.services.job_normalizer import normalize_job_payload
 from app.services.scoring import score_job
@@ -161,6 +162,93 @@ def _score_and_attach_job(db: Session, job: Job, profile: CandidateProfile | Non
     return score_row
 
 
+def _maybe_finalize_run(run: JobIngestionRun) -> None:
+    processed = run.enriched_count + run.failed_count
+    if processed < run.discovered_count:
+        run.status = "running"
+        run.finished_at = None
+        return
+    run.status = "failed" if run.failed_count else "completed"
+    run.finished_at = utcnow()
+
+
+def process_job_enrichment(
+    db: Session,
+    *,
+    run: JobIngestionRun,
+    user_id: int,
+    role: TargetRole,
+    job: Job,
+    source_context: dict | None = None,
+) -> None:
+    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user_id).first()
+    enrichment = enrich_job_record(
+        db,
+        user_id=user_id,
+        job=job,
+        raw_payload={
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "remote_type": job.remote_type,
+            "salary": job.salary,
+            "source": job.source,
+            "application_url": job.application_url,
+            "description": job.description,
+            "seniority": job.seniority,
+            "employment_type": job.employment_type,
+            "visa_support": job.visa_support,
+            "tags": job.tags,
+            "source_metadata": job.source_metadata,
+        },
+        source_kind=(source_context or {}).get("source_kind", ""),
+        source_url=(source_context or {}).get("source_url", ""),
+    )
+    run.enriched_count += 1
+    _log_feed_event(
+        db,
+        role_id=role.id,
+        job_id=job.id,
+        run_id=run.id,
+        event_type="enriched",
+        event_metadata={
+            "confidence": job.enrichment_metadata.get("extraction_confidence", 0.0),
+            "must_have_count": len(enrichment.get("must_have_skills", [])),
+        },
+    )
+    score_row = _score_and_attach_job(db, job, profile, role)
+    if score_row:
+        _log_feed_event(
+            db,
+            role_id=role.id,
+            job_id=job.id,
+            run_id=run.id,
+            event_type="score_changed",
+            event_metadata={
+                "overall_score": score_row.overall_score,
+                "recommendation": score_row.recommendation,
+                "enrichment_revision": score_row.enrichment_revision,
+            },
+        )
+    _maybe_finalize_run(run)
+
+
+def record_enrichment_failure(db: Session, *, run: JobIngestionRun, role_id: int, job: Job, error_message: str) -> None:
+    job.enrichment_status = "failed"
+    job.enrichment_error = error_message
+    run.failed_count += 1
+    run.error_message = "\n".join(filter(None, [run.error_message, error_message]))
+    _log_feed_event(
+        db,
+        role_id=role_id,
+        job_id=job.id,
+        run_id=run.id,
+        event_type="enrichment_failed",
+        event_metadata={"error": error_message},
+    )
+    _maybe_finalize_run(run)
+
+
 def _expire_missing_jobs(db: Session, *, user_id: int, role: TargetRole, seen_dedupe_keys: set[str], run: JobIngestionRun) -> int:
     expired_count = 0
     active_jobs = db.query(Job).filter(Job.user_id == user_id, Job.role_id == role.id, Job.active.is_(True)).all()
@@ -187,26 +275,23 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
     db.flush()
     sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id, TargetRoleSource.enabled.is_(True)).all()
     run.source_count = len(sources)
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user_id).first()
     discovered_count = 0
     inserted_count = 0
     updated_count = 0
-    enriched_count = 0
-    failed_count = 0
     seen_dedupe_keys: set[str] = set()
-    errors: list[str] = []
 
     for source in sources:
         try:
             payloads = fetch_jobs_for_source(source)
         except Exception as exc:
-            failed_count += 1
-            errors.append(f"{source.label or source.base_url}: {exc}")
+            run.failed_count += 1
+            run.error_message = "\n".join(filter(None, [run.error_message, f"{source.label or source.base_url}: {exc}"]))
             source.last_checked_at = utcnow()
             continue
 
         for payload in payloads:
             discovered_count += 1
+            run.discovered_count = discovered_count
             normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
             resolved_company = resolve_company_for_job(
@@ -226,6 +311,7 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 existing.active = True
                 existing.expired_at = None
                 existing.source_metadata = normalized.get("source_metadata", {})
+                existing.description = normalized["description"]
                 existing.enrichment_status = "pending"
                 existing.enrichment_error = ""
                 job = existing
@@ -245,6 +331,7 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 db.add(job)
                 db.flush()
                 inserted_count += 1
+                run.inserted_count = inserted_count
 
             _log_feed_event(
                 db,
@@ -256,65 +343,31 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
             )
 
             try:
-                enrichment = enrich_job_record(
-                    db,
+                dispatch_job_enrichment(
+                    run_id=run.id,
+                    job_id=job.id,
+                    role_id=role.id,
                     user_id=user_id,
-                    job=job,
-                    raw_payload={**payload, "role_id": role.id},
-                    source_kind=source.kind,
-                    source_url=source.base_url,
+                    source_context={"source_kind": source.kind, "source_url": source.base_url},
                 )
-                enriched_count += 1
-                _log_feed_event(
-                    db,
-                    role_id=role.id,
-                    job_id=job.id,
-                    run_id=run.id,
-                    event_type="enriched",
-                    event_metadata={
-                        "confidence": job.enrichment_metadata.get("extraction_confidence", 0.0),
-                        "must_have_count": len(enrichment.get("must_have_skills", [])),
-                    },
-                )
-                score_row = _score_and_attach_job(db, job, profile, role)
-                if score_row:
-                    _log_feed_event(
-                        db,
-                        role_id=role.id,
-                        job_id=job.id,
-                        run_id=run.id,
-                        event_type="score_changed",
-                        event_metadata={
-                            "overall_score": score_row.overall_score,
-                            "recommendation": score_row.recommendation,
-                            "enrichment_revision": score_row.enrichment_revision,
-                        },
-                    )
             except Exception as exc:
-                failed_count += 1
-                job.enrichment_status = "failed"
-                job.enrichment_error = str(exc)
-                errors.append(f"{job.company} / {job.title}: {exc}")
-                _log_feed_event(
-                    db,
-                    role_id=role.id,
-                    job_id=job.id,
-                    run_id=run.id,
-                    event_type="enrichment_failed",
-                    event_metadata={"error": str(exc)},
-                )
+                process_error = f"{job.company} / {job.title}: dispatch failed: {exc}"
+                record_enrichment_failure(db, run=run, role_id=role.id, job=job, error_message=process_error)
+            if event_type == "updated":
+                run.updated_count = updated_count
         source.last_checked_at = utcnow()
 
-    expired_count = _expire_missing_jobs(db, user_id=user_id, role=role, seen_dedupe_keys=seen_dedupe_keys, run=run)
-    run.status = "completed"
     run.discovered_count = discovered_count
     run.inserted_count = inserted_count
     run.updated_count = updated_count
-    run.enriched_count = enriched_count
-    run.failed_count = failed_count
-    run.expired_count = expired_count
-    run.error_message = "\n".join(errors)
-    run.finished_at = utcnow()
+    run.expired_count = _expire_missing_jobs(db, user_id=user_id, role=role, seen_dedupe_keys=seen_dedupe_keys, run=run)
+    if discovered_count == 0:
+        _maybe_finalize_run(run)
+    elif run.enriched_count + run.failed_count < discovered_count:
+        run.status = "running"
+        run.finished_at = None
+    else:
+        _maybe_finalize_run(run)
     db.commit()
     db.refresh(run)
     return run

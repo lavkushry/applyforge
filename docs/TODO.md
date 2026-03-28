@@ -25,7 +25,7 @@ This file tracks what remains after the current role-feed, themed-resume, and in
 
 ## Jobs and Scoring
 
-1. Move enrichment execution off the synchronous scrape path into dedicated worker jobs with retry and backoff.
+1. Add retry/backoff telemetry and operator-visible failure recovery for worker-driven enrichment jobs.
 2. Add richer HTML extraction for company career pages and Workday-style application pages.
 3. Expand source coverage while keeping ATS-first dedupe and freshness semantics intact.
 4. Add source-health diagnostics, retry backoff visibility, and stale-source alerts.

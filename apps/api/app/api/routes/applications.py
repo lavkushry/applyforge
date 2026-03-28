@@ -9,8 +9,10 @@ from app.models.entities import (
     ApplicationRun,
     ApplicationStatus,
     CandidateProfile,
+    CoverLetter,
     InboxConnection,
     Job,
+    ResumeVersion,
     TargetRole,
     User,
 )
@@ -66,6 +68,74 @@ def _get_connected_inbox(user_id: int, db: Session) -> InboxConnection | None:
     )
 
 
+def _serialize_application(application: Application, user: User, db: Session) -> dict:
+    job = db.query(Job).filter(Job.id == application.job_id, Job.user_id == user.id).first()
+    latest_run = _get_latest_run(application, db)
+    profile = _get_profile(user.id, db)
+    role = _get_role(job, user.id, db) if job else None
+    assisted_packet = (
+        build_application_packet(
+            db,
+            application=application,
+            job=job,
+            user=user,
+            profile=profile,
+            role=role,
+            mode="assisted",
+        )
+        if job
+        else None
+    )
+    auto_packet = (
+        build_application_packet(
+            db,
+            application=application,
+            job=job,
+            user=user,
+            profile=profile,
+            role=role,
+            mode="auto",
+        )
+        if job
+        else None
+    )
+    has_tailored_resume = bool(job and db.query(ResumeVersion.id).filter(ResumeVersion.job_id == job.id).first())
+    has_cover_letter = bool(job and db.query(CoverLetter.id).filter(CoverLetter.job_id == job.id).first())
+    return {
+        **ApplicationOut.model_validate(application).model_dump(mode="json"),
+        "job": {
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "application_url": job.application_url,
+            "latest_score": job.latest_score,
+            "latest_recommendation": job.latest_recommendation,
+            "enrichment_status": job.enrichment_status,
+            "enrichment_revision": job.enrichment_revision,
+        }
+        if job
+        else None,
+        "latest_run": {
+            "id": latest_run.id,
+            "mode": latest_run.mode,
+            "status": latest_run.status,
+            "current_step": latest_run.current_step,
+        }
+        if latest_run
+        else None,
+        "pipeline": {
+            "discovered": True,
+            "enriched": bool(job and job.enrichment_status == "completed"),
+            "scored": bool(job and job.latest_score > 0 and job.latest_score_revision >= job.enrichment_revision),
+            "tailored": has_tailored_resume,
+            "cover_letter": has_cover_letter,
+            "packet_ready": bool(assisted_packet and assisted_packet["ready"]),
+            "auto_ready": bool(auto_packet and auto_packet["auto_submit_allowed"]),
+        },
+        "packet_summary": summarize_application_packet(assisted_packet) if assisted_packet else None,
+    }
+
+
 @router.post("/{job_id}/prepare", response_model=ApplicationPrepareResponse)
 def prepare(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
@@ -113,6 +183,51 @@ def _create_run(job: Job, application: Application, role: TargetRole | None, mod
     db.flush()
     application.latest_run_id = run.id
     db.commit()
+    db.refresh(run)
+    return run
+
+
+@router.post("/{job_id}/run-draft", response_model=ApplicationRunOut)
+def run_draft(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> ApplicationRun:
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    application = _ensure_application(job_id, user.id, db)
+    role = _get_role(job, user.id, db)
+    profile = _get_profile(user.id, db)
+    packet = build_application_packet(
+        db,
+        application=application,
+        job=job,
+        user=user,
+        profile=profile,
+        role=role,
+        mode="draft",
+    )
+    run = _create_run(job, application, role, "draft", packet, db)
+    engine = StepEngine(db, run)
+    if not packet["ready"]:
+        engine.log_step(
+            "draft_packet_review",
+            "paused",
+            {"reason": ", ".join(packet["blocking_issues"] or packet["missing_answers"])},
+            step_kind="preflight",
+            requires_approval=True,
+        )
+        engine.complete("paused")
+        db.refresh(run)
+        return run
+    engine.log_step(
+        "draft_packet_ready",
+        "completed",
+        {
+            "resume_file_id": packet["resume_file_id"],
+            "cover_letter_id": packet["cover_letter_id"],
+            "answer_keys": sorted(packet["answers"].keys()),
+        },
+        step_kind="draft",
+    )
+    engine.complete("completed")
     db.refresh(run)
     return run
 
@@ -274,23 +389,63 @@ def request_otp(
 @router.get("")
 def list_applications(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
     rows = db.query(Application).filter(Application.user_id == user.id).order_by(Application.created_at.desc()).all()
-    jobs = {
-        job.id: job
-        for job in db.query(Job).filter(Job.id.in_([application.job_id for application in rows])).all()
-    } if rows else {}
-    return [
-        {
-            **ApplicationOut.model_validate(application).model_dump(mode="json"),
-            "job": {
-                "id": jobs[application.job_id].id,
-                "title": jobs[application.job_id].title,
-                "company": jobs[application.job_id].company,
-            }
-            if application.job_id in jobs
-            else None,
-        }
-        for application in rows
-    ]
+    return [_serialize_application(application, user, db) for application in rows]
+
+
+@router.get("/dashboard")
+def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    rows = db.query(Application).filter(Application.user_id == user.id).order_by(Application.created_at.desc()).all()
+    serialized = [_serialize_application(application, user, db) for application in rows]
+    status_counts: dict[str, int] = {}
+    run_counts: dict[str, int] = {}
+    pipeline_counts = {
+        "tracked": len(serialized),
+        "enriched": 0,
+        "scored": 0,
+        "tailored": 0,
+        "cover_letter": 0,
+        "packet_ready": 0,
+        "auto_ready": 0,
+        "applied": 0,
+    }
+    for row in serialized:
+        status_counts[row["status"]] = status_counts.get(row["status"], 0) + 1
+        latest_run = row.get("latest_run")
+        if latest_run:
+            run_counts[latest_run["status"]] = run_counts.get(latest_run["status"], 0) + 1
+        pipeline = row["pipeline"]
+        for key in ("enriched", "scored", "tailored", "cover_letter", "packet_ready", "auto_ready"):
+            if pipeline[key]:
+                pipeline_counts[key] += 1
+        if row["status"] == ApplicationStatus.applied.value:
+            pipeline_counts["applied"] += 1
+    return {
+        "status_counts": status_counts,
+        "run_counts": run_counts,
+        "pipeline_counts": pipeline_counts,
+    }
+
+
+@router.post("/{application_id}/mark-applied", response_model=ApplicationOut)
+def mark_applied(application_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Application:
+    application = db.query(Application).filter(Application.id == application_id, Application.user_id == user.id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    application.status = ApplicationStatus.applied
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+@router.post("/{application_id}/reset-ready", response_model=ApplicationOut)
+def reset_ready(application_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Application:
+    application = db.query(Application).filter(Application.id == application_id, Application.user_id == user.id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    application.status = ApplicationStatus.ready_to_apply
+    db.commit()
+    db.refresh(application)
+    return application
 
 
 @router.get("/{application_id}")
@@ -298,8 +453,4 @@ def get_application(application_id: int, user: User = Depends(get_current_user),
     application = db.query(Application).filter(Application.id == application_id, Application.user_id == user.id).first()
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    job = db.query(Job).filter(Job.id == application.job_id).first()
-    return {
-        "application": ApplicationOut.model_validate(application).model_dump(mode="json"),
-        "job": {"id": job.id, "title": job.title, "company": job.company} if job else None,
-    }
+    return _serialize_application(application, user, db)

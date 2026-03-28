@@ -20,7 +20,8 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 - Email/password auth with cookie-backed session token.
 - Candidate profile CRUD and resume upload/parse flow.
 - Manual job ingestion with normalization and dedupe keys.
-- Job scoring engine with transparent reasons and recommendations.
+- Role scrape runs with discovery-first job insertion and worker-queued enrichment.
+- Job scoring engine with transparent reasons, enrichment revisions, and recommendations.
 - Dashboard, jobs list, job detail, resume, and profile pages.
 
 ### Phase 2
@@ -32,8 +33,11 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 ### Phase 3
 - Step-based application run records with persisted statuses.
 - Assisted and auto-run API flows with pause-before-submit behavior.
+- Draft packet-review runs for dry-run preparation.
 - Playwright worker skeleton with screenshots and basic field filling.
 - Run timeline and diagnostics UI.
+- Worker-backed job enrichment and score-change feed events.
+- Apply control center with pipeline-stage visibility and manual operator actions.
 
 ## Monorepo Layout
 
@@ -148,7 +152,7 @@ make lint
 ## Current Gaps
 
 - Full Alembic revision history is scaffolded but not yet fully authored.
-- Worker dispatch from the API is still inline/skeleton rather than fully queued.
+- Job enrichment is queued into the worker, but retry/backoff observability for enrichment tasks is still thin.
 - Frontend document editing is MVP-grade and will benefit from richer section editors.
 - Enterprise multi-user, agency workflows, and S3 storage remain future phases.
 

@@ -56,7 +56,8 @@ Supporting context artifacts live under:
 - Jobs may resolve to a user-scoped `company_id` using normalized names and portal/hostname heuristics
 - Discovery is separated from enrichment in the ingestion service:
   - discovery writes or refreshes the canonical job record,
-  - enrichment writes structured sections, confidence metadata, and a raw snapshot artifact,
+  - enrichment is dispatched into the worker per job,
+  - worker enrichment writes structured sections, confidence metadata, and a raw snapshot artifact,
   - scoring is recorded against the resulting enrichment revision
 - Normalization infers remote type, seniority, employment type, and tags
 - Dedupe keys stop repeated inserts

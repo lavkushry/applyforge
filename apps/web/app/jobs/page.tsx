@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import type { Job, JobFeedEvent, TargetRole } from "@/lib/types";
+import type { IngestionRun, Job, JobFeedEvent, TargetRole } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
 export default function JobsPage() {
@@ -36,11 +36,14 @@ export default function JobsPage() {
     refetchInterval: 20000,
   });
   const scrapeMutation = useMutation({
-    mutationFn: (roleId: number) => api(`/roles/${roleId}/scrape-now`, { method: "POST" }),
-    onSuccess: () => {
+    mutationFn: (roleId: number) => api<IngestionRun>(`/roles/${roleId}/scrape-now`, { method: "POST" }),
+    onSuccess: (run) => {
       queryClient.invalidateQueries({ queryKey: ["jobs-feed"] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      pushToast({ title: "Role scrape completed", tone: "success" });
+      pushToast({
+        title: run.status === "running" ? "Discovery started, enrichment queued" : "Role scrape completed",
+        tone: "success",
+      });
     },
     onError: () => pushToast({ title: "Role scrape failed", tone: "error" }),
   });

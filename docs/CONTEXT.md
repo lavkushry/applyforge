@@ -22,11 +22,13 @@ The repository already supports:
 - company directory records, portals, and recruiter contacts,
 - near-realtime role feed from ingestion runs,
 - explicit discovery -> enrichment -> scoring transitions with raw job snapshot artifacts,
+- role scrape now returns after discovery while enrichment/scoring finish asynchronously in the worker,
 - transparent scoring and fact-locked tailoring,
 - theme-aware resume versions,
 - PDF export with RenderCV-compatible input and internal fallback,
 - inbox OAuth readiness plus Gmail/Outlook OTP retrieval,
 - prepared application packets, worker-queued runs, durable step logs, and pause gates.
+- an ApplyPilot-style apply control center with draft, assisted, auto, and manual operator actions.
 
 ## Invariants You Should Preserve
 

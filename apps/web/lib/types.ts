@@ -286,7 +286,28 @@ export type Application = {
     id: number;
     title: string;
     company: string;
+    application_url: string;
+    latest_score: number;
+    latest_recommendation: string;
+    enrichment_status: string;
+    enrichment_revision: number;
   } | null;
+  latest_run?: {
+    id: number;
+    mode: string;
+    status: string;
+    current_step: string;
+  } | null;
+  pipeline?: {
+    discovered: boolean;
+    enriched: boolean;
+    scored: boolean;
+    tailored: boolean;
+    cover_letter: boolean;
+    packet_ready: boolean;
+    auto_ready: boolean;
+  };
+  packet_summary?: ApplicationPacket | null;
 };
 
 export type ApplicationRun = {
@@ -337,6 +358,12 @@ export type ApplicationStep = {
 export type RunDetail = {
   run: ApplicationRun;
   steps: ApplicationStep[];
+};
+
+export type ApplicationsDashboard = {
+  status_counts: Record<string, number>;
+  run_counts: Record<string, number>;
+  pipeline_counts: Record<string, number>;
 };
 
 export type HealthStatus = {

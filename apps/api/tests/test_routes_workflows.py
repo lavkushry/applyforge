@@ -62,6 +62,17 @@ def test_role_scrape_now_populates_feed_and_scores(db_session: Session, user, pr
         ]
 
     monkeypatch.setattr("app.services.role_ingestion.fetch_jobs_for_source", fake_fetch_jobs_for_source)
+    monkeypatch.setattr(
+        "app.services.role_ingestion.dispatch_job_enrichment",
+        lambda *, run_id, job_id, role_id, user_id, source_context=None: _sync_enrichment_dispatch(
+            db_session,
+            run_id=run_id,
+            job_id=job_id,
+            role_id=role_id,
+            user_id=user_id,
+            source_context=source_context,
+        ),
+    )
 
     run = roles_routes.scrape_now(role.id, user, db_session)
     feed = jobs_routes.job_feed(role.id, None, user, db_session)
@@ -79,6 +90,99 @@ def test_role_scrape_now_populates_feed_and_scores(db_session: Session, user, pr
     assert feed_job["enrichment_status"] == "completed"
     assert feed_job["enrichment_revision"] >= 1
     assert feed_job["source_document_file_id"] is not None
+
+
+def _sync_enrichment_dispatch(db_session: Session, *, run_id: int, job_id: int, role_id: int, user_id: int, source_context: dict | None) -> str:
+    run = db_session.query(roles_routes.JobIngestionRun).filter(roles_routes.JobIngestionRun.id == run_id).first()
+    job = db_session.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+    role = db_session.query(TargetRole).filter(TargetRole.id == role_id, TargetRole.user_id == user_id).first()
+    assert run is not None
+    assert job is not None
+    assert role is not None
+    from app.services.role_ingestion import process_job_enrichment
+
+    process_job_enrichment(
+        db_session,
+        run=run,
+        user_id=user_id,
+        role=role,
+        job=job,
+        source_context=source_context,
+    )
+    return f"sync-{job_id}"
+
+
+def test_role_scrape_now_dispatches_pending_enrichment(db_session: Session, user, profile, monkeypatch) -> None:
+    payload = TargetRoleIn(
+        name="Founding Platform Engineer",
+        aliases=["Platform Engineer"],
+        keywords=["python", "platform"],
+        preferred_locations=["Remote"],
+        remote_preference="remote",
+        salary_target="$180k+",
+        visa_preference="unknown",
+        seniority="senior",
+        companies_include=[],
+        companies_exclude=[],
+        scrape_cadence_minutes=15,
+        automation_enabled=True,
+        min_auto_apply_score=85,
+        active=True,
+        sources=[
+            TargetRoleSourceIn(
+                kind="greenhouse_board",
+                label="Acme",
+                base_url="https://boards.greenhouse.io/acme",
+                config={"board_token": "acme"},
+                enabled=True,
+            )
+        ],
+    )
+    role = roles_routes.create_role(payload, user, db_session)
+
+    monkeypatch.setattr(
+        "app.services.role_ingestion.fetch_jobs_for_source",
+        lambda _source: [
+            {
+                "title": "Founding Platform Engineer",
+                "company": "Acme",
+                "location": "Remote",
+                "remote_type": "remote",
+                "salary": "$190,000",
+                "application_url": "https://jobs.acme.dev/founding-platform",
+                "description": "Python platform automation and reliability engineering.",
+                "source": "greenhouse",
+                "source_metadata": {"source_label": "Acme"},
+            }
+        ],
+    )
+    dispatched: list[dict] = []
+    monkeypatch.setattr(
+        "app.services.role_ingestion.dispatch_job_enrichment",
+        lambda *, run_id, job_id, role_id, user_id, source_context=None: dispatched.append(
+            {
+                "run_id": run_id,
+                "job_id": job_id,
+                "role_id": role_id,
+                "user_id": user_id,
+                "source_context": source_context,
+            }
+        )
+        or "task-queued",
+    )
+
+    run = roles_routes.scrape_now(role.id, user, db_session)
+    feed = jobs_routes.job_feed(role.id, None, user, db_session)
+    job = db_session.query(Job).filter(Job.role_id == role.id).first()
+
+    assert run.status == "running"
+    assert run.discovered_count == 1
+    assert run.enriched_count == 0
+    assert len(dispatched) == 1
+    assert feed[0]["event_type"] == "discovered"
+    assert job is not None
+    assert job.enrichment_status == "pending"
+    assert job.latest_score == 0.0
 
 
 def test_request_application_otp_logs_masked_step(db_session: Session, user, profile) -> None:
@@ -452,6 +556,190 @@ def test_run_assisted_queues_worker_task_and_stores_prepared_payload(db_session:
     assert stored.prepared_payload["job"]["application_url"] == job.application_url
     assert stored.prepared_payload["resume_file_id"] == uploaded.id
     assert stored.prepared_payload["mode"] == "assisted"
+
+
+def test_run_draft_creates_completed_packet_review_run(db_session: Session, user, profile) -> None:
+    uploaded = UploadedFile(
+        user_id=user.id,
+        original_name="resume.pdf",
+        path="/tmp/resume.pdf",
+        mime_type="application/pdf",
+        size_bytes=900,
+        checksum="resume-checksum",
+    )
+    db_session.add(uploaded)
+    db_session.flush()
+    resume = Resume(user_id=user.id, title="Master Resume", parse_status="parsed", active=True)
+    db_session.add(resume)
+    db_session.flush()
+    db_session.add(
+        ResumeVersion(
+            resume_id=resume.id,
+            job_id=None,
+            title="Latest Resume",
+            variant="tailored",
+            content_json={"summary": "Tailored summary"},
+            export_status="exported",
+            pdf_file_id=uploaded.id,
+        )
+    )
+    job = Job(
+        user_id=user.id,
+        title="Senior Full-Stack Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$180,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/run-draft",
+        description="React FastAPI role requiring communication and platform ownership.",
+        normalized_description={
+            "must_have_skills": ["React", "FastAPI"],
+            "nice_to_have_skills": ["Docker"],
+            "extraction_confidence": 0.88,
+        },
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["react", "fastapi"],
+        stack_tags=["react", "fastapi"],
+        domain_tags=["saas"],
+        source_metadata={},
+        enrichment_status="completed",
+        enrichment_revision=1,
+        latest_score=91.0,
+        latest_score_revision=1,
+        latest_recommendation="high priority",
+        dedupe_key="acme-senior-full-stack-engineer-run-draft",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    run = applications_routes.run_draft(job.id, user, db_session)
+    steps = db_session.query(ApplicationStep).filter(ApplicationStep.run_id == run.id).all()
+
+    assert run.mode == "draft"
+    assert run.status == "completed"
+    assert steps[-1].name == "draft_packet_ready"
+    assert steps[-1].status == "completed"
+
+
+def test_applications_dashboard_and_serialization_include_pipeline_state(db_session: Session, user, profile) -> None:
+    uploaded = UploadedFile(
+        user_id=user.id,
+        original_name="resume.pdf",
+        path="/tmp/resume.pdf",
+        mime_type="application/pdf",
+        size_bytes=900,
+        checksum="resume-checksum",
+    )
+    db_session.add(uploaded)
+    db_session.flush()
+    resume = Resume(user_id=user.id, title="Master Resume", parse_status="parsed", active=True)
+    db_session.add(resume)
+    db_session.flush()
+    db_session.add(
+        ResumeVersion(
+            resume_id=resume.id,
+            job_id=1,
+            title="Acme Resume",
+            variant="tailored",
+            content_json={"summary": "Tailored summary"},
+            export_status="exported",
+            pdf_file_id=uploaded.id,
+        )
+    )
+    job = Job(
+        id=1,
+        user_id=user.id,
+        title="Senior Full-Stack Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$180,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/dashboard",
+        description="React FastAPI role requiring communication and platform ownership.",
+        normalized_description={
+            "must_have_skills": ["React", "FastAPI"],
+            "nice_to_have_skills": ["Docker"],
+            "extraction_confidence": 0.88,
+        },
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["react", "fastapi"],
+        stack_tags=["react", "fastapi"],
+        domain_tags=["saas"],
+        source_metadata={},
+        enrichment_status="completed",
+        enrichment_revision=1,
+        latest_score=91.0,
+        latest_score_revision=1,
+        latest_recommendation="high priority",
+        dedupe_key="acme-senior-full-stack-engineer-dashboard",
+    )
+    db_session.add(job)
+    db_session.flush()
+    db_session.add(CoverLetter(job_id=job.id, content="Concise cover letter", tone="concise"))
+    application = applications_routes._ensure_application(job.id, user.id, db_session)
+    run = ApplicationRun(application_id=application.id, mode="assisted", status="paused", current_step="pause_before_submit")
+    db_session.add(run)
+    db_session.flush()
+    application.latest_run_id = run.id
+    db_session.commit()
+
+    applications = applications_routes.list_applications(user, db_session)
+    dashboard = applications_routes.dashboard(user, db_session)
+
+    assert applications[0]["pipeline"]["enriched"] is True
+    assert applications[0]["pipeline"]["scored"] is True
+    assert applications[0]["pipeline"]["tailored"] is True
+    assert applications[0]["pipeline"]["cover_letter"] is True
+    assert applications[0]["latest_run"]["status"] == "paused"
+    assert dashboard["pipeline_counts"]["tracked"] == 1
+    assert dashboard["pipeline_counts"]["packet_ready"] == 1
+    assert dashboard["run_counts"]["paused"] == 1
+
+
+def test_mark_applied_and_reset_ready_update_application_status(db_session: Session, user) -> None:
+    job = Job(
+        user_id=user.id,
+        title="Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/status",
+        description="Platform engineering role.",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python"],
+        stack_tags=["python"],
+        domain_tags=["platform"],
+        source_metadata={},
+        enrichment_status="completed",
+        enrichment_revision=1,
+        latest_score=80.0,
+        latest_score_revision=1,
+        latest_recommendation="high priority",
+        dedupe_key="acme-platform-engineer-status",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    application = applications_routes._ensure_application(job.id, user.id, db_session)
+    applied = applications_routes.mark_applied(application.id, user, db_session)
+    applied_status = applied.status
+    reset = applications_routes.reset_ready(application.id, user, db_session)
+
+    assert applied_status == "applied"
+    assert reset.status == "ready_to_apply"
 
 
 def test_run_auto_pauses_when_preflight_blocks_dispatch(db_session: Session, user, profile, monkeypatch) -> None:
