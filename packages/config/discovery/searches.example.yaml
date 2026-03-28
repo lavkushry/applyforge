@@ -1,0 +1,41 @@
+search_templates:
+  - key: senior-fullstack-remote
+    label: Senior Full-Stack Remote
+    role_name: Senior Full-Stack Engineer
+    aliases:
+      - Full-Stack Engineer
+      - Software Engineer
+    keywords:
+      - python
+      - fastapi
+      - react
+      - typescript
+      - ai
+    preferred_locations:
+      - Remote
+      - United States
+    remote_preference: remote
+    seniority: senior
+    source_preset_keys:
+      - acme-workday
+      - openai-careers
+  - key: platform-engineering
+    label: Platform Engineering
+    role_name: Senior Platform Engineer
+    aliases:
+      - Platform Engineer
+      - Infrastructure Engineer
+    keywords:
+      - kubernetes
+      - platform
+      - reliability
+      - python
+      - terraform
+    preferred_locations:
+      - Remote
+      - India
+    remote_preference: remote
+    seniority: senior
+    source_preset_keys:
+      - nimbus-workday
+      - stripe-jobs

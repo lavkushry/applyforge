@@ -4,7 +4,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.entities import JobFeedEvent, JobIngestionRun, TargetRole, TargetRoleSource, User
-from app.schemas.roles import JobIngestionRunOut, TargetRoleIn, TargetRoleOut, TargetRoleSourceOut
+from app.schemas.roles import (
+    JobIngestionRunOut,
+    SourcePresetCatalogOut,
+    TargetRoleIn,
+    TargetRoleOut,
+    TargetRoleSourceOut,
+)
+from app.services.discovery_registry import load_discovery_registry
 from app.services.role_ingestion import ingest_target_role
 
 router = APIRouter(prefix="/roles", tags=["roles"])
@@ -47,6 +54,11 @@ def _serialize_role(role: TargetRole, db: Session) -> TargetRoleOut:
 def list_roles(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[TargetRoleOut]:
     roles = db.query(TargetRole).filter(TargetRole.user_id == user.id).order_by(TargetRole.updated_at.desc()).all()
     return [_serialize_role(role, db) for role in roles]
+
+
+@router.get("/source-presets", response_model=SourcePresetCatalogOut)
+def source_presets(_user: User = Depends(get_current_user)) -> dict:
+    return load_discovery_registry()
 
 
 @router.post("", response_model=TargetRoleOut)

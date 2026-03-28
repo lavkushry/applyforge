@@ -21,6 +21,7 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 - Candidate profile CRUD and resume upload/parse flow.
 - Manual job ingestion with normalization and dedupe keys.
 - Role scrape runs with discovery-first job insertion and worker-queued enrichment.
+- Packaged discovery preset registry with example search templates, direct-site presets, and Workday-style source presets.
 - Job scoring engine with transparent reasons, enrichment revisions, and recommendations.
 - Dashboard, jobs list, job detail, resume, and profile pages.
 
@@ -38,6 +39,7 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 - Run timeline and diagnostics UI.
 - Worker-backed job enrichment and score-change feed events.
 - Apply control center with pipeline-stage visibility and manual operator actions.
+- Setup wizard page with readiness checks and one-click role bootstrapping from packaged templates.
 
 ## Monorepo Layout
 
@@ -104,6 +106,25 @@ Demo credentials:
 
 - Email: `demo@applyforge.dev`
 - Password: `demo1234`
+
+## Discovery Presets And Wizard
+
+ApplyForge now ships a small packaged discovery registry inspired by the ApplyPilot-style config layout.
+
+- `packages/config/discovery/employers.yaml`
+- `packages/config/discovery/sites.yaml`
+- `packages/config/discovery/searches.example.yaml`
+
+These power:
+
+- `GET /roles/source-presets`
+- `GET /setup/wizard`
+- `POST /setup/wizard/bootstrap-role`
+
+In the web app:
+
+- `/wizard` shows first-run readiness and recommended role templates.
+- `/roles` lets you attach a packaged source preset, including Workday-style boards, without manually copying config.
 
 ## Inbox OAuth Setup
 

@@ -1,0 +1,23 @@
+direct_sites:
+  - key: openai-careers
+    label: OpenAI Careers
+    kind: direct_url
+    base_url: https://openai.com/careers/
+    notes: Direct careers page preset for manual or fallback extraction.
+    tags:
+      - ai
+      - research
+      - product
+  - key: stripe-jobs
+    label: Stripe Jobs
+    kind: direct_url
+    base_url: https://stripe.com/jobs/search
+    notes: Direct jobs listing preset.
+    tags:
+      - fintech
+      - product
+      - engineering
+blocked_domains:
+  - linkedin.com
+  - indeed.com
+  - glassdoor.com

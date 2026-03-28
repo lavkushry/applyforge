@@ -1,0 +1,25 @@
+employers:
+  - key: acme-workday
+    label: Acme Workday
+    kind: workday_board
+    base_url: https://acme.wd1.myworkdayjobs.com/careers
+    notes: Example Workday careers tenant.
+    tags:
+      - workday
+      - saas
+      - engineering
+    config:
+      api_url: https://acme.wd1.myworkdayjobs.com/wday/cxs/acme/careers/jobs
+      source_label: Acme Workday
+  - key: nimbus-workday
+    label: Nimbus Labs Workday
+    kind: workday_board
+    base_url: https://nimbus.wd5.myworkdayjobs.com/careers
+    notes: Example platform and product engineering feed.
+    tags:
+      - workday
+      - platform
+      - remote
+    config:
+      api_url: https://nimbus.wd5.myworkdayjobs.com/wday/cxs/nimbus/careers/jobs
+      source_label: Nimbus Labs Workday

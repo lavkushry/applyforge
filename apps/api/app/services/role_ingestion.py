@@ -88,11 +88,55 @@ def _fetch_direct_jobs(source: TargetRoleSource) -> list[dict]:
     ]
 
 
+def _fetch_workday_jobs(source: TargetRoleSource) -> list[dict]:
+    api_url = str(source.config.get("api_url") or "").strip()
+    if not api_url:
+        return []
+    response = httpx.get(api_url, timeout=10.0, headers={"Accept": "application/json"})
+    response.raise_for_status()
+    payload = response.json()
+    postings = payload.get("jobPostings") or payload.get("jobs") or payload.get("positions") or []
+    jobs: list[dict] = []
+    for item in postings:
+        title = item.get("title") or item.get("externalPath", "").split("/")[-1].replace("-", " ").title()
+        location = (
+            item.get("locationsText")
+            or item.get("location")
+            or ", ".join(loc.get("displayName", "") for loc in item.get("locations", []))
+        )
+        description = (
+            item.get("jobDescription")
+            or item.get("description")
+            or "\n".join(str(value) for value in item.get("bulletFields", []) if value)
+            or title
+        )
+        application_path = item.get("externalPath") or item.get("url") or ""
+        application_url = application_path if application_path.startswith("http") else f"{source.base_url.rstrip('/')}/{application_path.lstrip('/')}"
+        jobs.append(
+            {
+                "title": title or "Workday role",
+                "company": source.label or _company_from_url(source.base_url),
+                "location": location,
+                "application_url": application_url,
+                "description": description,
+                "source": "workday",
+                "source_metadata": {
+                    "source_label": source.label,
+                    "source_kind": source.kind,
+                    "workday_api_url": api_url,
+                },
+            }
+        )
+    return jobs
+
+
 def fetch_jobs_for_source(source: TargetRoleSource) -> list[dict]:
     if source.kind == "greenhouse_board":
         return _fetch_greenhouse_jobs(source)
     if source.kind == "lever_board":
         return _fetch_lever_jobs(source)
+    if source.kind == "workday_board":
+        return _fetch_workday_jobs(source)
     if source.kind == "direct_url":
         return _fetch_direct_jobs(source)
     return []

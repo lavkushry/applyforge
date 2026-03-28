@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
 
 const links = [
+  ["Wizard", "/wizard"],
   ["Dashboard", "/dashboard"],
   ["Resume", "/resume"],
   ["Profile", "/profile"],

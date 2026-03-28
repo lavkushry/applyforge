@@ -39,6 +39,34 @@ class TargetRoleSourceOut(TargetRoleSourceIn, OrmModel):
     updated_at: datetime
 
 
+class SourcePresetOut(BaseModel):
+    key: str
+    label: str
+    kind: str
+    base_url: str
+    config: dict = Field(default_factory=dict)
+    notes: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
+class SearchTemplateOut(BaseModel):
+    key: str
+    label: str
+    role_name: str
+    aliases: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    preferred_locations: list[str] = Field(default_factory=list)
+    remote_preference: str = "remote"
+    seniority: str = "mid"
+    source_preset_keys: list[str] = Field(default_factory=list)
+
+
+class SourcePresetCatalogOut(BaseModel):
+    source_presets: list[SourcePresetOut] = Field(default_factory=list)
+    search_templates: list[SearchTemplateOut] = Field(default_factory=list)
+    blocked_domains: list[str] = Field(default_factory=list)
+
+
 class TargetRoleOut(OrmModel):
     id: int
     user_id: int

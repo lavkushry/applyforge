@@ -151,6 +151,34 @@ export type TargetRole = {
   updated_at: string;
 };
 
+export type DiscoverySourcePreset = {
+  key: string;
+  label: string;
+  kind: string;
+  base_url: string;
+  config: Record<string, unknown>;
+  notes: string;
+  tags: string[];
+};
+
+export type DiscoverySearchTemplate = {
+  key: string;
+  label: string;
+  role_name: string;
+  aliases: string[];
+  keywords: string[];
+  preferred_locations: string[];
+  remote_preference: string;
+  seniority: string;
+  source_preset_keys: string[];
+};
+
+export type DiscoveryPresetCatalog = {
+  source_presets: DiscoverySourcePreset[];
+  search_templates: DiscoverySearchTemplate[];
+  blocked_domains: string[];
+};
+
 export type Company = {
   id: number;
   user_id: number;
@@ -376,4 +404,24 @@ export type HealthStatus = {
   database: string;
   redis: string;
   timestamp: string;
+};
+
+export type WizardStep = {
+  key: string;
+  title: string;
+  description: string;
+  status: string;
+  href: string;
+};
+
+export type WizardSummary = {
+  profile_ready: boolean;
+  resume_ready: boolean;
+  inbox_ready: boolean;
+  role_count: number;
+  job_count: number;
+  tailored_resume_count: number;
+  steps: WizardStep[];
+  recommended_templates: DiscoverySearchTemplate[];
+  blocked_domains: string[];
 };

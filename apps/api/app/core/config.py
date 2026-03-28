@@ -42,5 +42,9 @@ class Settings(BaseSettings):
             return prompt_root
         return (Path(__file__).resolve().parents[4] / prompt_root).resolve()
 
+    @property
+    def resolved_config_root(self) -> Path:
+        return (Path(__file__).resolve().parents[4] / "packages" / "config").resolve()
+
 
 settings = Settings()

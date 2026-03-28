@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.api.routes import setup as setup_routes
 from app.api.routes import application_runs as application_runs_routes
 from app.api.routes import applications as applications_routes
 from app.api.routes import inbox as inbox_routes
@@ -14,6 +15,82 @@ from app.schemas.roles import TargetRoleIn, TargetRoleSourceIn
 from app.services.files import render_resume_pdf
 from app.services.inbox import create_inbox_connection
 from app.services.resume_themes import seed_resume_themes
+
+
+def test_roles_source_presets_return_packaged_catalog(db_session: Session, user) -> None:
+    payload = roles_routes.source_presets(user)
+
+    assert payload["source_presets"]
+    assert payload["search_templates"]
+    assert "linkedin.com" in payload["blocked_domains"]
+    assert any(item["kind"] == "workday_board" for item in payload["source_presets"])
+    assert any(item["key"] == "senior-fullstack-remote" for item in payload["search_templates"])
+
+
+def test_setup_wizard_summary_and_bootstrap_role(db_session: Session, user, profile) -> None:
+    summary = setup_routes.wizard_summary(user, db_session)
+
+    assert summary["profile_ready"] is True
+    assert summary["resume_ready"] is False
+    assert summary["role_count"] == 0
+    assert summary["recommended_templates"]
+    assert any(step["key"] == "roles" and step["status"] == "needs_action" for step in summary["steps"])
+
+    bootstrapped = setup_routes.bootstrap_role(
+        setup_routes.WizardBootstrapRequest(template_key="senior-fullstack-remote"),
+        user,
+        db_session,
+    )
+
+    assert bootstrapped["name"] == "Senior Full-Stack Engineer"
+    assert bootstrapped["sources"]
+    assert any(source["kind"] == "workday_board" for source in bootstrapped["sources"])
+
+    repeat = setup_routes.bootstrap_role(
+        setup_routes.WizardBootstrapRequest(template_key="senior-fullstack-remote"),
+        user,
+        db_session,
+    )
+    assert repeat["id"] == bootstrapped["id"]
+
+
+def test_workday_source_fetcher_maps_common_payload(monkeypatch) -> None:
+    from app.services.role_ingestion import fetch_jobs_for_source
+
+    source = roles_routes.TargetRoleSource(
+        role_id=1,
+        kind="workday_board",
+        label="Acme Workday",
+        base_url="https://acme.wd1.myworkdayjobs.com/careers",
+        config={"api_url": "https://acme.wd1.myworkdayjobs.com/wday/cxs/acme/careers/jobs"},
+        enabled=True,
+    )
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "jobPostings": [
+                    {
+                        "title": "Staff Platform Engineer",
+                        "locationsText": "Remote",
+                        "externalPath": "/job/Remote/Staff-Platform-Engineer_JR123",
+                        "bulletFields": ["Platform", "Remote"],
+                        "jobDescription": "Own platform systems and developer experience.",
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("app.services.role_ingestion.httpx.get", lambda *args, **kwargs: FakeResponse())
+
+    jobs = fetch_jobs_for_source(source)
+
+    assert len(jobs) == 1
+    assert jobs[0]["source"] == "workday"
+    assert jobs[0]["title"] == "Staff Platform Engineer"
+    assert jobs[0]["application_url"].startswith("https://acme.wd1.myworkdayjobs.com/careers/")
 
 
 def test_role_scrape_now_populates_feed_and_scores(db_session: Session, user, profile, monkeypatch) -> None:
