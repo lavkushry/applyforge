@@ -47,6 +47,22 @@ class ApplicationRunOut(OrmModel):
     finished_at: datetime | None
 
 
+class ApplicationPacketSummary(BaseModel):
+    ready: bool
+    auto_submit_allowed: bool
+    resume_file_id: int | None
+    cover_letter_id: int | None
+    missing_answers: list[str]
+    risk_summary: list[str]
+    blocking_issues: list[str]
+    answer_keys: list[str]
+
+
+class ApplicationPrepareResponse(BaseModel):
+    application: ApplicationOut
+    packet: ApplicationPacketSummary
+
+
 class ApplicationRunDetail(BaseModel):
     run: ApplicationRunOut
     steps: list[ApplicationStepOut]

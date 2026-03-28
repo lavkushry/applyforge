@@ -306,6 +306,7 @@ class ApplicationRun(Base):
     external_task_id: Mapped[str] = mapped_column(String(120), default="")
     error_message: Mapped[str] = mapped_column(Text, default="")
     policy_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    prepared_payload: Mapped[dict] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

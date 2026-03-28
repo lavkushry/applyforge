@@ -19,6 +19,10 @@ export default function RunViewPage() {
     queryKey: ["run", id],
     queryFn: () => api<RunDetail>(`/application-runs/${id}`),
     enabled: Boolean(session.user),
+    refetchInterval: (query) => {
+      const status = (query.state.data as RunDetail | undefined)?.run.status;
+      return status && ["queued", "running"].includes(status) ? 3000 : false;
+    },
   });
   const run = runQuery.data;
 
@@ -34,6 +38,15 @@ export default function RunViewPage() {
         <Card className="space-y-4">
           {run ? (
             <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge>{run.run.mode}</Badge>
+                  <Badge>{run.run.status}</Badge>
+                  <Badge tone="default">{run.run.current_step}</Badge>
+                </div>
+                <p className="mt-3 text-sm text-slate-300">Task ID: {run.run.external_task_id || "Not dispatched"}</p>
+                {run.run.error_message ? <p className="mt-2 text-sm text-rose-300">{run.run.error_message}</p> : null}
+              </div>
               {run.steps.map((step) => (
                 <div key={step.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
                   <div className="flex items-center justify-between gap-4">
@@ -55,8 +68,22 @@ export default function RunViewPage() {
                       {step.status}
                     </Badge>
                   </div>
+                  {step.screenshot_file_id ? (
+                    <a
+                      className="mt-3 inline-flex text-sm text-cyan-300"
+                      href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/files/${step.screenshot_file_id}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open screenshot
+                    </a>
+                  ) : null}
                   <pre className="mt-3 overflow-auto rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs text-slate-300">
-                    {JSON.stringify(step.output, null, 2)}
+                    {JSON.stringify(
+                      Object.keys(step.masked_output || {}).length ? step.masked_output : step.output,
+                      null,
+                      2,
+                    )}
                   </pre>
                 </div>
               ))}

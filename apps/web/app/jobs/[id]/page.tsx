@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import type { CoverLetter, Job, JobScore, ResumeVersion } from "@/lib/types";
+import type { ApplicationPrepareResponse, ApplicationRun, CoverLetter, Job, JobScore, ResumeVersion } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const session = useSession();
   const pushToast = useAppStore((state) => state.pushToast);
   const jobQuery = useQuery({
@@ -41,8 +42,31 @@ export default function JobDetailPage() {
     mutationFn: () => api<CoverLetter>(`/jobs/${id}/cover-letter`, { method: "POST" }),
     onSuccess: () => pushToast({ title: "Cover letter generated", tone: "success" }),
   });
+  const prepareMutation = useMutation({
+    mutationFn: () => api<ApplicationPrepareResponse>(`/applications/${id}/prepare`, { method: "POST" }),
+    onSuccess: (payload) =>
+      pushToast({
+        title: payload.packet.ready ? "Application packet ready" : "Application packet needs review",
+        tone: payload.packet.ready ? "success" : "info",
+      }),
+  });
+  const assistedRunMutation = useMutation({
+    mutationFn: () => api<ApplicationRun>(`/applications/${id}/run-assisted`, { method: "POST" }),
+    onSuccess: (run) => {
+      pushToast({ title: `Assisted run ${run.status}`, tone: run.status === "queued" ? "success" : "info" });
+      router.push(`/runs/${run.id}`);
+    },
+  });
+  const autoRunMutation = useMutation({
+    mutationFn: () => api<ApplicationRun>(`/applications/${id}/run-auto`, { method: "POST" }),
+    onSuccess: (run) => {
+      pushToast({ title: `Auto run ${run.status}`, tone: run.status === "queued" ? "success" : "info" });
+      router.push(`/runs/${run.id}`);
+    },
+  });
 
   const job = jobQuery.data;
+  const packet = prepareMutation.data?.packet;
 
   return (
     <ProtectedPage>
@@ -93,6 +117,15 @@ export default function JobDetailPage() {
                 >
                   {coverLetterMutation.isPending ? "Writing…" : "Generate cover letter"}
                 </Button>
+                <Button disabled={prepareMutation.isPending} onClick={() => prepareMutation.mutate()} variant="secondary">
+                  {prepareMutation.isPending ? "Preparing…" : "Prepare application packet"}
+                </Button>
+                <Button disabled={assistedRunMutation.isPending} onClick={() => assistedRunMutation.mutate()}>
+                  {assistedRunMutation.isPending ? "Queueing…" : "Run assisted apply"}
+                </Button>
+                <Button disabled={autoRunMutation.isPending} onClick={() => autoRunMutation.mutate()} variant="secondary">
+                  {autoRunMutation.isPending ? "Queueing…" : "Run auto apply"}
+                </Button>
               </div>
 
               <div className="flex flex-wrap gap-3 pt-2">
@@ -115,6 +148,31 @@ export default function JobDetailPage() {
                   Eligibility: <span className="font-medium text-white">{String(eligibilityQuery.data?.reason || "Pending")}</span>
                 </p>
               </div>
+
+              {packet ? (
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={packet.ready ? "success" : "warning"}>
+                      {packet.ready ? "Packet ready" : "Needs review"}
+                    </Badge>
+                    <Badge tone={packet.auto_submit_allowed ? "success" : "default"}>
+                      {packet.auto_submit_allowed ? "Auto submit allowed" : "Auto submit blocked"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-300">
+                    Resume file: <span className="font-medium text-white">{packet.resume_file_id || "Missing"}</span>
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    Cover letter: <span className="font-medium text-white">{packet.cover_letter_id || "Not attached"}</span>
+                  </p>
+                  {packet.blocking_issues.length ? (
+                    <p className="text-sm text-amber-200">Blocking issues: {packet.blocking_issues.join(", ")}</p>
+                  ) : null}
+                  {packet.missing_answers.length ? (
+                    <p className="text-sm text-amber-200">Missing answers: {packet.missing_answers.join(", ")}</p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-sm font-medium text-white">Detected tags</p>

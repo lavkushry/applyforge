@@ -292,6 +292,22 @@ export type ApplicationRun = {
   finished_at: string | null;
 };
 
+export type ApplicationPacket = {
+  ready: boolean;
+  auto_submit_allowed: boolean;
+  resume_file_id: number | null;
+  cover_letter_id: number | null;
+  missing_answers: string[];
+  risk_summary: string[];
+  blocking_issues: string[];
+  answer_keys: string[];
+};
+
+export type ApplicationPrepareResponse = {
+  application: Application;
+  packet: ApplicationPacket;
+};
+
 export type ApplicationStep = {
   id: number;
   run_id: number;

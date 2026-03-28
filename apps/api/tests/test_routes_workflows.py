@@ -7,7 +7,7 @@ from app.api.routes import inbox as inbox_routes
 from app.api.routes import jobs as jobs_routes
 from app.api.routes import roles as roles_routes
 from app.core.config import settings
-from app.models.entities import ApplicationRun, ApplicationStep, InboxOtpEvent, Job, TargetRole
+from app.models.entities import ApplicationRun, ApplicationStep, CoverLetter, InboxOtpEvent, Job, Resume, ResumeVersion, TargetRole, UploadedFile
 from app.schemas.inbox import InboxConnectionCreate, InboxOtpRequest
 from app.schemas.roles import TargetRoleIn, TargetRoleSourceIn
 from app.services.files import render_resume_pdf
@@ -103,10 +103,12 @@ def test_request_application_otp_logs_masked_step(db_session: Session, user, pro
     db_session.commit()
     db_session.refresh(job)
 
-    application = applications_routes.prepare(job.id, user, db_session)
-    run = ApplicationRun(application_id=application.id, mode="assisted", status="paused", current_step="wait_for_otp")
+    prepared = applications_routes.prepare(job.id, user, db_session)
+    run = ApplicationRun(application_id=prepared["application"]["id"], mode="assisted", status="paused", current_step="wait_for_otp")
     db_session.add(run)
     db_session.flush()
+    application = db_session.query(applications_routes.Application).filter(applications_routes.Application.id == prepared["application"]["id"]).first()
+    assert application is not None
     application.latest_run_id = run.id
     db_session.commit()
     db_session.refresh(run)
@@ -252,10 +254,12 @@ def test_request_application_otp_fetches_provider_messages_when_none_supplied(db
     db_session.commit()
     db_session.refresh(job)
 
-    application = applications_routes.prepare(job.id, user, db_session)
-    run = ApplicationRun(application_id=application.id, mode="assisted", status="paused", current_step="wait_for_otp")
+    prepared = applications_routes.prepare(job.id, user, db_session)
+    run = ApplicationRun(application_id=prepared["application"]["id"], mode="assisted", status="paused", current_step="wait_for_otp")
     db_session.add(run)
     db_session.flush()
+    application = db_session.query(applications_routes.Application).filter(applications_routes.Application.id == prepared["application"]["id"]).first()
+    assert application is not None
     application.latest_run_id = run.id
     db_session.commit()
 
@@ -313,3 +317,197 @@ def test_render_resume_pdf_falls_back_to_internal_renderer(monkeypatch, tmp_path
 
     assert Path(path).exists()
     assert Path(path).suffix == ".pdf"
+
+
+def test_prepare_returns_packet_summary_with_readiness(db_session: Session, user, profile) -> None:
+    uploaded = UploadedFile(
+        user_id=user.id,
+        original_name="tailored-resume.pdf",
+        path="/tmp/tailored-resume.pdf",
+        mime_type="application/pdf",
+        size_bytes=1200,
+        checksum="resume-checksum",
+    )
+    db_session.add(uploaded)
+    db_session.flush()
+
+    resume = Resume(user_id=user.id, title="Master Resume", parse_status="parsed", active=True)
+    db_session.add(resume)
+    db_session.flush()
+
+    version = ResumeVersion(
+        resume_id=resume.id,
+        title="Acme Resume",
+        variant="tailored",
+        content_json={"summary": "Tailored summary"},
+        export_status="exported",
+        pdf_file_id=uploaded.id,
+    )
+    db_session.add(version)
+
+    job = Job(
+        user_id=user.id,
+        title="Senior Full-Stack Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$180,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/prepare",
+        description="React FastAPI role requiring communication and platform ownership.",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["react", "fastapi"],
+        stack_tags=["react", "fastapi"],
+        domain_tags=["saas"],
+        source_metadata={},
+        latest_score=91.0,
+        latest_recommendation="high priority",
+        dedupe_key="acme-senior-full-stack-engineer-prepare",
+    )
+    db_session.add(job)
+    db_session.flush()
+
+    cover_letter = CoverLetter(job_id=job.id, content="Concise cover letter", tone="concise")
+    db_session.add(cover_letter)
+    db_session.commit()
+    db_session.refresh(job)
+
+    payload = applications_routes.prepare(job.id, user, db_session)
+
+    assert payload["application"]["job_id"] == job.id
+    assert payload["packet"]["ready"] is True
+    assert payload["packet"]["resume_file_id"] == uploaded.id
+    assert payload["packet"]["cover_letter_id"] == cover_letter.id
+    assert payload["packet"]["missing_answers"] == []
+    assert payload["packet"]["risk_summary"] == []
+
+
+def test_run_assisted_queues_worker_task_and_stores_prepared_payload(db_session: Session, user, profile, monkeypatch) -> None:
+    uploaded = UploadedFile(
+        user_id=user.id,
+        original_name="resume.pdf",
+        path="/tmp/resume.pdf",
+        mime_type="application/pdf",
+        size_bytes=900,
+        checksum="resume-checksum",
+    )
+    db_session.add(uploaded)
+    db_session.flush()
+    resume = Resume(user_id=user.id, title="Master Resume", parse_status="parsed", active=True)
+    db_session.add(resume)
+    db_session.flush()
+    db_session.add(
+        ResumeVersion(
+            resume_id=resume.id,
+            job_id=None,
+            title="Latest Resume",
+            variant="tailored",
+            content_json={"summary": "Tailored summary"},
+            export_status="exported",
+            pdf_file_id=uploaded.id,
+        )
+    )
+    job = Job(
+        user_id=user.id,
+        title="Senior Full-Stack Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$180,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/run-assisted",
+        description="React FastAPI role requiring communication and platform ownership.",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["react", "fastapi"],
+        stack_tags=["react", "fastapi"],
+        domain_tags=["saas"],
+        source_metadata={},
+        latest_score=91.0,
+        latest_recommendation="high priority",
+        dedupe_key="acme-senior-full-stack-engineer-run-assisted",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    monkeypatch.setattr("app.api.routes.applications.dispatch_application_run", lambda mode, run_id, packet: "task-123")
+
+    run = applications_routes.run_assisted(job.id, user, db_session)
+    stored = db_session.query(ApplicationRun).filter(ApplicationRun.id == run.id).first()
+
+    assert stored is not None
+    assert stored.status == "queued"
+    assert stored.external_task_id == "task-123"
+    assert stored.prepared_payload["job"]["application_url"] == job.application_url
+    assert stored.prepared_payload["resume_file_id"] == uploaded.id
+    assert stored.prepared_payload["mode"] == "assisted"
+
+
+def test_run_auto_pauses_when_preflight_blocks_dispatch(db_session: Session, user, profile, monkeypatch) -> None:
+    role = roles_routes.create_role(
+        TargetRoleIn(
+            name="Senior Platform Engineer",
+            aliases=["Platform Engineer"],
+            keywords=["python", "platform"],
+            preferred_locations=["Remote"],
+            remote_preference="remote",
+            salary_target="$180k+",
+            visa_preference="no_sponsorship_needed",
+            seniority="senior",
+            companies_include=[],
+            companies_exclude=[],
+            scrape_cadence_minutes=15,
+            automation_enabled=True,
+            min_auto_apply_score=85,
+            active=True,
+            sources=[],
+        ),
+        user,
+        db_session,
+    )
+    job = Job(
+        user_id=user.id,
+        role_id=role.id,
+        title="Senior Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$180,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/run-auto",
+        description="Python platform role requiring communication and ownership.",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python"],
+        stack_tags=["python"],
+        domain_tags=["platform"],
+        source_metadata={},
+        latest_score=70.0,
+        latest_recommendation="maybe",
+        dedupe_key="acme-senior-platform-engineer-run-auto",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    def fail_dispatch(mode, run_id, packet):
+        raise AssertionError("dispatch_application_run should not be called when preflight blocks auto mode")
+
+    monkeypatch.setattr("app.api.routes.applications.dispatch_application_run", fail_dispatch)
+
+    run = applications_routes.run_auto(job.id, user, db_session)
+    steps = db_session.query(ApplicationStep).filter(ApplicationStep.run_id == run.id).all()
+
+    assert run.status == "paused"
+    assert run.external_task_id == ""
+    assert steps[-1].name == "auto_apply_preflight_gate"
+    assert steps[-1].requires_approval is True
+    assert "score" in steps[-1].output["reason"].lower()

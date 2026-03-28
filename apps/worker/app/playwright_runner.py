@@ -4,54 +4,211 @@ from uuid import uuid4
 from playwright.sync_api import sync_playwright
 
 from app.config import settings
+from app.db import SessionLocal
+from app.models import UploadedFile
+from app.persistence import RunRecorder, persist_uploaded_file
 
 
-def run_assisted_flow(application_url: str, answers: dict) -> dict:
+FIELD_RULES = [
+    {
+        "answer_key": "full_name",
+        "step_name": "fill_full_name",
+        "selectors": ["input[name='name']", "input[autocomplete='name']", "input[name='fullName']"],
+    },
+    {
+        "answer_key": "email",
+        "step_name": "fill_email",
+        "selectors": ["input[type='email']", "input[name='email']", "input[autocomplete='email']"],
+    },
+    {
+        "answer_key": "phone",
+        "step_name": "fill_phone",
+        "selectors": ["input[type='tel']", "input[name='phone']", "input[autocomplete='tel']"],
+    },
+]
+
+
+def _save_screenshot(page, user_id: int | None, suffix: str) -> int:
     Path(settings.artifacts_path).mkdir(parents=True, exist_ok=True)
-    step_artifacts = []
+    screenshot_path = str(Path(settings.artifacts_path) / f"{uuid4()}-{suffix}.png")
+    page.screenshot(path=screenshot_path, full_page=True)
+    return persist_uploaded_file(
+        user_id=user_id,
+        path=screenshot_path,
+        original_name=Path(screenshot_path).name,
+        mime_type="image/png",
+    )
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=settings.playwright_headless)
-        page = browser.new_page()
-        page.set_default_timeout(settings.page_timeout_ms)
-        page.goto(application_url, wait_until="domcontentloaded")
 
-        open_url_shot = str(Path(settings.artifacts_path) / f"{uuid4()}-open.png")
-        page.screenshot(path=open_url_shot, full_page=True)
-        step_artifacts.append({"name": "open_url", "status": "completed", "screenshot": open_url_shot})
+def _fill_first(page, selectors: list[str], value: str) -> bool:
+    for selector in selectors:
+        locator = page.locator(selector)
+        if locator.count() > 0:
+            locator.first.fill(value)
+            return True
+    return False
 
-        if answers.get("full_name"):
-            for selector in [
-                "input[name='name']",
-                "input[autocomplete='name']",
-                "input[name='fullName']",
-            ]:
-                if page.locator(selector).count() > 0:
-                    page.fill(selector, answers["full_name"])
-                    break
 
-        if answers.get("email"):
-            for selector in ["input[type='email']", "input[name='email']", "input[autocomplete='email']"]:
-                if page.locator(selector).count() > 0:
-                    page.fill(selector, answers["email"])
-                    break
+def _upload_resume(page, resume_path: str) -> bool:
+    locator = page.locator("input[type='file']")
+    if locator.count() == 0:
+        return False
+    locator.first.set_input_files(resume_path)
+    return True
 
-        fill_shot = str(Path(settings.artifacts_path) / f"{uuid4()}-filled.png")
-        page.screenshot(path=fill_shot, full_page=True)
-        step_artifacts.append({"name": "fill_basic_fields", "status": "completed", "screenshot": fill_shot})
 
-        browser.close()
+def _collect_unsupported_required_fields(page) -> list[dict]:
+    script = """
+    (elements) => elements.map((element) => {
+      const tagName = element.tagName.toLowerCase();
+      const type = (element.getAttribute('type') || '').toLowerCase();
+      const required = element.required || element.getAttribute('aria-required') === 'true';
+      const hasValue = tagName === 'select'
+        ? Boolean(element.value)
+        : type === 'checkbox' || type === 'radio'
+          ? element.checked
+          : Boolean(element.value);
+      return {
+        tag_name: tagName,
+        type,
+        name: element.getAttribute('name') || '',
+        id: element.getAttribute('id') || '',
+        required,
+        has_value: hasValue,
+      };
+    }).filter((field) => field.required && !field.has_value);
+    """
+    return page.locator("input, textarea, select").evaluate_all(script)
 
-    return {
-        "status": "paused_for_review",
-        "steps": [
-            *step_artifacts,
-            {
-                "name": "pause_before_submit",
-                "status": "paused",
-                "screenshot": fill_shot,
-                "output": {"requires_user_review": True},
-            },
-        ],
-        "final_screenshot": fill_shot,
-    }
+
+def _resolve_resume_path(resume_file_id: int | None) -> str:
+    if not resume_file_id:
+        return ""
+    with SessionLocal() as db:
+        uploaded = db.query(UploadedFile).filter(UploadedFile.id == resume_file_id).first()
+        return uploaded.path if uploaded else ""
+
+
+def run_application_flow(run_id: int, packet: dict) -> dict:
+    recorder = RunRecorder(run_id)
+    recorder.set_status("running", "worker_started")
+    answers = packet.get("answers", {})
+    application_url = packet.get("job", {}).get("application_url", "")
+    user_id = packet.get("user_id")
+    resume_path = _resolve_resume_path(packet.get("resume_file_id"))
+    result = {"status": "completed", "steps": []}
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=settings.playwright_headless)
+            page = browser.new_page()
+            page.set_default_timeout(settings.page_timeout_ms)
+            page.goto(application_url, wait_until="domcontentloaded")
+            open_screenshot = _save_screenshot(page, user_id, "open")
+            recorder.log_step(
+                name="open_application_url",
+                status="completed",
+                output={"url": application_url},
+                step_kind="navigation",
+                screenshot_file_id=open_screenshot,
+            )
+
+            filled_fields = []
+            for rule in FIELD_RULES:
+                value = answers.get(rule["answer_key"], "")
+                if value and _fill_first(page, rule["selectors"], value):
+                    filled_fields.append(rule["answer_key"])
+                    recorder.log_step(
+                        name=rule["step_name"],
+                        status="completed",
+                        output={"field": rule["answer_key"]},
+                        step_kind="form_fill",
+                    )
+
+            uploaded_resume = False
+            if resume_path and _upload_resume(page, resume_path):
+                uploaded_resume = True
+                recorder.log_step(
+                    name="upload_resume",
+                    status="completed",
+                    output={"resume_file_id": packet.get("resume_file_id")},
+                    step_kind="file_upload",
+                )
+
+            fill_screenshot = _save_screenshot(page, user_id, "filled")
+            recorder.log_step(
+                name="fill_known_fields",
+                status="completed",
+                output={"filled_fields": filled_fields, "uploaded_resume": uploaded_resume},
+                step_kind="form_fill",
+                screenshot_file_id=fill_screenshot,
+            )
+
+            unsupported_fields = _collect_unsupported_required_fields(page)
+            if unsupported_fields:
+                recorder.log_step(
+                    name="unsupported_fields_detected",
+                    status="paused",
+                    output={"unsupported_fields": unsupported_fields},
+                    step_kind="field_detection",
+                    requires_approval=True,
+                    screenshot_file_id=fill_screenshot,
+                )
+                recorder.set_status("paused", "unsupported_fields_detected")
+                browser.close()
+                return {"status": "paused", "steps": [{"name": "unsupported_fields_detected", "status": "paused"}]}
+
+            if packet.get("mode") == "assisted":
+                recorder.log_step(
+                    name="pause_before_submit",
+                    status="paused",
+                    output={"requires_user_review": True},
+                    step_kind="approval_gate",
+                    requires_approval=True,
+                    screenshot_file_id=fill_screenshot,
+                )
+                recorder.set_status("paused", "pause_before_submit")
+                browser.close()
+                return {"status": "paused", "steps": [{"name": "pause_before_submit", "status": "paused"}]}
+
+            submit_locator = page.locator("button[type='submit'], input[type='submit']")
+            if submit_locator.count() == 0:
+                recorder.log_step(
+                    name="submit_confirmation_uncertain",
+                    status="paused",
+                    output={"reason": "No submit control detected"},
+                    step_kind="submission",
+                    requires_approval=True,
+                    screenshot_file_id=fill_screenshot,
+                )
+                recorder.set_status("uncertain", "submit_confirmation_uncertain")
+                browser.close()
+                return {"status": "uncertain", "steps": [{"name": "submit_confirmation_uncertain", "status": "paused"}]}
+
+            submit_locator.first.click()
+            page.wait_for_timeout(1500)
+            submit_screenshot = _save_screenshot(page, user_id, "submitted")
+            page_text = page.locator("body").inner_text(timeout=5_000).lower()
+            confirmed = any(token in page_text for token in ("thank you", "application received", "submitted", "success"))
+            recorder.log_step(
+                name="submit_application",
+                status="completed" if confirmed else "paused",
+                output={"confirmed": confirmed},
+                step_kind="submission",
+                requires_approval=not confirmed,
+                screenshot_file_id=submit_screenshot,
+            )
+            browser.close()
+    except Exception as exc:
+        recorder.log_step(
+            name="worker_execution_failed",
+            status="failed",
+            output={"error": str(exc)},
+            step_kind="worker_error",
+        )
+        recorder.set_status("failed", "worker_execution_failed", error_message=str(exc))
+        raise
+
+    final_status = "completed" if confirmed else "uncertain"
+    recorder.set_status(final_status, "submit_application")
+    return {"status": final_status, "steps": [{"name": "submit_application", "status": final_status}]}
