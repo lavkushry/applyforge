@@ -52,6 +52,31 @@ export default function ScoreDetailPage() {
                 </Badge>
               </div>
 
+              <Card className="space-y-3 border-white/5 bg-slate-950/60">
+                <h2 className="text-base font-semibold text-white">Breakdown</h2>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {Object.entries(score.score_breakdown)
+                    .filter(([key]) =>
+                      [
+                        "title_fit",
+                        "must_have_fit",
+                        "nice_to_have_fit",
+                        "location_fit",
+                        "compensation_fit",
+                        "visa_fit",
+                        "application_readiness",
+                      ].includes(key),
+                    )
+                    .map(([key, value]) => (
+                      <div key={key} className="rounded-2xl border border-white/10 bg-slate-950/50 p-3">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{key.replaceAll("_", " ")}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{Math.round(value)}</p>
+                      </div>
+                    ))}
+                </div>
+                <p className="text-xs text-slate-500">Enrichment revision {score.enrichment_revision}</p>
+              </Card>
+
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card className="space-y-3 border-white/5 bg-slate-950/60">
                   <h2 className="text-base font-semibold text-white">Strengths</h2>

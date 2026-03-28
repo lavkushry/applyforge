@@ -54,10 +54,14 @@ Supporting context artifacts live under:
 - Manual import by pasted description or URL metadata
 - Company directory records sit between raw discovery and normalized jobs
 - Jobs may resolve to a user-scoped `company_id` using normalized names and portal/hostname heuristics
+- Discovery is separated from enrichment in the ingestion service:
+  - discovery writes or refreshes the canonical job record,
+  - enrichment writes structured sections, confidence metadata, and a raw snapshot artifact,
+  - scoring is recorded against the resulting enrichment revision
 - Normalization infers remote type, seniority, employment type, and tags
 - Dedupe keys stop repeated inserts
 - Target roles drive scrape cadence, score weighting inputs, and automation thresholds
-- Job feed events preserve discovered, updated, and freshness-related lifecycle signals
+- Job feed events preserve discovered, updated, enriched, score-changed, and expired lifecycle signals
 - Scoring engine returns:
   - overall score
   - score breakdown
@@ -65,6 +69,7 @@ Supporting context artifacts live under:
   - missing skills
   - reasons
   - recommendation
+  - enrichment revision
 
 ### 4. Tailoring and Documents
 
@@ -73,6 +78,11 @@ Supporting context artifacts live under:
 - RenderCV-compatible structured input can be produced from normalized resume content
 - ATS-oriented PDF export writes to local storage abstraction with RenderCV-first fallback behavior
 - Cover letters are generated per job and stored server-side
+- Tailoring diffs now preserve:
+  - matched and uncovered requirement signals
+  - emphasized experience rows
+  - emphasized project rows
+  - source enrichment revision
 
 ### 4A. Company Intelligence
 
@@ -93,6 +103,9 @@ Supporting context artifacts live under:
 - `applications` hold job-level progression states
 - `application_runs` hold execution attempts
 - `application_steps` hold checkpoint-level status, outputs, retries, and screenshots
+- runs are created as queued records from the API and dispatched into the worker
+- the worker writes durable step rows and screenshot file records directly into shared storage and the shared database
+- preflight creates a prepared application packet before execution
 - OTP lookup and approval gates are modeled as explicit step kinds
 - Risky questions remain gated for explicit review
 
@@ -140,11 +153,13 @@ Primary tables:
 If you need to continue product work quickly, start from these files:
 
 - role discovery and job feed: [apps/api/app/services/role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
+- enrichment stage and raw snapshot artifacts: [job_enrichment.py](/home/ems/applyforge/apps/api/app/services/job_enrichment.py)
 - company matching and source resolution: [company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py), [companies.py](/home/ems/applyforge/apps/api/app/api/routes/companies.py)
 - scoring and tailoring: [apps/api/app/services/scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py), [apps/api/app/services/tailor.py](/home/ems/applyforge/apps/api/app/services/tailor.py)
 - resume themes and export: [apps/api/app/services/resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py), [apps/api/app/services/files.py](/home/ems/applyforge/apps/api/app/services/files.py)
 - inbox OAuth and OTP flows: [apps/api/app/services/inbox.py](/home/ems/applyforge/apps/api/app/services/inbox.py), [apps/api/app/api/routes/inbox.py](/home/ems/applyforge/apps/api/app/api/routes/inbox.py)
-- run timeline behavior: [apps/api/app/api/routes/applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py), [apps/api/app/automation/engine.py](/home/ems/applyforge/apps/api/app/automation/engine.py)
+- application packet and run dispatch: [application_packets.py](/home/ems/applyforge/apps/api/app/services/application_packets.py), [apps/api/app/api/routes/applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py)
+- run timeline behavior and durable worker persistence: [apps/worker/app/playwright_runner.py](/home/ems/applyforge/apps/worker/app/playwright_runner.py), [apps/worker/app/persistence.py](/home/ems/applyforge/apps/worker/app/persistence.py)
 - settings UX and inbox connect UI: [apps/web/components/forms/settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
 - company directory UI: [page.tsx](/home/ems/applyforge/apps/web/app/companies/page.tsx)
 

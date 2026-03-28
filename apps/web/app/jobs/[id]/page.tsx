@@ -145,8 +145,42 @@ export default function JobDetailPage() {
                   Latest score: <span className="font-medium text-white">{Math.round(job.latest_score || 0)}</span>
                 </p>
                 <p className="text-sm text-slate-300">
+                  Score revision: <span className="font-medium text-white">{job.latest_score_revision}</span>
+                </p>
+                <p className="text-sm text-slate-300">
                   Eligibility: <span className="font-medium text-white">{String(eligibilityQuery.data?.reason || "Pending")}</span>
                 </p>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{job.enrichment_status}</Badge>
+                  <Badge tone="default">Revision {job.enrichment_revision}</Badge>
+                </div>
+                <p className="text-sm text-slate-300">
+                  Extraction confidence:{" "}
+                  <span className="font-medium text-white">
+                    {typeof job.enrichment_metadata?.extraction_confidence === "number"
+                      ? `${Math.round(Number(job.enrichment_metadata.extraction_confidence) * 100)}%`
+                      : "Unknown"}
+                  </span>
+                </p>
+                {Array.isArray(job.normalized_description?.must_have_skills) && job.normalized_description.must_have_skills.length ? (
+                  <p className="text-sm text-slate-300">
+                    Must-have skills:{" "}
+                    <span className="font-medium text-white">
+                      {job.normalized_description.must_have_skills.join(", ")}
+                    </span>
+                  </p>
+                ) : null}
+                {Array.isArray(job.normalized_description?.nice_to_have_skills) && job.normalized_description.nice_to_have_skills.length ? (
+                  <p className="text-sm text-slate-300">
+                    Nice-to-have skills:{" "}
+                    <span className="font-medium text-white">
+                      {job.normalized_description.nice_to_have_skills.join(", ")}
+                    </span>
+                  </p>
+                ) : null}
               </div>
 
               {packet ? (

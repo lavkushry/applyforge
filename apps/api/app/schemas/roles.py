@@ -69,6 +69,9 @@ class JobIngestionRunOut(OrmModel):
     discovered_count: int
     inserted_count: int
     updated_count: int
+    enriched_count: int
+    failed_count: int
+    expired_count: int
     error_message: str
     started_at: datetime
     finished_at: datetime | None

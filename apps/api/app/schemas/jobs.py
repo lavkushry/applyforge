@@ -29,8 +29,15 @@ class JobOut(JobCreate, OrmModel):
     stack_tags: list[str]
     domain_tags: list[str]
     source_metadata: dict
+    enrichment_status: str
+    enrichment_error: str
+    enrichment_metadata: dict
+    enrichment_revision: int
+    source_document_file_id: int | None
     latest_score: float
+    latest_score_revision: int
     latest_recommendation: str
+    last_scored_at: datetime | None
     first_seen_at: datetime
     last_seen_at: datetime
     expired_at: datetime | None
@@ -47,6 +54,7 @@ class JobScoreResponse(OrmModel):
     id: int
     job_id: int
     role_id: int | None
+    enrichment_revision: int
     overall_score: float
     score_breakdown: dict
     missing_skills: list[str]

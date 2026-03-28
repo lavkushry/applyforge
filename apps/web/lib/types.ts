@@ -50,8 +50,15 @@ export type Job = {
   stack_tags: string[];
   domain_tags: string[];
   source_metadata: Record<string, unknown>;
+  enrichment_status: string;
+  enrichment_error: string;
+  enrichment_metadata: Record<string, unknown>;
+  enrichment_revision: number;
+  source_document_file_id: number | null;
   latest_score: number;
+  latest_score_revision: number;
   latest_recommendation: string;
+  last_scored_at: string | null;
   first_seen_at: string;
   last_seen_at: string;
   expired_at: string | null;
@@ -64,6 +71,7 @@ export type JobScore = {
   id: number;
   job_id: number;
   role_id: number | null;
+  enrichment_revision: number;
   overall_score: number;
   score_breakdown: Record<string, number>;
   missing_skills: string[];
@@ -215,6 +223,9 @@ export type IngestionRun = {
   discovered_count: number;
   inserted_count: number;
   updated_count: number;
+  enriched_count: number;
+  failed_count: number;
+  expired_count: number;
   error_message: string;
   started_at: string;
   finished_at: string | null;

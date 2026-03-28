@@ -21,11 +21,12 @@ The repository already supports:
 - role registry and scrape preferences,
 - company directory records, portals, and recruiter contacts,
 - near-realtime role feed from ingestion runs,
+- explicit discovery -> enrichment -> scoring transitions with raw job snapshot artifacts,
 - transparent scoring and fact-locked tailoring,
 - theme-aware resume versions,
 - PDF export with RenderCV-compatible input and internal fallback,
 - inbox OAuth readiness plus Gmail/Outlook OTP retrieval,
-- application runs with durable step logs and pause gates.
+- prepared application packets, worker-queued runs, durable step logs, and pause gates.
 
 ## Invariants You Should Preserve
 
@@ -47,6 +48,7 @@ The repository already supports:
 ### Jobs and scoring
 
 - [apps/api/app/services/job_normalizer.py](/home/ems/applyforge/apps/api/app/services/job_normalizer.py)
+- [apps/api/app/services/job_enrichment.py](/home/ems/applyforge/apps/api/app/services/job_enrichment.py)
 - [apps/api/app/services/company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py)
 - [apps/api/app/services/scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py)
 - [apps/api/app/services/role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
@@ -57,7 +59,9 @@ The repository already supports:
 ### Automation and OTP
 
 - [apps/api/app/api/routes/applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py)
-- [apps/api/app/automation/engine.py](/home/ems/applyforge/apps/api/app/automation/engine.py)
+- [apps/api/app/services/application_packets.py](/home/ems/applyforge/apps/api/app/services/application_packets.py)
+- [apps/worker/app/playwright_runner.py](/home/ems/applyforge/apps/worker/app/playwright_runner.py)
+- [apps/worker/app/persistence.py](/home/ems/applyforge/apps/worker/app/persistence.py)
 - [apps/api/app/services/inbox.py](/home/ems/applyforge/apps/api/app/services/inbox.py)
 - [apps/api/app/api/routes/inbox.py](/home/ems/applyforge/apps/api/app/api/routes/inbox.py)
 

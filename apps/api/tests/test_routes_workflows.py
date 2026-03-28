@@ -65,15 +65,20 @@ def test_role_scrape_now_populates_feed_and_scores(db_session: Session, user, pr
 
     run = roles_routes.scrape_now(role.id, user, db_session)
     feed = jobs_routes.job_feed(role.id, None, user, db_session)
+    feed_event_types = {item["event_type"] for item in feed}
+    feed_job = next(item["job"] for item in feed if item["job"])
 
     assert run.status == "completed"
     assert run.discovered_count == 1
     assert run.inserted_count == 1
-    assert len(feed) == 1
-    assert feed[0]["role_name"] == "Senior Platform Engineer"
-    assert feed[0]["event_type"] == "discovered"
-    assert feed[0]["job"]["latest_score"] > 0
-    assert feed[0]["job"]["latest_recommendation"] in {"high priority", "maybe", "skip"}
+    assert run.enriched_count == 1
+    assert {"discovered", "enriched", "score_changed"}.issubset(feed_event_types)
+    assert next(item["role_name"] for item in feed if item["role_name"]) == "Senior Platform Engineer"
+    assert feed_job["latest_score"] > 0
+    assert feed_job["latest_recommendation"] in {"high priority", "maybe", "skip"}
+    assert feed_job["enrichment_status"] == "completed"
+    assert feed_job["enrichment_revision"] >= 1
+    assert feed_job["source_document_file_id"] is not None
 
 
 def test_request_application_otp_logs_masked_step(db_session: Session, user, profile) -> None:
@@ -511,3 +516,46 @@ def test_run_auto_pauses_when_preflight_blocks_dispatch(db_session: Session, use
     assert steps[-1].name == "auto_apply_preflight_gate"
     assert steps[-1].requires_approval is True
     assert "score" in steps[-1].output["reason"].lower()
+
+
+def test_score_route_records_current_enrichment_revision(db_session: Session, user, profile) -> None:
+    job = Job(
+        user_id=user.id,
+        title="Staff Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="$205,000",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/score",
+        description="Own platform systems and developer experience.",
+        normalized_description={
+            "must_have_skills": ["Python", "Kubernetes"],
+            "nice_to_have_skills": ["Docker"],
+            "extraction_confidence": 0.82,
+        },
+        seniority="staff",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python", "kubernetes"],
+        stack_tags=["python", "kubernetes"],
+        domain_tags=["platform"],
+        source_metadata={},
+        enrichment_status="completed",
+        enrichment_revision=4,
+        latest_score=0.0,
+        latest_score_revision=0,
+        latest_recommendation="unscored",
+        dedupe_key="acme-staff-platform-engineer-score",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    score = jobs_routes.score(job.id, None, user, db_session)
+    refreshed_job = db_session.query(Job).filter(Job.id == job.id).first()
+
+    assert score.enrichment_revision == 4
+    assert score.score_breakdown["application_readiness"] >= 7
+    assert refreshed_job is not None
+    assert refreshed_job.latest_score_revision == 4

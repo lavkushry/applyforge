@@ -25,20 +25,19 @@ This file tracks what remains after the current role-feed, themed-resume, and in
 
 ## Jobs and Scoring
 
-1. Add URL scraping workers for richer multi-source ingestion.
-2. Add tunable weighting for location, visa, salary, and domain fit.
+1. Move enrichment execution off the synchronous scrape path into dedicated worker jobs with retry and backoff.
+2. Add richer HTML extraction for company career pages and Workday-style application pages.
 3. Expand source coverage while keeping ATS-first dedupe and freshness semantics intact.
 4. Add source-health diagnostics, retry backoff visibility, and stale-source alerts.
 5. Expand company resolution with review queues, merge tooling, and portal-health checks.
 
 ## Automation
 
-1. Dispatch worker runs asynchronously from the API instead of inline skeleton logging.
-2. Persist screenshots as uploaded file records directly from worker callbacks.
-3. Expand generic field adapters for dropdowns, radios, file uploads, and multi-step ATS flows.
-4. Add resume submission checkpoints and resume-failure recovery.
-5. Add explicit automation eligibility rules per role and per job score threshold.
-6. Add robust resume/restart semantics for partially completed application flows.
+1. Expand generic field adapters for dropdowns, radios, checkboxes, file uploads, and multi-step ATS flows.
+2. Add resume submission checkpoints and resume-failure recovery.
+3. Add robust resume/restart semantics for partially completed application flows.
+4. Add richer diagnostics for prepared application packets and approval decisions.
+5. Persist worker retry attempts and backoff metadata directly on run history.
 
 ## Inbox and OAuth
 

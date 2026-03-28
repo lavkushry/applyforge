@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -16,11 +18,16 @@ from app.schemas.jobs import (
 from app.services.job_normalizer import normalize_job_payload
 from app.services.llm import log_prompt_invocation
 from app.services.company_directory import resolve_company_for_job
+from app.services.job_enrichment import enrich_job_record
 from app.services.resume_themes import get_theme_by_id
 from app.services.scoring import score_job
 from app.services.tailor import generate_cover_letter, tailor_resume
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+def jobs_routes_utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _require_profile(user_id: int, db: Session) -> CandidateProfile:
@@ -85,8 +92,23 @@ def create_job(payload: JobCreate, user: User = Depends(get_current_user), db: S
         prompt_name="job_normalization",
         payload={"title": payload.title, "company": payload.company, "description_excerpt": payload.description[:250]},
     )
-    job = Job(user_id=user.id, **normalized)
+    job = Job(
+        user_id=user.id,
+        enrichment_status="pending",
+        enrichment_revision=0,
+        latest_score_revision=0,
+        **normalized,
+    )
     db.add(job)
+    db.flush()
+    enrich_job_record(
+        db,
+        user_id=user.id,
+        job=job,
+        raw_payload={**payload.model_dump(mode="json"), "company": normalized["company"]},
+        source_kind="manual",
+        source_url=payload.application_url,
+    )
     db.commit()
     db.refresh(job)
     return job
@@ -195,6 +217,10 @@ def score(
             "seniority": job.seniority,
             "salary": job.salary,
             "tags": job.tags,
+            "application_url": job.application_url,
+            "normalized_description": job.normalized_description,
+            "enrichment_status": job.enrichment_status,
+            "enrichment_revision": job.enrichment_revision,
         },
         {
             "name": role.name,
@@ -210,7 +236,9 @@ def score(
         else None,
     )
     job.latest_score = score_result["overall_score"]
+    job.latest_score_revision = score_result["enrichment_revision"]
     job.latest_recommendation = score_result["recommendation"]
+    job.last_scored_at = jobs_routes_utcnow()
     score_row = JobScore(job_id=job.id, role_id=role.id if role else None, **score_result)
     db.add(score_row)
     db.commit()
@@ -250,7 +278,13 @@ def tailor(
             "saved_answers": profile.saved_answers,
             "fact_locked": profile.fact_locked,
         },
-        {"title": job.title, "company": job.company, "description": job.description},
+        {
+            "title": job.title,
+            "company": job.company,
+            "description": job.description,
+            "normalized_description": job.normalized_description,
+            "enrichment_revision": job.enrichment_revision,
+        },
         {
             "name": role.name,
             "aliases": role.aliases,
@@ -285,14 +319,28 @@ def eligibility(job_id: int, user: User = Depends(get_current_user), db: Session
     job = get_job(job_id, user, db)
     role = _require_role(user.id, job.role_id, db)
     threshold = role.min_auto_apply_score if role else 85.0
-    eligible = bool(role and role.automation_enabled and job.latest_score >= threshold)
+    eligible = bool(
+        role
+        and role.automation_enabled
+        and job.enrichment_status == "completed"
+        and job.latest_score_revision >= job.enrichment_revision
+        and job.latest_score >= threshold
+    )
+    if eligible:
+        reason = "Eligible for auto-apply"
+    elif job.enrichment_status != "completed":
+        reason = "Awaiting enriched job details before automation"
+    elif job.latest_score_revision < job.enrichment_revision:
+        reason = "Refresh the score for the latest enrichment revision"
+    else:
+        reason = "Needs assisted review or higher score"
     return {
         "eligible": eligible,
         "latest_score": job.latest_score,
         "threshold": threshold,
         "role_id": role.id if role else None,
         "role_name": role.name if role else "",
-        "reason": "Eligible for auto-apply" if eligible else "Needs assisted review or higher score",
+        "reason": reason,
     }
 
 

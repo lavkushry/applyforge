@@ -125,9 +125,15 @@ export default function JobsPage() {
                         Source link
                       </a>
                     ) : null}
+                    {event.job?.enrichment_status ? <Badge>{event.job.enrichment_status}</Badge> : null}
                     {event.job?.latest_score ? <Badge tone="success">{Math.round(event.job.latest_score)} match</Badge> : null}
                     {event.job?.latest_recommendation ? <Badge>{event.job.latest_recommendation}</Badge> : null}
                   </div>
+                  {typeof event.job?.enrichment_metadata?.extraction_confidence === "number" ? (
+                    <p className="text-xs text-slate-400">
+                      Enrichment confidence {Math.round(Number(event.job.enrichment_metadata.extraction_confidence) * 100)}%
+                    </p>
+                  ) : null}
                 </Card>
               ))}
             </div>
@@ -155,11 +161,17 @@ export default function JobsPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge>{job.remote_type}</Badge>
+                        <Badge>{job.enrichment_status}</Badge>
                         {job.latest_score ? <Badge tone="success">{Math.round(job.latest_score)} match</Badge> : null}
                       </div>
                     </div>
                     <p className="text-sm text-slate-400">{job.location || "Location not provided"}</p>
                     <p className="text-sm text-slate-300">{job.description.slice(0, 180)}…</p>
+                    {typeof job.enrichment_metadata?.extraction_confidence === "number" ? (
+                      <p className="text-xs text-slate-400">
+                        Extraction confidence {Math.round(Number(job.enrichment_metadata.extraction_confidence) * 100)}%
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-2">
                       {job.tags.slice(0, 4).map((tag) => (
                         <Badge key={tag} tone="default">

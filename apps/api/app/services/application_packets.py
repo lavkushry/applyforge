@@ -112,6 +112,10 @@ def build_application_packet(
         blocking_issues.append("Missing application URL")
     if not resume_file:
         blocking_issues.append("Missing resume upload")
+    if job.enrichment_status != "completed":
+        blocking_issues.append("Job enrichment is incomplete")
+    if job.latest_score_revision < job.enrichment_revision:
+        blocking_issues.append("Job score is stale against the latest enrichment revision")
 
     threshold = role.min_auto_apply_score if role else 85.0
     auto_policy_reasons = []
@@ -126,6 +130,9 @@ def build_application_packet(
             auto_policy_reasons.extend(blocking_issues)
 
     risk_summary: list[str] = []
+    extraction_confidence = float(job.enrichment_metadata.get("extraction_confidence", 0.0) or 0.0)
+    if job.enrichment_status == "completed" and extraction_confidence and extraction_confidence < 0.55:
+        risk_summary.append("Job extraction confidence is low")
     ready = not blocking_issues and not missing_answers
     auto_submit_allowed = mode == "auto" and not auto_policy_reasons and ready and not risk_summary
 

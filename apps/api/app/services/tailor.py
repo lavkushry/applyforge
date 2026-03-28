@@ -34,17 +34,83 @@ def rank_skills_for_job(skills: list[str], description: str) -> list[str]:
     return sorted(skills, key=lambda skill: (0 if skill.lower() in lowered else 1, skill.lower()))
 
 
-def build_tailoring_diff(original_skills: list[str], ranked_skills: list[str], role: dict | None) -> dict:
+def _score_profile_item(item: dict, keywords: list[str]) -> int:
+    item_text = " ".join(
+        [
+            str(item.get("title", "")),
+            str(item.get("company", "")),
+            str(item.get("name", "")),
+            str(item.get("summary", "")),
+            " ".join(str(entry) for entry in item.get("highlights", [])),
+        ]
+    ).lower()
+    return sum(1 for keyword in keywords if keyword and keyword.lower() in item_text)
+
+
+def _rank_profile_items(items: list[dict], keywords: list[str]) -> tuple[list[dict], list[int]]:
+    indexed = list(enumerate(items))
+    ranked = sorted(indexed, key=lambda indexed_item: (-_score_profile_item(indexed_item[1], keywords), indexed_item[0]))
+    emphasized_indices = [index for index, item in ranked if _score_profile_item(item, keywords) > 0]
+    return [item for _, item in ranked], emphasized_indices
+
+
+def build_tailoring_diff(
+    original_skills: list[str],
+    ranked_skills: list[str],
+    role: dict | None,
+    *,
+    matched_requirements: list[str],
+    missing_requirements: list[str],
+    emphasized_experience_indices: list[int],
+    emphasized_project_indices: list[int],
+    enrichment_revision: int,
+) -> dict:
     role_keywords = role.get("keywords", []) if role else []
     return {
         "skills_reordered": original_skills != ranked_skills,
         "role_keywords": role_keywords,
         "focused_on_role": role.get("name") if role else "",
+        "matched_requirements": matched_requirements,
+        "missing_requirements": missing_requirements,
+        "emphasized_experience_indices": emphasized_experience_indices,
+        "emphasized_project_indices": emphasized_project_indices,
+        "enrichment_revision": enrichment_revision,
     }
 
 
 def tailor_resume(profile: dict, job: dict, role: dict | None = None) -> dict:
+    normalized_description = job.get("normalized_description", {}) or {}
     ranked_skills = rank_skills_for_job(profile.get("skills", []), job.get("description", ""))
+    keywords = list(
+        dict.fromkeys(
+            normalized_description.get("must_have_skills", [])
+            + normalized_description.get("nice_to_have_skills", [])
+            + (role.get("keywords", []) if role else [])
+        )
+    )
+    ranked_experience, emphasized_experience_indices = _rank_profile_items(profile.get("experience", []), keywords)
+    ranked_projects, emphasized_project_indices = _rank_profile_items(profile.get("projects", []), keywords)
+    profile_skill_lookup = {skill.lower() for skill in profile.get("skills", [])}
+    project_text = " ".join(
+        " ".join(
+            [
+                str(item.get("name", "")),
+                str(item.get("summary", "")),
+                " ".join(str(entry) for entry in item.get("highlights", [])),
+            ]
+        )
+        for item in profile.get("projects", [])
+    ).lower()
+    matched_requirements = [
+        keyword
+        for keyword in keywords
+        if keyword.lower() in profile_skill_lookup or keyword.lower() in project_text
+    ]
+    missing_requirements = [
+        keyword
+        for keyword in normalized_description.get("nice_to_have_skills", [])
+        if keyword.lower() not in profile_skill_lookup and keyword.lower() not in project_text
+    ]
     original_summary = profile.get("summary", "").strip()
     role_name = (role or {}).get("name") or profile.get("basics", {}).get("target_role") or job.get("title", "this role")
     target_summary = (
@@ -61,15 +127,24 @@ def tailor_resume(profile: dict, job: dict, role: dict | None = None) -> dict:
         "basics": dict(profile.get("basics", {})),
         "summary": target_summary,
         "skills": ranked_skills,
-        "experience": list(profile.get("experience", [])),
-        "projects": list(profile.get("projects", [])),
+        "experience": ranked_experience,
+        "projects": ranked_projects,
         "education": list(profile.get("education", [])),
         "certifications": list(profile.get("certifications", [])),
         "links": list(profile.get("links", [])),
         "preferences": dict(profile.get("preferences", {})),
         "saved_answers": dict(profile.get("saved_answers", {})),
         "tailoring_notes": tailoring_notes,
-        "diff_metadata": build_tailoring_diff(profile.get("skills", []), ranked_skills, role),
+        "diff_metadata": build_tailoring_diff(
+            profile.get("skills", []),
+            ranked_skills,
+            role,
+            matched_requirements=matched_requirements,
+            missing_requirements=missing_requirements,
+            emphasized_experience_indices=emphasized_experience_indices,
+            emphasized_project_indices=emphasized_project_indices,
+            enrichment_revision=int(job.get("enrichment_revision") or 1),
+        ),
         "fact_locked": True,
     }
 
