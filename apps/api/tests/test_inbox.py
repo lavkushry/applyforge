@@ -1,4 +1,4 @@
-from app.services.inbox import extract_otp, mask_token
+from app.services.inbox import decrypt_token, encrypt_token, extract_otp, mask_token, sanitize_connection_metadata
 
 
 def test_extract_otp_prefers_matching_sender_hint() -> None:
@@ -20,3 +20,12 @@ def test_extract_otp_prefers_matching_sender_hint() -> None:
 def test_mask_token_obscures_middle_characters() -> None:
     assert mask_token("abcdefgh12345678").startswith("abcd")
     assert mask_token("abcdefgh12345678").endswith("5678")
+
+
+def test_encrypt_token_round_trips_and_sanitizer_removes_secret() -> None:
+    encrypted = encrypt_token("oauth-secret-token")
+
+    assert decrypt_token(encrypted) == "oauth-secret-token"
+    assert sanitize_connection_metadata({"oauth_connected": True, "access_token_encrypted": encrypted}) == {
+        "oauth_connected": True
+    }

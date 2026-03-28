@@ -25,6 +25,16 @@ class InboxConnectionOut(OrmModel):
     updated_at: datetime
 
 
+class InboxOAuthProviderOut(BaseModel):
+    provider: str
+    configured: bool
+    authorization_enabled: bool
+    redirect_uri: str
+    scopes: list[str]
+    required_env: list[str]
+    missing_env: list[str]
+
+
 class InboxOtpRequest(BaseModel):
     run_id: int | None = None
     sender_hint: str = ""

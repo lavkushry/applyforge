@@ -180,6 +180,16 @@ export type InboxConnection = {
   updated_at: string;
 };
 
+export type InboxOAuthProvider = {
+  provider: string;
+  configured: boolean;
+  authorization_enabled: boolean;
+  redirect_uri: string;
+  scopes: string[];
+  required_env: string[];
+  missing_env: string[];
+};
+
 export type InboxOtpEvent = {
   id: number;
   connection_id: number;

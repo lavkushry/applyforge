@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -19,15 +20,14 @@ const schema = z.object({
   pause_on_risk: z.boolean(),
   keyword_focus: z.string(),
   default_theme: z.string(),
-  inbox_provider: z.enum(["gmail", "outlook"]),
-  inbox_email: z.string().email(),
-  inbox_token: z.string().min(8),
 });
 
 type FormValues = z.infer<typeof schema>;
 
 export function SettingsForm() {
   const pushToast = useAppStore((state) => state.pushToast);
+  const searchParams = useSearchParams();
+  const lastInboxToast = useRef<string>("");
   const settingsQuery = useQuery({
     queryKey: ["settings"],
     queryFn: () => api<Record<string, unknown>>("/profile/settings"),
@@ -40,9 +40,6 @@ export function SettingsForm() {
       pause_on_risk: true,
       keyword_focus: "python, ai, fastapi",
       default_theme: "classic-ats-light",
-      inbox_provider: "gmail",
-      inbox_email: "candidate@example.com",
-      inbox_token: "oauth-demo-token",
     },
   });
   const themesQuery = useQuery({ queryKey: ["resume-themes"], queryFn: () => api<ResumeTheme[]>("/resume-themes") });
@@ -62,11 +59,24 @@ export function SettingsForm() {
         ? (filters?.keyword_focus as string[]).join(", ")
         : "python, ai, fastapi",
       default_theme: (resume?.default_theme as string) || "classic-ats-light",
-      inbox_provider: "gmail",
-      inbox_email: "candidate@example.com",
-      inbox_token: "oauth-demo-token",
     });
   }, [form, settingsQuery.data]);
+
+  useEffect(() => {
+    const status = searchParams.get("inbox_status");
+    const provider = searchParams.get("provider");
+    const message = searchParams.get("message");
+    const key = `${status}:${provider}:${message}`;
+    if (!status || lastInboxToast.current === key) {
+      return;
+    }
+    lastInboxToast.current = key;
+    if (status === "connected") {
+      pushToast({ title: `${provider === "outlook" ? "Outlook" : "Gmail"} inbox connected`, tone: "success" });
+      return;
+    }
+    pushToast({ title: message || "Inbox connection failed", tone: "error" });
+  }, [pushToast, searchParams]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) =>
@@ -92,22 +102,13 @@ export function SettingsForm() {
     onError: () => pushToast({ title: "Failed to save settings", tone: "error" }),
   });
 
-  const inboxMutation = useMutation({
-    mutationFn: async (values: FormValues) =>
-      api<InboxConnection>(`/inbox/${values.inbox_provider}/connect`, {
-        method: "POST",
-        body: JSON.stringify({
-          provider: values.inbox_provider,
-          email: values.inbox_email,
-          token: values.inbox_token,
-          scopes: ["mail.read", "mail.metadata"],
-        }),
-      }),
+  const oauthStartMutation = useMutation({
+    mutationFn: async (provider: "gmail" | "outlook") =>
+      api<{ provider: string; authorization_url: string }>(`/inbox/${provider}/oauth/start?return_to=/settings`),
     onSuccess: () => {
-      pushToast({ title: "Inbox connected", tone: "success" });
-      inboxQuery.refetch();
+      pushToast({ title: "Redirecting to provider consent", tone: "info" });
     },
-    onError: () => pushToast({ title: "Inbox connection failed", tone: "error" }),
+    onError: () => pushToast({ title: "Failed to start inbox OAuth", tone: "error" }),
   });
 
   const disconnectMutation = useMutation({
@@ -170,33 +171,38 @@ export function SettingsForm() {
       <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
         <div className="space-y-1">
           <p className="text-sm font-medium text-white">Inbox OTP access</p>
-          <p className="text-sm text-slate-400">Gmail and Outlook OAuth-style connections only. OTP codes stay masked in logs.</p>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <select
-            className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
-            {...form.register("inbox_provider")}
-          >
-            <option value="gmail">Gmail</option>
-            <option value="outlook">Outlook</option>
-          </select>
-          <Input {...form.register("inbox_email")} placeholder="name@example.com" />
-          <Input {...form.register("inbox_token")} placeholder="OAuth token" />
+          <p className="text-sm text-slate-400">Use provider OAuth to let ApplyForge read recent OTP emails. Tokens stay encrypted at rest and masked in logs.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button
-            disabled={inboxMutation.isPending}
-            onClick={form.handleSubmit((values) => inboxMutation.mutate(values))}
+            disabled={oauthStartMutation.isPending}
+            onClick={async () => {
+              const result = await oauthStartMutation.mutateAsync("gmail");
+              window.location.href = result.authorization_url;
+            }}
             type="button"
             variant="secondary"
           >
-            {inboxMutation.isPending ? "Connecting…" : "Connect inbox"}
+            {oauthStartMutation.isPending ? "Starting…" : "Connect Gmail"}
+          </Button>
+          <Button
+            disabled={oauthStartMutation.isPending}
+            onClick={async () => {
+              const result = await oauthStartMutation.mutateAsync("outlook");
+              window.location.href = result.authorization_url;
+            }}
+            type="button"
+            variant="secondary"
+          >
+            {oauthStartMutation.isPending ? "Starting…" : "Connect Outlook"}
           </Button>
           {inboxQuery.data?.map((connection) => (
             <div key={connection.id} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm text-slate-200">
               <Badge tone="success">{connection.provider}</Badge>
               <span>{connection.email}</span>
-              <span className="text-slate-500">{connection.token_masked}</span>
+              <span className="text-slate-500">
+                {String(connection.metadata_json.connected_via || "manual")} · {connection.token_masked}
+              </span>
               <Button type="button" variant="ghost" onClick={() => disconnectMutation.mutate(connection.id)}>
                 Disconnect
               </Button>

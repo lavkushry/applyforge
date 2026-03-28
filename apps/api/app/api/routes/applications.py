@@ -16,7 +16,7 @@ from app.models.entities import (
 )
 from app.schemas.inbox import InboxOtpRequest
 from app.schemas.applications import ApplicationOut, ApplicationRunOut
-from app.services.inbox import extract_otp, record_otp_event
+from app.services.inbox import extract_otp, fetch_inbox_messages, record_otp_event
 from app.services.tailor import detect_risky_question, generate_application_answer
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -191,7 +191,11 @@ def request_otp(
     if not connection:
         raise HTTPException(status_code=400, detail="Connect an inbox first")
 
-    result = extract_otp(payload.messages, payload.sender_hint, payload.subject_hint)
+    try:
+        messages = payload.messages or fetch_inbox_messages(db, connection, payload.sender_hint, payload.subject_hint)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch inbox messages: {exc}") from exc
+    result = extract_otp(messages, payload.sender_hint, payload.subject_hint)
     event = record_otp_event(
         db,
         connection_id=connection.id,
@@ -212,6 +216,7 @@ def request_otp(
             "status": result["status"],
             "confidence": result["confidence"],
             "sender": result["sender"],
+            "message_count": len(messages),
         },
         masked_output={"subject": event.subject_masked, "masked_code": masked_code},
         step_kind="otp_lookup",
@@ -229,6 +234,7 @@ def request_otp(
         "masked_code": masked_code,
         "confidence": result["confidence"],
         "provider": connection.provider,
+        "message_count": len(messages),
         "event_id": event.id,
     }
 

@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    google_oauth_redirect_uri: str = "http://localhost:8000/inbox/gmail/oauth/callback"
+    microsoft_oauth_client_id: str = ""
+    microsoft_oauth_client_secret: str = ""
+    microsoft_oauth_tenant: str = "common"
+    microsoft_oauth_redirect_uri: str = "http://localhost:8000/inbox/outlook/oauth/callback"
     storage_path: str = "./uploads"
     artifacts_path: str = "./artifacts"
     prompt_root: str = Field(default="../../packages/prompts")
