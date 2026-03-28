@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.api.routes import application_runs as application_runs_routes
 from app.api.routes import applications as applications_routes
 from app.api.routes import inbox as inbox_routes
 from app.api.routes import jobs as jobs_routes
@@ -687,6 +688,16 @@ def test_applications_dashboard_and_serialization_include_pipeline_state(db_sess
     run = ApplicationRun(application_id=application.id, mode="assisted", status="paused", current_step="pause_before_submit")
     db_session.add(run)
     db_session.flush()
+    db_session.add(
+        ApplicationStep(
+            run_id=run.id,
+            name="manual_question_review_required",
+            status="paused",
+            step_kind="field_detection",
+            requires_approval=True,
+            output={"reason": "Manual review required for unsupported screening questions"},
+        )
+    )
     application.latest_run_id = run.id
     db_session.commit()
 
@@ -698,6 +709,9 @@ def test_applications_dashboard_and_serialization_include_pipeline_state(db_sess
     assert applications[0]["pipeline"]["tailored"] is True
     assert applications[0]["pipeline"]["cover_letter"] is True
     assert applications[0]["latest_run"]["status"] == "paused"
+    assert applications[0]["action_required"]["name"] == "manual_question_review_required"
+    assert applications[0]["action_required"]["step_kind"] == "field_detection"
+    assert "unsupported screening questions" in applications[0]["action_required"]["reason"]
     assert dashboard["pipeline_counts"]["tracked"] == 1
     assert dashboard["pipeline_counts"]["packet_ready"] == 1
     assert dashboard["run_counts"]["paused"] == 1
@@ -740,6 +754,83 @@ def test_mark_applied_and_reset_ready_update_application_status(db_session: Sess
 
     assert applied_status == "applied"
     assert reset.status == "ready_to_apply"
+
+
+def test_resume_run_requeues_paused_run_with_existing_packet(db_session: Session, user, monkeypatch) -> None:
+    job = Job(
+        user_id=user.id,
+        title="Platform Engineer",
+        company="Acme",
+        location="Remote",
+        remote_type="remote",
+        salary="",
+        source="manual",
+        application_url="https://careers.acme.dev/jobs/resume-run",
+        description="Platform engineering role.",
+        normalized_description={},
+        seniority="senior",
+        employment_type="full-time",
+        visa_support="unknown",
+        tags=["python"],
+        stack_tags=["python"],
+        domain_tags=["platform"],
+        source_metadata={},
+        enrichment_status="completed",
+        enrichment_revision=1,
+        latest_score=88.0,
+        latest_score_revision=1,
+        latest_recommendation="high priority",
+        dedupe_key="acme-platform-engineer-resume-run",
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    application = applications_routes._ensure_application(job.id, user.id, db_session)
+    run = ApplicationRun(
+        application_id=application.id,
+        mode="assisted",
+        status="paused",
+        current_step="captcha_or_antibot_detected",
+        external_task_id="task-old",
+        prepared_payload={
+            "mode": "assisted",
+            "job": {"application_url": job.application_url},
+            "answers": {"email": user.email},
+        },
+    )
+    db_session.add(run)
+    db_session.flush()
+    db_session.add(
+        ApplicationStep(
+            run_id=run.id,
+            name="captcha_or_antibot_detected",
+            status="paused",
+            step_kind="anti_bot",
+            requires_approval=True,
+            output={"reason": "Manual security challenge detected"},
+        )
+    )
+    application.latest_run_id = run.id
+    db_session.commit()
+
+    def fake_dispatch(mode: str, run_id: int, packet: dict) -> str:
+        assert mode == "assisted"
+        assert run_id == run.id
+        assert packet["job"]["application_url"] == job.application_url
+        return "task-resume-123"
+
+    monkeypatch.setattr("app.api.routes.application_runs.dispatch_application_run", fake_dispatch)
+    resumed = application_runs_routes.resume_run(run.id, user, db_session)
+
+    steps = db_session.query(ApplicationStep).filter(ApplicationStep.run_id == run.id).order_by(ApplicationStep.id.asc()).all()
+
+    assert resumed.status == "queued"
+    assert resumed.current_step == "resume_requested"
+    assert resumed.external_task_id == "task-resume-123"
+    assert resumed.finished_at is None
+    assert steps[-1].name == "resume_requested"
+    assert steps[-1].step_kind == "control"
 
 
 def test_run_auto_pauses_when_preflight_blocks_dispatch(db_session: Session, user, profile, monkeypatch) -> None:

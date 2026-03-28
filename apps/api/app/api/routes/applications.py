@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.entities import (
     Application,
     ApplicationRun,
+    ApplicationStep,
     ApplicationStatus,
     CandidateProfile,
     CoverLetter,
@@ -68,6 +69,37 @@ def _get_connected_inbox(user_id: int, db: Session) -> InboxConnection | None:
     )
 
 
+def _get_latest_action_required(run: ApplicationRun | None, db: Session) -> dict | None:
+    if not run or run.status not in {"paused", "uncertain", "failed"}:
+        return None
+
+    step = (
+        db.query(ApplicationStep)
+        .filter(
+            ApplicationStep.run_id == run.id,
+            (ApplicationStep.requires_approval.is_(True)) | (ApplicationStep.status.in_(["paused", "failed"])),
+        )
+        .order_by(ApplicationStep.started_at.desc(), ApplicationStep.id.desc())
+        .first()
+    )
+    if not step:
+        if run.error_message:
+            return {
+                "name": run.current_step,
+                "step_kind": "run_error",
+                "reason": run.error_message,
+            }
+        return None
+
+    visible_output = step.masked_output or step.output
+    reason = visible_output.get("reason") or visible_output.get("error") or "Manual review required before this run can continue."
+    return {
+        "name": step.name,
+        "step_kind": step.step_kind,
+        "reason": str(reason),
+    }
+
+
 def _serialize_application(application: Application, user: User, db: Session) -> dict:
     job = db.query(Job).filter(Job.id == application.job_id, Job.user_id == user.id).first()
     latest_run = _get_latest_run(application, db)
@@ -123,6 +155,7 @@ def _serialize_application(application: Application, user: User, db: Session) ->
         }
         if latest_run
         else None,
+        "action_required": _get_latest_action_required(latest_run, db),
         "pipeline": {
             "discovered": True,
             "enriched": bool(job and job.enrichment_status == "completed"),

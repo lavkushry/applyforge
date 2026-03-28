@@ -298,6 +298,11 @@ export type Application = {
     status: string;
     current_step: string;
   } | null;
+  action_required?: {
+    name: string;
+    step_kind: string;
+    reason: string;
+  } | null;
   pipeline?: {
     discovered: boolean;
     enriched: boolean;

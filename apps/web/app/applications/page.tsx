@@ -70,6 +70,14 @@ export default function ApplicationsPage() {
     },
     onError: () => pushToast({ title: "Auto run failed", tone: "error" }),
   });
+  const resumeRunMutation = useMutation({
+    mutationFn: (runId: number) => api<ApplicationRun>(`/application-runs/${runId}/resume`, { method: "POST" }),
+    onSuccess: (run) => {
+      refreshQueries();
+      pushToast({ title: `Run ${run.id} resumed`, tone: "success" });
+    },
+    onError: () => pushToast({ title: "Could not resume run", tone: "error" }),
+  });
   const markAppliedMutation = useMutation({
     mutationFn: (applicationId: number) => api<Application>(`/applications/${applicationId}/mark-applied`, { method: "POST" }),
     onSuccess: () => {
@@ -164,6 +172,17 @@ export default function ApplicationsPage() {
                         <Button variant="secondary">View run</Button>
                       </Link>
                     ) : null}
+                    {application.latest_run &&
+                    ["paused", "uncertain", "failed"].includes(application.latest_run.status) &&
+                    application.latest_run.mode !== "draft" ? (
+                      <Button
+                        disabled={resumeRunMutation.isPending}
+                        onClick={() => resumeRunMutation.mutate(application.latest_run!.id)}
+                        variant="secondary"
+                      >
+                        {resumeRunMutation.isPending ? "Resuming…" : "Resume run"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -187,6 +206,15 @@ export default function ApplicationsPage() {
                     )}
                     {application.packet_summary?.blocking_issues?.length ? (
                       <p className="text-sm text-amber-200">Blocking issues: {application.packet_summary.blocking_issues.join(", ")}</p>
+                    ) : null}
+                    {application.action_required ? (
+                      <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="warning">{application.action_required.step_kind}</Badge>
+                          <Badge>{application.action_required.name}</Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-amber-100">{application.action_required.reason}</p>
+                      </div>
                     ) : null}
                   </div>
 

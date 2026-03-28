@@ -1,20 +1,24 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProtectedPage } from "@/components/ui/protected-page";
+import { useAppStore } from "@/store/app-store";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import type { RunDetail } from "@/lib/types";
+import type { ApplicationRun, RunDetail } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export default function RunViewPage() {
   const { id } = useParams<{ id: string }>();
   const session = useSession();
+  const queryClient = useQueryClient();
+  const pushToast = useAppStore((state) => state.pushToast);
   const runQuery = useQuery({
     queryKey: ["run", id],
     queryFn: () => api<RunDetail>(`/application-runs/${id}`),
@@ -23,6 +27,16 @@ export default function RunViewPage() {
       const status = (query.state.data as RunDetail | undefined)?.run.status;
       return status && ["queued", "running"].includes(status) ? 3000 : false;
     },
+  });
+  const resumeMutation = useMutation({
+    mutationFn: (runId: number) => api<ApplicationRun>(`/application-runs/${runId}/resume`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["run", id] });
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+      queryClient.invalidateQueries({ queryKey: ["applications-dashboard"] });
+      pushToast({ title: "Run resumed", tone: "success" });
+    },
+    onError: () => pushToast({ title: "Could not resume run", tone: "error" }),
   });
   const run = runQuery.data;
   const handoffSteps =
@@ -51,6 +65,15 @@ export default function RunViewPage() {
                   <Badge>{run.run.mode}</Badge>
                   <Badge>{run.run.status}</Badge>
                   <Badge tone="default">{run.run.current_step}</Badge>
+                  {["paused", "uncertain", "failed"].includes(run.run.status) && run.run.mode !== "draft" ? (
+                    <Button
+                      disabled={resumeMutation.isPending}
+                      onClick={() => resumeMutation.mutate(run.run.id)}
+                      variant="secondary"
+                    >
+                      {resumeMutation.isPending ? "Resuming…" : "Resume run"}
+                    </Button>
+                  ) : null}
                 </div>
                 <p className="mt-3 text-sm text-slate-300">Task ID: {run.run.external_task_id || "Not dispatched"}</p>
                 {run.run.error_message ? <p className="mt-2 text-sm text-rose-300">{run.run.error_message}</p> : null}
