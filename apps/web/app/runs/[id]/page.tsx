@@ -25,6 +25,14 @@ export default function RunViewPage() {
     },
   });
   const run = runQuery.data;
+  const handoffSteps =
+    run?.steps.filter(
+      (step) =>
+        step.requires_approval ||
+        step.step_kind === "anti_bot" ||
+        step.name === "manual_question_review_required" ||
+        step.name === "unsupported_fields_detected",
+    ) || [];
 
   return (
     <ProtectedPage>
@@ -47,6 +55,24 @@ export default function RunViewPage() {
                 <p className="mt-3 text-sm text-slate-300">Task ID: {run.run.external_task_id || "Not dispatched"}</p>
                 {run.run.error_message ? <p className="mt-2 text-sm text-rose-300">{run.run.error_message}</p> : null}
               </div>
+              {handoffSteps.length ? (
+                <Card className="border-amber-400/30 bg-amber-500/10">
+                  <h2 className="text-base font-semibold text-white">Manual handoff required</h2>
+                  <div className="mt-3 space-y-3">
+                    {handoffSteps.map((step) => (
+                      <div key={step.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="warning">{step.step_kind}</Badge>
+                          <Badge>{step.name}</Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-200">
+                          {String((step.output && step.output.reason) || "This step needs manual review before the run can continue.")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ) : null}
               {run.steps.map((step) => (
                 <div key={step.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
                   <div className="flex items-center justify-between gap-4">

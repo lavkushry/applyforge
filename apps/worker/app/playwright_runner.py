@@ -25,7 +25,49 @@ FIELD_RULES = [
         "step_name": "fill_phone",
         "selectors": ["input[type='tel']", "input[name='phone']", "input[autocomplete='tel']"],
     },
+    {
+        "answer_key": "location",
+        "step_name": "fill_location",
+        "selectors": ["input[name='location']", "input[autocomplete='address-level2']", "input[name='city']"],
+    },
+    {
+        "answer_key": "linkedin_url",
+        "step_name": "fill_linkedin",
+        "selectors": ["input[name*='linkedin' i]", "input[id*='linkedin' i]"],
+    },
+    {
+        "answer_key": "github_url",
+        "step_name": "fill_github",
+        "selectors": ["input[name*='github' i]", "input[id*='github' i]"],
+    },
+    {
+        "answer_key": "portfolio_url",
+        "step_name": "fill_portfolio",
+        "selectors": ["input[name*='portfolio' i]", "input[name*='website' i]", "input[id*='portfolio' i]"],
+    },
 ]
+
+MANUAL_CHALLENGE_TOKENS = (
+    "captcha",
+    "verify you are human",
+    "i'm not a robot",
+    "i am not a robot",
+    "security check",
+    "robot check",
+    "cloudflare",
+    "challenge required",
+)
+
+MANUAL_CHALLENGE_SELECTORS = (
+    "iframe[src*='captcha']",
+    "iframe[title*='captcha' i]",
+    "[id*='captcha' i]",
+    "[class*='captcha' i]",
+    "[name*='captcha' i]",
+    "[data-sitekey]",
+    "textarea[name='g-recaptcha-response']",
+    "[data-testid*='captcha' i]",
+)
 
 
 def _save_screenshot(page, user_id: int | None, suffix: str) -> int:
@@ -68,17 +110,47 @@ def _collect_unsupported_required_fields(page) -> list[dict]:
         : type === 'checkbox' || type === 'radio'
           ? element.checked
           : Boolean(element.value);
+      const linkedLabel = element.id ? document.querySelector(`label[for="${element.id}"]`) : null;
+      const wrappedLabel = element.closest('label');
+      const labelText = (linkedLabel?.innerText || wrappedLabel?.innerText || '').trim();
       return {
         tag_name: tagName,
         type,
         name: element.getAttribute('name') || '',
         id: element.getAttribute('id') || '',
+        label_text: labelText,
+        placeholder: element.getAttribute('placeholder') || '',
+        aria_label: element.getAttribute('aria-label') || '',
         required,
         has_value: hasValue,
       };
     }).filter((field) => field.required && !field.has_value);
     """
     return page.locator("input, textarea, select").evaluate_all(script)
+
+
+def classify_required_fields(fields: list[dict]) -> tuple[str, str]:
+    if any(field.get("tag_name") in {"textarea", "select"} or field.get("type") in {"checkbox", "radio", "date", "number"} for field in fields):
+        return ("manual_question_review_required", "Manual review required for unsupported screening questions")
+    return ("unsupported_fields_detected", "Unsupported required fields detected")
+
+
+def detect_manual_challenge_signals(body_text: str, selector_counts: dict[str, int]) -> list[dict]:
+    lowered = body_text.lower()
+    token_matches = [token for token in MANUAL_CHALLENGE_TOKENS if token in lowered]
+    selector_matches = [{"selector": selector, "count": count} for selector, count in selector_counts.items() if count > 0]
+    evidence: list[dict] = []
+    if token_matches:
+        evidence.append({"kind": "text", "tokens": token_matches})
+    if selector_matches:
+        evidence.append({"kind": "dom", "matches": selector_matches})
+    return evidence
+
+
+def _detect_manual_challenge(page) -> list[dict]:
+    body_text = page.locator("body").inner_text(timeout=5_000).lower()
+    selector_counts = {selector: page.locator(selector).count() for selector in MANUAL_CHALLENGE_SELECTORS}
+    return detect_manual_challenge_signals(body_text, selector_counts)
 
 
 def _resolve_resume_path(resume_file_id: int | None) -> str:
@@ -113,6 +185,23 @@ def run_application_flow(run_id: int, packet: dict) -> dict:
                 screenshot_file_id=open_screenshot,
             )
 
+            challenge_signals = _detect_manual_challenge(page)
+            if challenge_signals:
+                recorder.log_step(
+                    name="captcha_or_antibot_detected",
+                    status="paused",
+                    output={
+                        "reason": "Manual security challenge detected",
+                        "signals": challenge_signals,
+                    },
+                    step_kind="anti_bot",
+                    requires_approval=True,
+                    screenshot_file_id=open_screenshot,
+                )
+                recorder.set_status("paused", "captcha_or_antibot_detected")
+                browser.close()
+                return {"status": "paused", "steps": [{"name": "captcha_or_antibot_detected", "status": "paused"}]}
+
             filled_fields = []
             for rule in FIELD_RULES:
                 value = answers.get(rule["answer_key"], "")
@@ -144,19 +233,37 @@ def run_application_flow(run_id: int, packet: dict) -> dict:
                 screenshot_file_id=fill_screenshot,
             )
 
+            challenge_signals = _detect_manual_challenge(page)
+            if challenge_signals:
+                recorder.log_step(
+                    name="captcha_or_antibot_detected",
+                    status="paused",
+                    output={
+                        "reason": "Manual security challenge detected after form interaction",
+                        "signals": challenge_signals,
+                    },
+                    step_kind="anti_bot",
+                    requires_approval=True,
+                    screenshot_file_id=fill_screenshot,
+                )
+                recorder.set_status("paused", "captcha_or_antibot_detected")
+                browser.close()
+                return {"status": "paused", "steps": [{"name": "captcha_or_antibot_detected", "status": "paused"}]}
+
             unsupported_fields = _collect_unsupported_required_fields(page)
             if unsupported_fields:
+                step_name, reason = classify_required_fields(unsupported_fields)
                 recorder.log_step(
-                    name="unsupported_fields_detected",
+                    name=step_name,
                     status="paused",
-                    output={"unsupported_fields": unsupported_fields},
+                    output={"reason": reason, "unsupported_fields": unsupported_fields},
                     step_kind="field_detection",
                     requires_approval=True,
                     screenshot_file_id=fill_screenshot,
                 )
-                recorder.set_status("paused", "unsupported_fields_detected")
+                recorder.set_status("paused", step_name)
                 browser.close()
-                return {"status": "paused", "steps": [{"name": "unsupported_fields_detected", "status": "paused"}]}
+                return {"status": "paused", "steps": [{"name": step_name, "status": "paused"}]}
 
             if packet.get("mode") == "assisted":
                 recorder.log_step(
