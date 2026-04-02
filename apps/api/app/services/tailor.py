@@ -48,10 +48,10 @@ def _score_profile_item(item: dict, keywords: list[str]) -> int:
 
 
 def _rank_profile_items(items: list[dict], keywords: list[str]) -> tuple[list[dict], list[int]]:
-    indexed = list(enumerate(items))
-    ranked = sorted(indexed, key=lambda indexed_item: (-_score_profile_item(indexed_item[1], keywords), indexed_item[0]))
-    emphasized_indices = [index for index, item in ranked if _score_profile_item(item, keywords) > 0]
-    return [item for _, item in ranked], emphasized_indices
+    scored = [(i, item, _score_profile_item(item, keywords)) for i, item in enumerate(items)]
+    ranked = sorted(scored, key=lambda x: (-x[2], x[0]))
+    emphasized_indices = [index for index, item, score in ranked if score > 0]
+    return [item for _, item, _ in ranked], emphasized_indices
 
 
 def build_tailoring_diff(
