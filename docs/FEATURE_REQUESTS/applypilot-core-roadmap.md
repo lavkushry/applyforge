@@ -91,7 +91,7 @@ This document tracks the maturity of each stage.
   - Assisted "pause-before-submit" workflows.
   - First-class run step integration for OTP retrieval.
   - Governance via a formal run Finite State Machine (FSM).
-  - Operator controls allowing resumes to be actioned from paused, failed, or uncertain states.
+  - Operator controls allowing runs to be resumed and actioned from paused, failed, and uncertain states.
 - **Remaining Needs:**
   - Significantly broader field adapter coverage.
   - Enhanced robustness for handling complex, multi-page ATS flows.
