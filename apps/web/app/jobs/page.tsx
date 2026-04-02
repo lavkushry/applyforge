@@ -92,6 +92,7 @@ export default function JobsPage() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 lg:max-w-xs"
                 value={roleFilter}
                 onChange={(event) => setRoleFilter(event.target.value)}
+                aria-label="Filter by role"
               >
                 <option value="">All roles</option>
                 {roles.map((role) => (
