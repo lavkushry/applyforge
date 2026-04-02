@@ -1,310 +1,174 @@
 # ApplyForge Product Requirements
 
-## Overview
+## Executive Summary
 
-ApplyForge is a job hunt operating system for serious applicants who want one workflow for:
+ApplyForge is a comprehensive job-hunt operating system designed for serious applicants. It consolidates the application lifecycle into a single, unified workflow:
 
-1. importing and structuring a master resume,
-2. discovering and ranking jobs in near real time,
-3. generating a role-matched resume and cover letter,
-4. preparing and running guarded application automation,
-5. tracking status, evidence, and follow-up actions.
+1. **Profile Management:** Importing and structuring a master resume into a canonical database.
+2. **Job Discovery:** Sourcing and ranking jobs in near real-time based on targeted role strategies.
+3. **Document Generation:** Creating highly tailored, role-matched resumes and cover letters.
+4. **Guarded Automation:** Preparing, reviewing, and executing browser-assisted job applications.
+5. **Tracking and Analytics:** Monitoring application statuses, preserving run evidence, and managing follow-up actions.
 
-This document clarifies the next product expansion requested for ApplyForge:
+This document formally defines the requirements for ApplyForge, specifically detailing the current product expansion encompassing ATS-friendly resume themes, real-time role scraping, company intelligence, advanced tailoring, step-based automation, and secure inbox integration for OTP retrieval.
 
-- selectable light, ATS-friendly resume themes inspired by RenderCV-style structured templates,
-- realtime role-based job scraping and feed delivery,
-- reusable company intelligence records for source resolution and recruiter context,
-- stronger job-to-resume tailoring,
-- ApplyPilot-style step-based application automation,
-- permissioned inbox and OTP retrieval for supported application flows.
+## Product Invariants and Constraints
 
-## Current Implementation Snapshot
+The following constraints are non-negotiable architectural and product mandates. They must be preserved across all future updates.
 
-The current repository already includes the following product capabilities:
+1. **No Guaranteed Outcomes:** ApplyForge optimizes for ATS readability and role relevance but **shall not** promise or guarantee specific interview or selection rates.
+2. **Absolute Factual Integrity:** The system **shall not** invent, fabricate, or hallucinate resume facts, legal answers, salary histories, notice periods, work authorization statuses, or any other unknown candidate data.
+3. **Strict Guardrails:** Safety-critical prompt guardrails governing truthfulness, risk detection, mandatory approval routing, and audit logging **shall not** be bypassed or removed.
+4. **Ethical Inbox Access:** Inbox access for OTP retrieval is permitted **only** with explicit, informed user consent. It requires scoped credentials, comprehensive audit logs, and an accessible manual fallback path. The system must not scrape unrelated emails or expand user surveillance.
+5. **Respect for Security Controls:** ApplyForge **shall not** attempt to bypass, solve, or circumvent CAPTCHAs, advanced anti-bot challenges, or legitimate employer security mechanisms.
+6. **Data Isolation:** Company intelligence data must remain strictly user-scoped and inspectable unless a formal, global shared-directory architecture is explicitly implemented in the future.
+7. **The Canonical Profile is Absolute:** The master candidate profile remains the ultimate, authoritative source of truth over any generated or tailored document.
+8. **Role Strategy Dictates Policy:** User-defined role strategies drive discovery and automation policies; job-specific overrides are considered secondary.
 
-- canonical candidate profile with fact-locked tailoring constraints,
-- role registry with scrape preferences and automation thresholds,
-- near-realtime role feed backed by ingestion runs and feed events,
-- user-scoped company directory records with canonical portals and recruiter contacts,
-- three ATS-safe light resume themes with preview and export metadata,
-- packaged Markdown and LaTeX resume starter templates,
-- RenderCV-compatible structured resume input generation with internal PDF fallback,
-- exported user-preference profile combining settings, role strategy, and saved answers,
-- formal application packets and run-state transitions,
-- application runs with per-step status, pause gates, masked outputs, and diagnostics,
-- inbox integrations for Gmail and Outlook with encrypted token storage,
-- OAuth start and callback routes plus provider-readiness reporting for inbox setup.
+## Target Audience
 
-This means future work should build on these contracts instead of reintroducing parallel flows.
+1. **Focused Job Seekers:** Individuals applying repeatedly for a specific, defined set of roles.
+2. **Power Users:** Candidates managing multiple, distinct resume strategies for entirely different role families.
+3. **Career Agencies/Coaches:** Professionals managing application pipelines for candidates in later stages of the job hunt.
+4. **System Operators:** Internal administrators reviewing automation failures, prompt traces, and system health.
 
-## Product Clarifications
+---
 
-The following points are fixed requirements, not optional interpretations:
+## Detailed Functional Requirements
 
-1. ApplyForge may optimize for ATS readability and role relevance, but it shall not promise a 100% interview or selection rate.
-2. ApplyForge shall not invent resume facts, legal answers, salary history, notice periods, work authorization, or any unknown user data.
-3. ApplyForge shall not remove safety-critical prompt guardrails for truthfulness, risk detection, approval routing, or audit logging.
-4. ApplyForge may support inbox access for OTP retrieval only with explicit user consent, scoped credentials, audit logs, and a manual fallback.
-5. ApplyForge shall not attempt to bypass CAPTCHAs, anti-bot challenges, or employer security controls.
-6. Company intelligence data shall remain inspectable and user-scoped unless a future shared-directory design is explicitly introduced.
+### 1. Resume Templates and Structured Export
 
-## Primary User Value
-
-- A user uploads one source resume and maintains one canonical profile.
-- A user subscribes to one or more target roles and sees a live feed of matching jobs.
-- A user chooses which roles or companies should be eligible for automation.
-- A user can generate a tailored resume in a clean, highly readable, ATS-friendly light theme.
-- A user can run draft, assisted, or approved auto-apply workflows with evidence and pause points.
-
-## Users
-
-1. Individual job seekers applying repeatedly for a focused set of roles.
-2. Power users managing multiple resume strategies for different role families.
-3. Career coaches or agencies managing candidates in later phases.
-4. Internal operators reviewing automation failures and prompt traces.
-
-## Functional Requirements
-
-### 1. Resume Templates and Export
-
-1. Where a user has uploaded or created a canonical profile, the system shall offer multiple light, ATS-friendly resume themes.
-2. When a user selects a resume theme, the system shall preview the selected theme before export.
-3. The system shall provide at least three built-in resume themes:
-   - Classic ATS Light
-   - Modern Minimal Light
-   - Compact Technical Light
-4. The system shall store the selected theme per resume version and per tailored resume export.
-5. When a resume is exported, the system shall generate a machine-readable PDF with selectable text and no image-only content.
-6. Where a template contains multi-column or decorative elements, the system shall enforce ATS-safe constraints or reject that template for ATS mode.
-7. When a user requests an ATS export, the system shall use a single-column or ATS-safe layout with high text extractability.
-8. The system shall preserve a structured intermediate resume representation so export engines can be swapped later between internal rendering, HTML-to-PDF, or a RenderCV-compatible adapter.
-9. Where RenderCV is unavailable or fails at runtime, the system shall preserve export continuity with a safe internal fallback renderer and log the renderer failure for diagnostics.
+1. **Theme Availability:** The system must offer multiple light, ATS-friendly resume themes to users with a populated canonical profile.
+2. **Built-in Options:** At minimum, the system must provide: *Classic ATS Light*, *Modern Minimal Light*, and *Compact Technical Light*.
+3. **Live Preview:** Users must be able to preview the selected theme prior to initiating a PDF export.
+4. **Theme Persistence:** The selected theme must be stored and associated with the specific resume version and tailored export.
+5. **Machine Readability:** All exported PDFs must be machine-readable, containing selectable text and avoiding image-only content structures.
+6. **ATS Compliance Enforcement:** The system must strictly enforce ATS-safe constraints. Multi-column or heavily decorative templates must be rejected or gracefully degraded when exported in ATS mode.
+7. **Structured Intermediate State:** The system must preserve an intermediate, structured representation of the resume, allowing export engines (e.g., internal rendering, HTML-to-PDF, RenderCV) to be swapped dynamically.
+8. **Export Continuity (Fallback):** If the primary rendering engine (e.g., RenderCV) fails at runtime, the system must seamlessly fall back to a safe, internal PDF renderer and log the original failure for diagnostic review.
 
 ### 2. Resume Upload and Canonical Profile
 
-1. When a user uploads a PDF, DOCX, or TXT resume, the system shall extract text and parse it into structured profile sections.
-2. If parsing confidence is low for any section, the system shall mark that section as review required.
-3. The system shall keep the canonical candidate profile as the only trusted source of factual resume content.
-4. When a user edits profile data, the system shall persist section-level versioned updates.
-5. The system shall support multiple target role strategies while keeping one fact-locked master profile.
+1. **Data Extraction:** The system must extract text from uploaded PDF, DOCX, or TXT files and parse it into structured canonical profile sections.
+2. **Confidence Flagging:** Any profile section parsed with low confidence must be explicitly flagged for manual candidate review.
+3. **Versioned Persistence:** The system must persist section-level, versioned updates whenever a user manually edits profile data.
+4. **Single Source of Truth:** The system must support multiple target role strategies while strictly maintaining a single, fact-locked master profile.
 
 ### 3. Role Registry and Automation Preferences
 
-1. The system shall allow a user to define one or more target roles for discovery and automation.
-2. Each target role shall store:
-   - role name,
-   - aliases and keywords,
-   - preferred locations,
-   - remote preference,
-   - salary preference,
-   - visa preference,
-   - seniority range,
-   - companies to prioritize or avoid,
-   - automation enabled state,
-   - scrape cadence.
-3. When a target role is active, the system shall use that role definition to drive job scraping, ranking, and eligibility for automation.
-4. The system shall keep a table of role requirements and matching heuristics so each job can be scored against the intended role profile.
-5. The role registry shall remain the controlling source for scrape cadence, automation thresholds, and future multi-role strategy support.
+1. **Role Definition:** Users must be able to define target roles containing: role name, aliases, keywords, preferred locations, remote preference, salary preference, visa requirements, seniority ranges, company inclusion/exclusion lists, and automation thresholds.
+2. **Policy Enforcement:** Active target roles must strictly drive the job scraping pipeline, ranking algorithms, and automation eligibility.
+3. **Scoring Base:** The system must maintain a stable table of role requirements and matching heuristics to enable deterministic job scoring against the intended role profile.
 
-### 4. Realtime Job Scraper Engine
+### 4. Real-time Job Scraper Engine
 
-1. When a target role is active, the system shall scrape or ingest jobs on a schedule for that role.
-2. The system shall normalize all ingested jobs into a single schema before scoring or display.
-3. The system shall deduplicate jobs across sources using application URL, normalized company and title, and content fingerprints.
-4. The system shall record when a job was first seen, last seen, source, scrape run, and freshness status.
-5. The system shall expose a near-realtime jobs feed ordered by recency and score.
-6. When a job feed item is clicked, the system shall show the source link, normalized details, and automation eligibility.
-7. If a job disappears or expires, the system shall preserve the record and mark it inactive rather than deleting it.
-8. The system shall support manual import by URL or pasted description alongside scheduled scraping.
-9. ATS-first sources shall remain the default ingestion scope for the MVP, with Greenhouse, Lever, and predictable direct career pages prioritized over broad consumer job boards.
+1. **Scheduled Ingestion:** The system must automatically scrape or ingest jobs on a defined schedule based on active target roles.
+2. **Normalization:** All ingested jobs, regardless of source, must be normalized into a single, unified database schema prior to scoring or UI display.
+3. **Robust Deduplication:** Jobs must be deduplicated across various sources utilizing a combination of the application URL, normalized company name, normalized title, and content fingerprints.
+4. **Lifecycle Tracking:** The system must record precise metadata: first seen, last seen, ingestion source, associated scrape run, and current freshness status.
+5. **Feed UX:** The system must expose a near real-time feed, allowing users to view source links, normalized details, and automation eligibility.
+6. **Expiration Handling:** Jobs that disappear from the source must be marked as *inactive* or *expired*, preserving the historical record rather than performing a hard delete.
+7. **Manual Import:** The system must support manual job import via direct URL or pasted text descriptions.
+8. **Source Priority:** ATS-first sources (e.g., Greenhouse, Lever, Workday) and predictable direct career pages must be prioritized over broad, unstructured consumer job boards.
 
 ### 4A. Company Intelligence Directory
 
-1. The system shall support a user-scoped company directory with canonical company identity records.
-2. Each company record shall store:
-   - name,
-   - normalized name,
-   - website URL,
-   - careers URL,
-   - LinkedIn URL,
-   - headquarters location,
-   - industry,
-   - notes,
-   - active status.
-3. The system shall support one or more career portals per company, including provider kind, base URL, board token, health status, and structured-fetch capability.
-4. The system shall support recruiter or HR contacts per company, including contact type, source, confidence, and verification metadata.
-5. When a job is created manually or discovered by ingestion, the system shall attempt to resolve it to a company directory record before leaving it as an unlinked free-text company string.
-6. Company resolution may use normalized company name, application URL hostname, or known portal hostname, but it shall not overwrite a verified explicit company selection with a lower-confidence guess.
-7. The company directory shall expose linked jobs so source quality and dedupe behavior remain reviewable.
+1. **Canonical Identity:** The system must support a user-scoped directory storing canonical company identity records (Name, Normalized Name, Website, Careers URL, LinkedIn URL, Location, Industry, Notes, Status).
+2. **Portal Tracking:** The system must support tracking one or more career portals per company, including the provider type, base URL, board tokens, and structured-fetch capabilities.
+3. **Contact Tracking:** The system must allow tracking of recruiter or HR contacts (Type, Source, Confidence, Verification Status) linked to the company record.
+4. **Heuristic Resolution:** Newly ingested or manually created jobs must attempt to resolve to an existing company directory record using normalized names or hostnames.
+5. **Override Protection:** Heuristic resolution must never silently overwrite an explicit, verified user selection.
 
 ### 5. Job Matching and Tailoring
 
-1. When a new job is ingested for a role, the system shall score it against both the canonical candidate profile and the selected role strategy.
-2. The scoring output shall include:
-   - overall score,
-   - role-match score,
-   - skills overlap,
-   - missing must-haves,
-   - nice-to-have overlap,
-   - seniority fit,
-   - location fit,
-   - compensation fit if available,
-   - recommendation.
-3. When a user tailors a resume for a job, the system shall only reorder, emphasize, summarize, or select existing factual content.
-4. The system shall create a tailored summary targeted to the job description without introducing unverifiable claims.
-5. The system shall rank and reorder skills and bullets based on role and job relevance.
-6. If a job requires a missing qualification, the system shall highlight the gap instead of fabricating coverage.
-7. The system shall persist each tailored resume version, diff metadata, selected theme, and linked job.
-8. Where a job score is below a user-defined threshold, the system shall default automation eligibility to off.
+1. **Dual-Axis Scoring:** Ingested jobs must be scored against **both** the canonical candidate profile and the specific target role strategy.
+2. **Transparent Output:** Scoring outputs must detail: Overall Score, Role-Match Score, Skills Overlap, Missing Must-Haves, Nice-to-Have Overlap, Seniority Fit, Location Fit, Compensation Fit (if available), and a final Recommendation.
+3. **Strict Tailoring Constraints:** When tailoring a resume, the system may only reorder, emphasize, summarize, or select from existing factual content.
+4. **Gap Highlighting:** If a job requires a qualification the candidate lacks, the system must clearly highlight the gap. It must **never** fabricate coverage.
+5. **Version Tracking:** Every tailored resume variant must persist diff metadata, the selected theme, and the linked job record.
+6. **Automation Thresholds:** Jobs scoring below a user-defined threshold must default to having automation eligibility explicitly disabled.
 
-### 6. Application Automation
+### 6. Application Automation Engine
 
-1. The system shall support draft mode, assisted mode, and approved auto mode.
-2. When a user runs draft mode, the system shall prepare answers, files, and warnings without launching a browser.
-3. When a user runs assisted mode, the system shall open the application flow, fill supported fields, and pause before final submission.
-4. Where approved auto mode is enabled, the system shall only auto-submit jobs that satisfy the user’s automation policy and risk thresholds.
-5. Every automation run shall persist:
-   - run status,
-   - mode,
-   - timestamps,
-   - per-step logs,
-   - retry count,
-   - screenshots,
-   - structured step outputs,
-   - final disposition.
-6. If an application contains risky, legal, compensation, or ambiguous questions, the system shall pause for explicit user approval.
-7. If an application requires unsupported controls or anti-bot validation, the system shall fail gracefully and hand control back to the user.
-8. The system shall attach the correct tailored resume variant for the active job and role.
-9. OTP retrieval and approval pauses shall be represented as first-class steps in the run timeline so runs remain inspectable after partial automation.
+1. **Execution Modes:** The system must support Draft Mode (dry-run preparation), Assisted Mode (browser opened, pauses before submit), and Approved Auto Mode (fully automated execution based on policy).
+2. **Durable Auditing:** Every automation run must persist: Run Status, Execution Mode, Timestamps, Per-Step Logs, Retry Counts, captured Screenshots, Structured Step Outputs, and Final Disposition.
+3. **Risk Pauses:** Applications containing risky, legal, compensation-related, or ambiguous questions must force the FSM to pause and require explicit user approval.
+4. **Graceful Failure:** Applications requiring unsupported controls or anti-bot validation must fail gracefully, preserving all gathered evidence and returning control to the user.
+5. **OTP Representation:** OTP retrieval and explicit approval pauses must be represented as first-class, inspectable steps in the execution timeline.
 
-### 7. Inbox and OTP Access
+### 7. Inbox Integration and OTP Access
 
-1. The system shall support a user-authorized inbox connection for reading application-related OTPs and verification emails.
-2. The system shall limit OTP retrieval to configured providers and scoped mailbox access where possible.
-3. When an OTP is requested during an application run, the system shall search recent inbox messages for matching sender, subject, or code patterns.
-4. The system shall mask OTP values in logs and screenshots.
-5. If OTP retrieval confidence is low, the system shall pause and require manual confirmation.
-6. The system shall store inbox credentials or tokens only through encrypted, environment-backed or secret-managed storage paths.
-7. The system shall allow a user to disable inbox access entirely and continue with manual OTP entry.
-8. Gmail and Outlook OAuth connections shall expose setup readiness, redirect URIs, and missing environment variables so operator setup can be diagnosed without reading source code.
+1. **Consent-Driven Access:** The system must support user-authorized inbox connections specifically scoped for reading application-related OTPs and verification emails.
+2. **Intelligent Retrieval:** When an OTP is requested by a run, the system must search recent messages using sender, subject, or pattern matching.
+3. **Security Masking:** All retrieved OTP values must be rigorously masked in application logs and captured screenshots.
+4. **Low-Confidence Pauses:** If OTP retrieval confidence is low or fails, the system must pause and request manual user input.
+5. **Encrypted Storage:** Inbox credentials and OAuth tokens must be stored exclusively via encrypted, environment-backed, or secret-managed storage paths.
+6. **Diagnostics:** OAuth connections (Gmail/Outlook) must expose clear setup readiness states and missing environment variables within the UI.
 
-### 8. Diagnostics and Admin
+### 8. Diagnostics and Administration
 
-1. The system shall expose scrape-run status, job ingestion failures, prompt traces, automation failures, and screenshot artifacts in an internal diagnostics panel.
-2. The system shall preserve audit records for prompt usage, automation approvals, OTP retrieval attempts, and resume exports.
-3. When a scrape or apply run fails, the system shall expose a retry action with the failure reason and the last successful checkpoint.
+1. **Internal Telemetry:** The system must expose scrape-run statuses, ingestion failures, prompt traces, automation errors, and screenshot artifacts within an internal diagnostics panel.
+2. **Audit Retention:** Comprehensive audit records must be preserved for LLM prompt usage, automation approvals, OTP retrieval attempts, and resume exports.
+3. **Actionable Retries:** Scrape or apply runs that fail must expose a distinct retry action, detailing the specific failure reason and identifying the last safe checkpoint.
+
+---
 
 ## Non-Functional Requirements
 
-### Reliability
+### Reliability and Resilience
+1. **Idempotency:** Ingestion and automation checkpoints must be highly idempotent.
+2. **Checkpoint Recovery:** The system must support resuming failed application runs from the last safe, recorded checkpoint.
+3. **Fault Tolerance:** Partial failures in scraping, parsing, PDF export, or browser automation must be contained and must not corrupt the canonical user data state.
 
-1. The system shall use idempotent ingestion and automation checkpoints where possible.
-2. The system shall support resuming failed runs from the last safe checkpoint.
-3. The system shall tolerate partial failures in scraping, parsing, PDF export, and browser automation without corrupting user data.
+### Performance Benchmarks
+1. **Feed Rendering:** The dashboard feed must load the latest job events within 2.0 seconds under normal local-development datasets.
+2. **Tailoring Speed:** Tailored resume generation must complete within 10.0 seconds for standard job descriptions.
+3. **OTP Latency:** OTP lookup operations must resolve (either returning a result or triggering the manual fallback prompt) within 15.0 seconds.
 
-### Performance
+### Security and Privacy
+1. **Strict Authentication:** All sensitive actions (auth, inbox, automation) require heavily validated, authenticated user contexts.
+2. **Data Encryption:** Sensitive integration secrets must be encrypted at rest.
+3. **Log Sanitization:** Secrets, tokens, OTP codes, and sensitive prompt fragments must be strictly masked or omitted from application logs.
 
-1. The dashboard feed shall load the latest job events within 2 seconds for normal local-development datasets.
-2. Tailored resume generation shall complete within 10 seconds for standard job descriptions under normal conditions.
-3. OTP lookup shall return a result or a manual fallback prompt within 15 seconds.
-
-### Security
-
-1. All auth, inbox, and automation-sensitive actions shall require authenticated user context.
-2. The system shall encrypt or otherwise protect sensitive integration secrets at rest.
-3. The system shall mask secrets, tokens, OTP codes, and sensitive prompt fragments in logs.
-4. The system shall not disable approval routing for risky answers.
-
-### Observability
-
-1. The system shall emit structured logs for scrape runs, score generation, tailoring, export, and application automation.
-2. The system shall preserve prompt metadata and model routing information without storing raw secrets.
-3. The system shall support diagnostics on per-job, per-role, and per-run basis.
-
-## Product Invariants For Future Changes
-
-1. The canonical candidate profile stays authoritative over every generated or tailored document.
-2. Tailoring, cover-letter generation, and question answering may optimize phrasing, but they may not introduce unsupported facts.
-3. Resume templates are a presentation concern; they must not become the source of truth for user data.
-4. Role strategy drives discovery and automation policy; job-specific overrides are secondary.
-5. Application automation must always leave an audit trail with enough evidence to understand what happened.
-6. Inbox access exists only to help the candidate complete their own flow, not to expand surveillance or scrape unrelated mail.
-
-## Context Notes For Future Implementers
-
-1. If you add new job sources, keep dedupe and freshness semantics compatible with the existing role feed.
-2. If you extend company resolution, prefer transparent matching heuristics and preserve user override paths.
-3. If you add a new renderer, preserve the normalized resume document shape used by the current theme/export flow.
-4. If you change application execution behavior, keep `application_runs` and `application_steps` durable and human-readable.
-5. If you add richer OAuth support, preserve encrypted token storage and sanitized API responses.
-6. If you add AI model usage, prefer deterministic logic first and log masked prompt metadata.
+---
 
 ## Acceptance Criteria
 
-1. Given a user uploads a resume, when parsing finishes, then the user can review a structured profile and see any low-confidence fields flagged for edit.
-2. Given a user has multiple resume themes, when they open a tailored resume, then they can switch theme and export an ATS-friendly PDF preview.
-3. Given a user creates a target role, when scraping runs, then new normalized jobs appear in a feed tagged to that role and sorted by freshness.
-4. Given the same job is discovered from two sources, when ingestion completes, then only one job record remains active and both source references are retained.
-5. Given a job has required skills the user does not have, when tailoring runs, then the tailored resume highlights relevant experience but does not fabricate missing skills.
-6. Given assisted mode is started, when the application reaches submit, then the run pauses and shows screenshots, filled values, and warnings for review.
-7. Given an application asks a risky or ambiguous question, when answer generation runs, then the system marks the step as approval required instead of auto-answering.
-8. Given inbox access is enabled, when an OTP email arrives during an application run, then the system can retrieve the candidate code, mask it in logs, and continue only after policy allows it.
-9. Given OTP retrieval fails or confidence is low, when the timeout expires, then the system pauses and requests manual input without losing the run state.
-10. Given a job is no longer available, when the feed refreshes, then the job is marked inactive or expired and previous automation records remain visible.
+1. **Resume Upload:** Given a user uploads a resume, when parsing finishes, then the user can review a structured profile and see any low-confidence fields explicitly flagged for edit.
+2. **Theme Switching:** Given a user has multiple resume themes available, when they open a tailored resume, then they can switch the theme and export an ATS-friendly PDF preview successfully.
+3. **Feed Delivery:** Given a user creates a target role, when scraping runs, then new normalized jobs appear in a feed tagged to that specific role and sorted by freshness.
+4. **Deduplication:** Given the exact same job is discovered from two separate sources, when ingestion completes, then only one active job record remains, but both source references are durably retained.
+5. **No Hallucinations:** Given a job has required skills the user does not possess, when tailoring runs, then the tailored resume highlights relevant experience but completely refrains from fabricating the missing skills.
+6. **Assisted Pausing:** Given Assisted Mode is initiated, when the application reaches the final submit step, then the run explicitly pauses and presents screenshots, filled values, and warnings for user review.
+7. **Risk Routing:** Given an application asks a risky or ambiguous question, when answer generation runs, then the system marks the step as `Approval Required` instead of automatically answering.
+8. **OTP Retrieval:** Given inbox access is enabled, when an OTP email arrives during a run, then the system successfully retrieves the code, masks it in logs, and continues the run only if the user policy permits.
+9. **OTP Fallback:** Given OTP retrieval fails or confidence is low, when the timeout expires, then the system pauses gracefully and requests manual input without losing the browser or run state.
+10. **Expiration:** Given a previously scraped job is no longer available at the source, when the feed refreshes, then the job is marked `inactive/expired`, ensuring previous automation records remain fully visible.
 
-## Error Handling
+---
 
-| Scenario | System behavior | User-facing response |
+## Error Handling Matrix
+
+| Scenario | System Behavior | User-Facing Response |
 |---|---|---|
-| Resume parsing fails | Preserve upload, create parse-failed event, allow manual profile creation | `We couldn't fully parse this resume. Review the extracted text or enter sections manually.` |
-| Resume theme render fails | Keep tailored content, fallback to default ATS theme, log renderer failure | `This template failed to render. We switched to the default ATS template.` |
-| Source site rate limit | Back off scrape worker, mark run partial, retry later | `This source is temporarily rate-limited. We'll retry automatically.` |
-| Duplicate job ingestion | Merge source metadata, do not create duplicate visible job | `This job already exists in your feed. Source metadata was updated.` |
-| Tailoring detects missing must-have | Highlight gap, lower automation eligibility | `This job has missing required qualifications. Review before applying.` |
-| Unsupported application field | Pause run and capture evidence | `This application contains an unsupported step. Review is required.` |
-| CAPTCHA or anti-bot challenge | Stop automation and require manual completion | `Automation paused because the site requires human verification.` |
-| OTP email not found | Pause run, preserve browser state where possible | `We couldn't retrieve the verification code. Enter it manually to continue.` |
-| Inbox token invalid | Disconnect integration, mark run blocked | `Your inbox connection needs to be re-authorized.` |
-| Submit confirmation not detected | Mark run uncertain and require user review | `The application may not have been submitted. Please verify the final page.` |
+| Resume parsing fails | Preserve upload, emit `parse-failed` event, enable manual creation. | *"We couldn't fully parse this resume. Review the extracted text or enter sections manually."* |
+| Resume theme render fails | Retain tailored content, fall back to default ATS theme, log error. | *"This template failed to render. We switched to the default ATS template."* |
+| Source site rate limit hit | Back off scrape worker, mark run partial, queue retry. | *"This source is temporarily rate-limited. We'll retry automatically."* |
+| Duplicate job ingested | Merge new source metadata into existing record; drop duplicate. | *"This job already exists in your feed. Source metadata was updated."* |
+| Missing Must-Have skill | Highlight gap explicitly, lower automation eligibility score. | *"This job has missing required qualifications. Review before applying."* |
+| Unsupported application field | Pause run, capture DOM/screenshot evidence. | *"This application contains an unsupported step. Review is required."* |
+| CAPTCHA / Anti-Bot trigger | Halt automation immediately, require manual user intervention. | *"Automation paused because the site requires human verification."* |
+| OTP email not found | Pause run, preserve browser state if possible. | *"We couldn't retrieve the verification code. Enter it manually to continue."* |
+| Inbox token invalid/expired | Disconnect integration locally, mark run as blocked. | *"Your inbox connection needs to be re-authorized."* |
+| Submit confirmation failure | Mark FSM run as `uncertain`, require manual user verification. | *"The application may not have been submitted. Please verify the final page."* |
 
-## Implementation Checklist
-
-### Phase A: Resume Themes and Structured Export
-
-1. Add resume theme catalog, selection UI, preview endpoint, and export metadata.
-2. Add ATS-safe theme validation rules.
-3. Add a RenderCV-compatible adapter or equivalent structured renderer.
-
-### Phase B: Role-Based Discovery and Feed
-
-1. Add target-role models, scrape subscriptions, scrape runs, and feed events.
-2. Add scheduled ingestion worker and source adapters.
-3. Add realtime or near-realtime feed delivery in the web app.
-
-### Phase C: Stronger Tailoring
-
-1. Add role strategy inputs to the scoring engine.
-2. Add per-job tailored resume diffs and theme-aware export.
-3. Add stricter missing-skill and risky-answer surfacing in UI.
-
-### Phase D: Apply Automation
-
-1. Expand step engine for field adapters, navigation patterns, and checkpoints.
-2. Wire API-to-worker dispatch through Celery or equivalent queue execution.
-3. Persist screenshots and artifacts as uploaded file records.
-
-### Phase E: Inbox and OTP Integration
-
-1. Add inbox connection model and provider abstraction.
-2. Add OTP retrieval worker step with masking and approval fallback.
-3. Add diagnostics, consent copy, and revoke-access controls.
+---
 
 ## Explicitly Rejected Requirements
 
-The following requests are not valid product requirements and shall not be implemented:
+The following requests have been evaluated and are explicitly rejected. They **shall not** be implemented under any circumstances:
 
-1. Remove truth, approval, or safety guardrails from prompt generation.
-2. Guarantee a 100% resume selection or interview success rate.
-3. Fabricate qualifications or answers to increase application conversion.
-4. Bypass employer anti-bot controls, CAPTCHAs, or verification systems.
+1. Removing truth, approval, or safety guardrails from generative AI prompts.
+2. Guaranteeing, promising, or marketing a 100% resume selection or interview success rate.
+3. Fabricating, hallucinating, or exaggerating qualifications or answers to artificially inflate application conversion rates.
+4. Implementing logic specifically designed to bypass or defeat employer anti-bot controls, CAPTCHAs, or verification systems.
