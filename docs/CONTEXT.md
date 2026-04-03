@@ -1,113 +1,89 @@
-# ApplyForge Context Guide
+# Context & Orientation Guide for ApplyForge
 
-This file exists to reduce rediscovery cost in future sessions.
+This document serves as a rapid onboarding tool to help you understand the core objectives and current state of the ApplyForge monorepo, minimizing time spent re-discovering established patterns.
 
-## What ApplyForge Is
+## The Core Product Loop
 
-ApplyForge is a job-hunt operating system with five connected loops:
+ApplyForge is designed as a cohesive operating system for job seekers, orchestrating five distinct phases of the job hunt:
 
-1. canonical profile and resume intelligence
-2. role-driven discovery and enrichment
-3. transparent scoring and tailoring
-4. guarded browser-assisted application execution
-5. diagnostics, OTP support, and operator review
+1. **Profile Intelligence**: Establishing and maintaining a single, canonical repository of a candidate's verified skills and experience.
+2. **Targeted Discovery**: Continuously scanning configured sources for roles, extracting metadata, and enriching job descriptions.
+3. **Assessment & Tailoring**: Transparently scoring roles against the candidate profile and generating targeted, factually accurate resumes.
+4. **Automated Execution**: Using a guarded, browser-based worker to navigate application forms while requiring human approval for complex or sensitive fields.
+5. **Review & Diagnostics**: Providing deep visibility into application runs via screenshots, step logs, and OTP (One-Time Password) retrieval audits.
 
-## Current Product Shape
+## Current Technical Maturity
 
-The repository already supports:
+The platform is actively functional and currently implements:
 
-- cookie-backed auth
-- canonical profile CRUD
-- resume upload and parsing
-- ATS-safe light theme catalog
-- packaged Markdown and LaTeX resume starter templates
-- RenderCV-compatible input generation with internal PDF fallback
-- role registry and source subscriptions
-- packaged discovery presets and setup wizard bootstrapping
-- near-realtime feed backed by ingestion runs and feed events
-- company directory records, portals, and recruiter contacts
-- explicit discovery -> enrichment -> scoring transitions
-- worker-queued enrichment
-- transparent scoring and fact-locked tailoring
-- prepared application packets
-- durable application runs and step logs
-- formal run FSM transitions
-- Gmail and Outlook OAuth readiness plus OTP retrieval
-- exported automation preference profile in Settings
+- A robust authentication layer using cookie-backed JWTs.
+- Full text parsing and structural extraction from uploaded resumes.
+- A built-in catalog of ATS-friendly resume themes and developer-oriented LaTeX/Markdown starter templates.
+- A PDF generation pipeline leveraging RenderCV, backed by an internal renderer for high availability.
+- A role registry that drives both job discovery schedules and automation logic.
+- An intuitive setup wizard powered by packaged preset configurations.
+- Near real-time visibility into the job discovery pipeline via event feeds.
+- A foundational company directory tracking ATS portal URLs and recruiter contacts.
+- Strict scoring and tailoring engines that refuse to hallucinate or invent candidate facts.
+- A robust Finite State Machine (FSM) tracking the lifecycle of application runs.
+- Playwright-powered task workers that capture screenshots and enforce required manual pauses.
+- Authorized OAuth integrations for Gmail and Outlook to retrieve verification codes automatically.
+- A comprehensive export tool for saving user preferences and configurations locally.
 
-## Invariants You Should Preserve
+## Ironclad Operating Rules
 
-1. Canonical profile data is authoritative.
-2. Generated output may optimize phrasing, but may not fabricate facts.
-3. Role strategy is the controlling input for discovery and automation policy.
-4. Resume themes and starter templates are presentation layers, not sources of truth.
-5. Application automation must remain inspectable after partial failure.
-6. Sensitive tokens, OTPs, and risky answers must stay masked or approval-gated.
+When modifying or extending ApplyForge, you must adhere to these non-negotiable invariants:
 
-## Best Entry Points By Task
+1. **The Master Profile is Supreme**: Generated resumes or cover letters must never contradict or fabricate information not present in the canonical profile.
+2. **Fact-Locked Tailoring**: AI optimization is restricted to rephrasing, reordering, and summarizing. It cannot invent new jobs, skills, or metrics.
+3. **Strategy Governs Automation**: The user's predefined role strategy acts as the absolute threshold for deciding if a job is eligible for automated submission.
+4. **Templates are Just Views**: Resume themes are presentation layers; they do not dictate or store the underlying factual data.
+5. **Auditable Execution**: Every automated application run must persist enough telemetry (logs, screenshots) to reconstruct exactly what the browser did prior to failure or completion.
+6. **Protect Sensitive Operations**: Email tokens, passwords, and answers to legally sensitive questions must be heavily guarded, masked in logs, and subject to manual user approval.
 
-### Resume, templates, and export
+## Navigational Landmarks
 
-- [resume_parser.py](/home/ems/applyforge/apps/api/app/services/resume_parser.py)
-- [resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py)
-- [resume_templates.py](/home/ems/applyforge/apps/api/app/services/resume_templates.py)
-- [files.py](/home/ems/applyforge/apps/api/app/services/files.py)
-- [resume/page.tsx](/home/ems/applyforge/apps/web/app/resume/page.tsx)
+### Resume Processing & Document Generation
+- Core extraction: `apps/api/app/services/resume_parser.py`
+- Theme and template management: `apps/api/app/services/resume_themes.py` & `apps/api/app/services/resume_templates.py`
+- Frontend UI: `apps/web/app/resume/page.tsx`
 
-### Jobs, roles, and scoring
+### Discovery, Enrichment, & Scoring
+- Scrape orchestration: `apps/api/app/services/role_ingestion.py`
+- Worker task queuing: `apps/api/app/services/job_dispatch.py` & `apps/api/app/services/job_enrichment.py`
+- Fit analysis logic: `apps/api/app/services/scoring.py`
+- Frontend UI: `apps/web/app/jobs/page.tsx`
 
-- [role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
-- [job_dispatch.py](/home/ems/applyforge/apps/api/app/services/job_dispatch.py)
-- [job_enrichment.py](/home/ems/applyforge/apps/api/app/services/job_enrichment.py)
-- [company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py)
-- [scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py)
-- [roles.py](/home/ems/applyforge/apps/api/app/api/routes/roles.py)
-- [jobs.py](/home/ems/applyforge/apps/api/app/api/routes/jobs.py)
-- [companies.py](/home/ems/applyforge/apps/api/app/api/routes/companies.py)
+### Execution & State Management
+- Job execution logic: `apps/api/app/services/application_packets.py` & `apps/worker/app/playwright_runner.py`
+- Run FSM logic: `apps/api/app/services/application_fsm.py` & `apps/worker/app/run_fsm.py`
+- Worker persistence: `apps/worker/app/persistence.py`
 
-### Automation, packets, and FSM
+### Configuration & Diagnostics
+- Inbox connections: `apps/api/app/services/inbox.py`
+- Settings UI: `apps/web/components/forms/settings-form.tsx`
+- Run review UI: `apps/web/app/runs/[id]/page.tsx`
 
-- [applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py)
-- [application_runs.py](/home/ems/applyforge/apps/api/app/api/routes/application_runs.py)
-- [application_packets.py](/home/ems/applyforge/apps/api/app/services/application_packets.py)
-- [application_fsm.py](/home/ems/applyforge/apps/api/app/services/application_fsm.py)
-- [user_preferences.py](/home/ems/applyforge/apps/api/app/services/user_preferences.py)
-- [playwright_runner.py](/home/ems/applyforge/apps/worker/app/playwright_runner.py)
-- [persistence.py](/home/ems/applyforge/apps/worker/app/persistence.py)
-- [run_fsm.py](/home/ems/applyforge/apps/worker/app/run_fsm.py)
+## Utilizing Local Agents & Skills
 
-### Settings, OTP, and operator UX
+If you are leveraging the automated workflow tools included in this repository, begin your investigation with the localized skill documents:
 
-- [settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
-- [inbox.py](/home/ems/applyforge/apps/api/app/services/inbox.py)
-- [inbox.py](/home/ems/applyforge/apps/api/app/api/routes/inbox.py)
-- [applications/page.tsx](/home/ems/applyforge/apps/web/app/applications/page.tsx)
-- [runs/[id]/page.tsx](/home/ems/applyforge/apps/web/app/runs/[id]/page.tsx)
+- For business rules and tailoring constraints: `../.agents/skills/applyforge-product/SKILL.md`
+- For worker telemetry, FSM rules, and artifact handling: `../.agents/skills/applyforge-ops/SKILL.md`
+- To review agent roles: `../.codex/config.toml`
 
-## Project-Local Context Helpers
+## Standard Quality Gates
 
-Use the project-local skill and agent files before broad exploration:
+Before merging major changes, ensure you validate the system state:
 
-- product/domain guidance: [SKILL.md](/home/ems/applyforge/.agents/skills/applyforge-product/SKILL.md)
-- operations guidance: [SKILL.md](/home/ems/applyforge/.agents/skills/applyforge-ops/SKILL.md)
-- Codex agent registry: [config.toml](/home/ems/applyforge/.codex/config.toml)
+1. **Python Compilation**: `python3 -m compileall apps/api/app apps/api/tests apps/worker/app apps/worker/tests`
+2. **API Tests**: `PYTHONPATH=/tmp/applyforge-pydeps:apps/api python3 -m pytest apps/api/tests -q`
+3. **Worker Tests**: `PYTHONPATH=/tmp/applyforge-pydeps:apps/worker DATABASE_URL=sqlite+pysqlite:///:memory: REDIS_URL=redis://localhost:6379/0 python3 -m pytest apps/worker/tests -q`
+4. **Frontend Checks**: In `apps/web`, sequentially run `npm run lint`, `npm run build`, and `npm run typecheck`.
 
-## Current Verification Baseline
+## Ground Truth Reminders
 
-When making nontrivial changes, the expected baseline checks are:
-
-1. `python3 -m compileall apps/api/app apps/api/tests apps/worker/app apps/worker/tests`
-2. `PYTHONPATH=/tmp/applyforge-pydeps:apps/api python3 -m pytest apps/api/tests -q`
-3. `PYTHONPATH=/tmp/applyforge-pydeps:apps/worker DATABASE_URL=sqlite+pysqlite:///:memory: REDIS_URL=redis://localhost:6379/0 python3 -m pytest apps/worker/tests -q`
-4. `npm run lint` in `apps/web`
-5. `npm run build` in `apps/web`
-6. `npm run typecheck` in `apps/web`
-
-Note: in this repo, `typecheck` is safest after `build` because `tsconfig.json` includes `.next/types`.
-
-## Current Reality Checks
-
-- The worker path is real for enrichment and application execution, but still MVP-level in field coverage.
-- Resume export continuity matters more than renderer purity; RenderCV failure must not break export.
-- OAuth code paths are implemented, but real provider credentials still need full live verification.
-- Docs should describe current behavior, not future promise. Preserve that discipline.
+- The worker infrastructure is functional and handles real applications, but field adapter coverage is currently at an MVP stage and handles primarily standard input types.
+- The ability to successfully export a resume PDF is prioritized over strict allegiance to RenderCV; fallback mechanisms are essential and must remain active.
+- OAuth implementation is code-complete, but requires valid, live provider credentials configured in your `.env` to test effectively.
+- Always update documentation to reflect the system's *actual* capabilities today, rather than documenting future intentions as present realities.
