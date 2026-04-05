@@ -1,0 +1,3 @@
+## 2025-04-05 - N+1 query problem with `_serialize_application`
+**Learning:** In list endpoints, `_serialize_[entity]` functions (like `_serialize_application`) perform separate database lookups for each item for relations like jobs, roles, profiles, and associated files unless relations are joined eagerly or prefetched. Also, when implementing a fallback condition in the serialization logic involving `None` vs empty values (e.g., `latest_run_id` being `None`), we need to carefully distinguish between `key in cache` and `value is truthy` so that valid `None` mappings in the cache aren't bypassed.
+**Action:** When working on serialization for list endpoints, implement bulk prefetching that accepts an optional `cache` parameter and handles cases where IDs are `None`.

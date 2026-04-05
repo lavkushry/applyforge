@@ -101,11 +101,49 @@ def _get_latest_action_required(run: ApplicationRun | None, db: Session) -> dict
     }
 
 
-def _serialize_application(application: Application, user: User, db: Session) -> dict:
-    job = db.query(Job).filter(Job.id == application.job_id, Job.user_id == user.id).first()
-    latest_run = _get_latest_run(application, db)
+def _prefetch_for_applications(rows: list[Application], user: User, db: Session) -> dict:
+    if not rows:
+        return {}
+
+    job_ids = [r.job_id for r in rows]
+    jobs = db.query(Job).filter(Job.id.in_(job_ids), Job.user_id == user.id).all() if job_ids else []
+    jobs_by_id = {j.id: j for j in jobs}
+
+    role_ids = {j.role_id for j in jobs if j.role_id}
+    roles = db.query(TargetRole).filter(TargetRole.id.in_(role_ids)).all() if role_ids else []
+    roles_by_id = {r.id: r for r in roles}
+
     profile = _get_profile(user.id, db)
-    role = _get_role(job, user.id, db) if job else None
+
+    latest_run_ids = [r.latest_run_id for r in rows if r.latest_run_id]
+    runs = db.query(ApplicationRun).filter(ApplicationRun.id.in_(latest_run_ids)).all() if latest_run_ids else []
+    runs_by_app_id = {r.id: r for r in runs}
+
+    tailored_resumes = db.query(ResumeVersion.job_id).filter(ResumeVersion.job_id.in_(job_ids)).all() if job_ids else []
+    tailored_by_job = {tr.job_id: True for tr in tailored_resumes}
+
+    cover_letters = db.query(CoverLetter.job_id).filter(CoverLetter.job_id.in_(job_ids)).all() if job_ids else []
+    cl_by_job = {cl.job_id: True for cl in cover_letters}
+
+    return {
+        "jobs": jobs_by_id,
+        "roles": roles_by_id,
+        "profile": profile,
+        "latest_runs": runs_by_app_id,
+        "tailored_resumes": tailored_by_job,
+        "cover_letters": cl_by_job,
+    }
+
+def _serialize_application(application: Application, user: User, db: Session, cache: dict | None = None) -> dict:
+    cache = cache or {}
+    job = cache.get("jobs", {}).get(application.job_id) if "jobs" in cache else db.query(Job).filter(Job.id == application.job_id, Job.user_id == user.id).first()
+    latest_run = cache.get("latest_runs", {}).get(application.latest_run_id) if "latest_runs" in cache else _get_latest_run(application, db)
+    profile = cache["profile"] if "profile" in cache else _get_profile(user.id, db)
+
+    if "roles" in cache:
+        role = cache["roles"].get(job.role_id) if job and job.role_id else None
+    else:
+        role = _get_role(job, user.id, db) if job else None
     assisted_packet = (
         build_application_packet(
             db,
@@ -132,8 +170,8 @@ def _serialize_application(application: Application, user: User, db: Session) ->
         if job
         else None
     )
-    has_tailored_resume = bool(job and db.query(ResumeVersion.id).filter(ResumeVersion.job_id == job.id).first())
-    has_cover_letter = bool(job and db.query(CoverLetter.id).filter(CoverLetter.job_id == job.id).first())
+    has_tailored_resume = cache["tailored_resumes"].get(job.id, False) if job and "tailored_resumes" in cache else bool(job and db.query(ResumeVersion.id).filter(ResumeVersion.job_id == job.id).first())
+    has_cover_letter = cache["cover_letters"].get(job.id, False) if job and "cover_letters" in cache else bool(job and db.query(CoverLetter.id).filter(CoverLetter.job_id == job.id).first())
     return {
         **ApplicationOut.model_validate(application).model_dump(mode="json"),
         "job": {
@@ -431,13 +469,15 @@ def request_otp(
 @router.get("")
 def list_applications(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
     rows = db.query(Application).filter(Application.user_id == user.id).order_by(Application.created_at.desc()).all()
-    return [_serialize_application(application, user, db) for application in rows]
+    cache = _prefetch_for_applications(rows, user, db)
+    return [_serialize_application(application, user, db, cache) for application in rows]
 
 
 @router.get("/dashboard")
 def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     rows = db.query(Application).filter(Application.user_id == user.id).order_by(Application.created_at.desc()).all()
-    serialized = [_serialize_application(application, user, db) for application in rows]
+    cache = _prefetch_for_applications(rows, user, db)
+    serialized = [_serialize_application(application, user, db, cache) for application in rows]
     status_counts: dict[str, int] = {}
     run_counts: dict[str, int] = {}
     pipeline_counts = {
