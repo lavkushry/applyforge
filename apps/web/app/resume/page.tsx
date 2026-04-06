@@ -183,7 +183,7 @@ export default function ResumePage() {
                   selectedTheme === theme.slug
                     ? "border-cyan-300/60 bg-cyan-400/10"
                     : "border-white/10 bg-slate-950/60 hover:border-cyan-300/30"
-                }`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
                 onClick={() => setSelectedTheme(theme.slug)}
                 type="button"
               >
@@ -236,7 +236,7 @@ export default function ResumePage() {
                     selectedTemplateKey === template.key
                       ? "border-cyan-300/60 bg-cyan-400/10"
                       : "border-white/10 bg-slate-950/60 hover:border-cyan-300/30"
-                  }`}
+                  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
                   onClick={() => setSelectedTemplateKey(template.key)}
                   type="button"
                 >
