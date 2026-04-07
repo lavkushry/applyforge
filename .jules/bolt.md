@@ -1,0 +1,3 @@
+## 2025-02-28 - N+1 query problems in _serialize_[entity] helpers
+**Learning:** In `apps/api`, `_serialize_[entity]` helper functions (e.g., `_serialize_role`, `_serialize_application`) are frequently used to attach related database records. When used inside list endpoints, these can cause N+1 database query problems.
+**Action:** Use prefetching and pass an optional `cache` dictionary to these helpers to batch queries (as implemented in `_serialize_application`).
