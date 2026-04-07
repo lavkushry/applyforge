@@ -25,8 +25,11 @@ def _role_or_404(role_id: int, user_id: int, db: Session) -> TargetRole:
     return role
 
 
-def _serialize_role(role: TargetRole, db: Session) -> TargetRoleOut:
-    sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id).order_by(TargetRoleSource.id.asc()).all()
+def _serialize_role(role: TargetRole, db: Session, cache: dict | None = None) -> TargetRoleOut:
+    if cache and "sources" in cache:
+        sources = cache["sources"].get(role.id, [])
+    else:
+        sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id).order_by(TargetRoleSource.id.asc()).all()
     payload = {
         "id": role.id,
         "user_id": role.user_id,
@@ -53,8 +56,24 @@ def _serialize_role(role: TargetRole, db: Session) -> TargetRoleOut:
 
 @router.get("", response_model=list[TargetRoleOut])
 def list_roles(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[TargetRoleOut]:
+    # Fetch all roles for the user
     roles = db.query(TargetRole).filter(TargetRole.user_id == user.id).order_by(TargetRole.updated_at.desc()).all()
-    return [_serialize_role(role, db) for role in roles]
+    if not roles:
+        return []
+
+    # ⚡ Bolt: Fix N+1 query by batch fetching TargetRoleSource records for all roles
+    # Expected impact: Reduces database queries from 1 + N to 2, where N is the number of roles.
+    role_ids = [role.id for role in roles]
+    all_sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id.in_(role_ids)).order_by(TargetRoleSource.id.asc()).all()
+
+    # Group sources by role_id
+    sources_by_role_id = {role_id: [] for role_id in role_ids}
+    for source in all_sources:
+        sources_by_role_id[source.role_id].append(source)
+
+    cache = {"sources": sources_by_role_id}
+
+    return [_serialize_role(role, db, cache=cache) for role in roles]
 
 
 @router.get("/source-presets", response_model=SourcePresetCatalogOut)
