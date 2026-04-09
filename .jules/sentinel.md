@@ -1,0 +1,4 @@
+## 2024-05-24 - Cross-Platform Path Traversal via Path.name
+**Vulnerability:** A path traversal vulnerability existed in file uploads where `Path(filename).name` was used to sanitize user-provided filenames.
+**Learning:** `Path.name` depends on the host operating system. When FastAPI runs on a POSIX system (like Linux/Docker), it does not recognize `\` as a directory separator. A malicious payload like `..\..\..\etc\passwd` is treated as a single filename, allowing an attacker to escape the target directory if the file is later used in an environment or context that interprets `\` as a separator, or if the initial path construction behaves unexpectedly.
+**Prevention:** Always implement a dedicated `secure_filename` function that handles cross-platform separators (replacing `\` with `/` before using `Path.name`), strips leading dots to prevent hidden files, and enforces an alphanumeric whitelist (e.g. `re.sub(r'[^a-zA-Z0-9.\-_]', '', filename)`).
