@@ -25,8 +25,12 @@ def _role_or_404(role_id: int, user_id: int, db: Session) -> TargetRole:
     return role
 
 
-def _serialize_role(role: TargetRole, db: Session) -> TargetRoleOut:
-    sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id).order_by(TargetRoleSource.id.asc()).all()
+def _serialize_role(role: TargetRole, db: Session, cache: dict[int, list[TargetRoleSource]] | None = None) -> TargetRoleOut:
+    if cache is not None:
+        sources = cache.get(role.id, [])
+    else:
+        sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id).order_by(TargetRoleSource.id.asc()).all()
+
     payload = {
         "id": role.id,
         "user_id": role.user_id,
@@ -54,7 +58,18 @@ def _serialize_role(role: TargetRole, db: Session) -> TargetRoleOut:
 @router.get("", response_model=list[TargetRoleOut])
 def list_roles(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[TargetRoleOut]:
     roles = db.query(TargetRole).filter(TargetRole.user_id == user.id).order_by(TargetRole.updated_at.desc()).all()
-    return [_serialize_role(role, db) for role in roles]
+
+    # Pre-fetch sources to prevent N+1 query problem
+    role_ids = [role.id for role in roles]
+    sources = []
+    if role_ids:
+        sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id.in_(role_ids)).order_by(TargetRoleSource.id.asc()).all()
+
+    cache = {role_id: [] for role_id in role_ids}
+    for source in sources:
+        cache[source.role_id].append(source)
+
+    return [_serialize_role(role, db, cache=cache) for role in roles]
 
 
 @router.get("/source-presets", response_model=SourcePresetCatalogOut)
