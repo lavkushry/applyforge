@@ -88,14 +88,25 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Email</label>
-          <Input {...register("email")} placeholder="you@example.com" />
-          {errors.email ? <p className="text-xs text-rose-300">{errors.email.message}</p> : null}
+          <label htmlFor="auth-email" className="text-sm text-slate-300">Email</label>
+          <Input
+            id="auth-email"
+            {...register("email")}
+            placeholder="you@example.com"
+            aria-describedby={errors.email ? "auth-email-error" : undefined}
+          />
+          {errors.email ? <p id="auth-email-error" role="alert" className="text-xs text-rose-300">{errors.email.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Password</label>
-          <Input {...register("password")} type="password" placeholder="At least 8 characters" />
-          {errors.password ? <p className="text-xs text-rose-300">{errors.password.message}</p> : null}
+          <label htmlFor="auth-password" className="text-sm text-slate-300">Password</label>
+          <Input
+            id="auth-password"
+            {...register("password")}
+            type="password"
+            placeholder="At least 8 characters"
+            aria-describedby={errors.password ? "auth-password-error" : undefined}
+          />
+          {errors.password ? <p id="auth-password-error" role="alert" className="text-xs text-rose-300">{errors.password.message}</p> : null}
         </div>
         <Button className="w-full" disabled={mutation.isPending} type="submit">
           {mutation.isPending ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
