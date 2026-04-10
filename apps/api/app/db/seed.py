@@ -30,6 +30,9 @@ def run() -> None:
     db = SessionLocal()
     seed_resume_themes(db)
 
+    if not settings.bootstrap_default_user_password:
+        raise ValueError("BOOTSTRAP_DEFAULT_USER_PASSWORD must be provided for seeding")
+
     user = db.query(User).filter(User.email == settings.bootstrap_default_user_email).first()
     if not user:
         user = User(
