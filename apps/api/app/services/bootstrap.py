@@ -11,6 +11,9 @@ def ensure_bootstrap_default_user(db: Session) -> User | None:
     if settings.env.lower() == "prod":
         return None
 
+    if not settings.bootstrap_default_user_password:
+        raise ValueError("BOOTSTRAP_DEFAULT_USER_PASSWORD must be provided when bootstrap_default_user is enabled")
+
     existing_default = db.query(User).filter(User.email == settings.bootstrap_default_user_email).first()
     if existing_default:
         return existing_default
