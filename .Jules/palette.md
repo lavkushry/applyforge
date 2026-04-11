@@ -1,0 +1,3 @@
+## 2024-04-12 - Widespread Missing Form Label Bindings and Error Associations
+**Learning:** React Hook Form and standard HTML inputs in `apps/web/components/forms/` frequently lack explicit `htmlFor` / `id` bindings for labels. Furthermore, inline form validation error messages lacked `role="alert"` and `aria-describedby` associations, preventing screen readers from automatically announcing errors associated with specific fields.
+**Action:** When creating or modifying forms in `apps/web/components/forms/`, always ensure `htmlFor` on `<label>` matches the `id` on the corresponding `<input>`. Additionally, use `aria-invalid`, `aria-describedby`, and `role="alert"` for form validation errors to guarantee proper keyboard and screen reader accessibility.
