@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -33,6 +34,19 @@ def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def secure_filename(filename: str) -> str:
+    # 1. Replace backslashes with forward slashes to handle Windows paths
+    filename = filename.replace("\\", "/")
+    # 2. Extract just the filename component to drop any path traversal attempts
+    filename = Path(filename).name
+    # 3. Only allow safe characters (alphanumeric, dots, hyphens, underscores)
+    filename = re.sub(r"[^a-zA-Z0-9.\-_]", "", filename)
+    # 4. Prevent hidden files or path traversal by stripping leading dots
+    filename = filename.lstrip(".")
+    # 5. Provide a fallback if empty
+    return filename or "unnamed_file"
+
+
 def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int) -> None:
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_UPLOAD_EXTENSIONS:
@@ -45,7 +59,7 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
 
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
-    safe_name = Path(filename).name
+    safe_name = secure_filename(filename)
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
     return str(target)
