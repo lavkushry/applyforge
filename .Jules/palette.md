@@ -1,0 +1,3 @@
+## 2024-04-12 - Widespread Missing Form Accessibility Bindings
+**Learning:** Across this app's forms (e.g., `auth-form.tsx`, `role-create-form.tsx`, `job-create-form.tsx`), there is a specific pattern of missing fundamental accessibility attributes. Labels consistently lack `htmlFor` bindings to their respective inputs (which lack `id` attributes), and validation error messages lack `role="alert"` and are not associated with their input fields via `aria-describedby`. This makes form navigation and error recovery extremely difficult for screen reader users.
+**Action:** Always verify and enforce `htmlFor`/`id` connections and `aria-describedby`/`role="alert"` for error messages when creating or modifying any form components in this codebase.
