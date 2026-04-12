@@ -1,0 +1,3 @@
+## 2025-02-17 - Resolve Application Serialization N+1
+**Learning:** `_serialize_application` in `apps/api/app/api/routes/applications.py` natively queried the database multiple times per application iteration (`_get_latest_run`, `_get_profile`, `Job`, `TargetRole`, `ResumeVersion`, `CoverLetter`). This created a significant N+1 problem on the list and dashboard routes returning a list of elements.
+**Action:** Implemented caching inside `_serialize_application` by passing an optional `cache` dictionary containing globally pre-fetched lookups using SQLAlchemy's `.in_()` clause before mapping over rows on list endpoints.
