@@ -1,0 +1,3 @@
+## 2024-05-15 - Missing form label bindings and error associations
+**Learning:** Found a widespread accessibility issue across forms in the web app. Labels are often lacking the `htmlFor` attribute matching the input `id`, preventing screen readers and click-to-focus behaviors from working correctly. Additionally, inputs often lack `aria-invalid` and `aria-describedby` linking to error messages with `role="alert"`.
+**Action:** When working on form components, always explicitly bind labels to inputs using `id` and `htmlFor`. When validation errors are present, add `aria-invalid="true"` and `aria-describedby="[error-id]"` to the input, and ensure the error message element has `id="[error-id]"` and `role="alert"`.
