@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+import re
 from uuid import uuid4
 
 from reportlab.lib.colors import HexColor
@@ -43,9 +44,15 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
         raise ValueError("Resume file exceeds the 5MB limit")
 
 
+def secure_filename(filename: str) -> str:
+    filename = filename.replace("\\", "/")
+    filename = re.sub(r'[^A-Za-z0-9._-]', '', filename.split("/")[-1])
+    return filename.lstrip('.')
+
+
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
-    safe_name = Path(filename).name
+    safe_name = secure_filename(filename)
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
     return str(target)
