@@ -1,0 +1,3 @@
+## 2024-05-15 - Missing form accessibility connections in ApplyForge forms
+**Learning:** We identified a widespread accessibility gap across multiple form components in `apps/web/components/forms/` (e.g., `auth-form.tsx`, `role-create-form.tsx`, `job-create-form.tsx`, `profile-form.tsx`, `settings-form.tsx`). Specifically, labels lack `htmlFor` attributes connecting them to input `id`s, inputs lack `aria-describedby` linking to validation errors, and validation errors lack the `role="alert"` attribute.
+**Action:** When updating or creating form components in this codebase, explicitly add `htmlFor`/`id` pairings for labels and inputs, and wire up validation error elements with `id`, `role="alert"`, and `aria-describedby` on the corresponding input.
