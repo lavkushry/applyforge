@@ -1,0 +1,4 @@
+## 2025-03-05 - File Upload Path Traversal via Cross-Platform Separators
+**Vulnerability:** Path traversal vulnerability in `save_upload` where a user-provided `filename` parameter like `..\\..\\etc\\passwd` would bypass `Path.name` extraction on Linux servers.
+**Learning:** `pathlib.Path(filename).name` relies on the host OS to determine path separators. On Linux, `\` is treated as a valid filename character, not a directory separator. This allows Windows-style relative paths (`..\..\`) to bypass the intended directory containment, creating files outside the intended storage directory.
+**Prevention:** Always implement a dedicated `secure_filename` function that explicitly normalizes cross-platform separators (replacing `\` with `/`), strips leading dots, and aggressively whitelists allowed characters (alphanumeric, dot, underscore, hyphen) *before* relying on standard library path tools.
