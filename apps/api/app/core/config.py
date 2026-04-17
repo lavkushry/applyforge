@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     web_origin: str = "http://localhost:3000"
     database_url: str = "sqlite:///./applyforge.db"
     redis_url: str = "redis://localhost:6379/0"
-    secret_key: str = "applyforge-dev-secret"
+    secret_key: str
     access_token_expire_minutes: int = 120
     access_cookie_name: str = "applyforge_session"
     access_cookie_secure: bool = False

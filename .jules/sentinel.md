@@ -1,0 +1,4 @@
+## 2025-02-28 - Removed Hardcoded Secret Key from Configuration
+**Vulnerability:** Found a hardcoded `secret_key` default value (`"applyforge-dev-secret"`) in the `apps/api/app/core/config.py` Pydantic `Settings` class. This key is used for JWT signatures. If deployed in production without setting the environment variable, the application would use this known secret, allowing attackers to forge JWT tokens and gain unauthorized access.
+**Learning:** The vulnerability existed because a default value was provided to simplify local development, but doing so compromises secure-by-default behavior for production deployments.
+**Prevention:** Remove the default value (e.g. declare `secret_key: str`) for critical secrets (like `secret_key`) so that the application fails to start if the environment variable is missing, forcing an explicit configuration.
