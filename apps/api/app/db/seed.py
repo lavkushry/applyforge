@@ -21,7 +21,7 @@ from app.models.entities import (
 from app.services.job_normalizer import normalize_job_payload
 from app.services.resume_themes import seed_resume_themes
 from app.services.scoring import score_job
-from app.services.tailor import generate_cover_letter, tailor_resume
+from app.services.tailor import tailor_resume
 
 
 def run() -> None:
