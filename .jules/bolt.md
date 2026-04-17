@@ -1,0 +1,3 @@
+## 2024-04-17 - Resolve N+1 database queries in `_serialize_[entity]` helpers
+**Learning:** List endpoints in the backend utilizing `_serialize_[entity]` helpers (e.g., `_serialize_role`) intrinsically trigger N+1 database queries when they fetch related rows inside a loop over the main entity.
+**Action:** Add an optional `cache: dict | None = None` parameter to the helper function. Pre-fetch relationships for all entities being processed using a `.in_()` query on the collected IDs in the endpoint route. Explicitly seed the cache dictionary with empty collections (e.g., `[]`) for all expected IDs to prevent fallback SQL queries when relations are non-existent.
