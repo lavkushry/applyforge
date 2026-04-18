@@ -1,0 +1,3 @@
+## 2023-10-27 - N+1 Serialization in List Endpoints
+**Learning:** The `_serialize_[entity]` helper pattern (like `_serialize_role`) used in FastAPI list endpoints causes an N+1 query problem by fetching related rows (`TargetRoleSource`) inside the serialization loop for each item.
+**Action:** When implementing or optimizing list endpoints, introduce an optional `cache: dict | None = None` parameter to the serialization helper. Pre-fetch relationships for all returned IDs using `db.query(...).filter(...in_(ids))` and seed the cache dictionary with an empty list (`[]`) for each ID *before* querying to prevent fallback SQL execution when relations don't exist.
