@@ -1,61 +1,61 @@
 # TODO / Next Hardening Steps
 
-This file tracks what still remains after the current resume-template, company-directory, preference-export, and FSM work.
+This document explicitly tracks the remaining engineering priorities following the successful delivery of resume-templates, company-directory, preference-export, and application FSM capabilities.
 
-## Platform
+## 1. Platform Infrastructure
 
-1. Remove runtime `create_all` and move fully to Alembic-managed migrations.
-2. Add S3-compatible storage adapter and signed downloads.
-3. Add webhook or stream-based updates for long-running runs instead of polling only.
+- **Database Migrations:** Completely deprecate runtime `create_all` commands, migrating strictly to Alembic-managed schema revisions.
+- **Durable Storage:** Implement an S3-compatible storage adapter to securely manage artifact persistence and signed downloads.
+- **Run Telemetry:** Transition long-running application run updates from polling mechanisms to webhook or stream-based updates.
 
-## Auth and security
+## 2. Authentication and Security
 
-1. Replace the basic cookie session flow with refresh-token rotation and stricter session policies.
-2. Add per-route authorization layers for future multi-user and agency roles.
-3. Encrypt sensitive profile answers at rest instead of leaving all preferences in plain JSON.
-4. Expand rate limiting beyond auth and inbox-sensitive endpoints into broader write-heavy automation surfaces.
+- **Session Hardening:** Replace the MVP basic cookie session flow with robust refresh-token rotation and stricter session lifetime policies.
+- **Authorization Policies:** Introduce granular, per-route authorization layers to facilitate forthcoming multi-user and agency roles.
+- **Data Encryption:** Encrypt sensitive profile answers and automation preferences at rest rather than storing them in plain JSON.
+- **Rate Limiting Expansion:** Broaden rate-limiting protections beyond authentication and inbox routes to encompass write-heavy automation surfaces.
 
-## Resume and document system
+## 3. Resume and Document System
 
-1. Add multiple resume strategies and reusable tailored variants by role family.
-2. Complete live RenderCV production validation and artifact retention rules.
-3. Improve preview fidelity so web previews more closely match exported artifacts.
-4. Add richer LaTeX or Typst-grade theme support while preserving ATS-safe defaults.
+- **Multi-Strategy Variants:** Introduce reusable, tailored resume variants organized by overarching role families rather than single jobs.
+- **RenderCV Hardening:** Finalize live RenderCV production validation alongside strict artifact retention policies.
+- **Preview Fidelity:** Enhance web previews so they visually align flawlessly with the final exported PDF artifacts.
+- **Advanced Theming:** Integrate richer LaTeX or Typst-grade theme support while rigorously preserving ATS-safe defaults.
 
-## Discovery and enrichment
+## 4. Discovery and Enrichment
 
-1. Add richer direct-page extraction for company career sites and Workday-like pages.
-2. Add source-health diagnostics, retry visibility, and stale-source alerts.
-3. Expand source coverage while preserving ATS-first dedupe and freshness semantics.
-4. Add richer per-source retry history and stale-source alerting, not just manual enrichment retry.
+- **Direct-Site Extraction:** Enhance direct-page extraction capabilities targeting complex company career sites and Workday-style portals.
+- **Source Observability:** Implement comprehensive source-health diagnostics, retry visibility, and explicit stale-source alerting.
+- **Coverage Expansion:** Broaden source coverage while strictly adhering to ATS-first deduplication and freshness semantics.
+- **Retry Mechanisms:** Establish richer, automated per-source retry histories rather than relying solely on manual enrichment retries.
 
-## Company intelligence
+## 5. Company Intelligence
 
-1. Add company merge and review tooling for duplicate company records.
-2. Add portal health checks and portal-level diagnostics.
-3. Add better job-to-company resolution confidence tracking and override UX.
+- **Data Deduplication:** Implement robust merge and duplicate-review workflows specifically for company records.
+- **Portal Diagnostics:** Introduce portal-specific health checks and observability tooling.
+- **Resolution Confidence:** Improve job-to-company resolution confidence scoring and provide a clearer override UX.
 
-## Automation
+## 6. Automation Constraints
 
-1. Expand generic field adapters further for file variants, address composites, and more site-specific controls.
-2. Add richer resume-from-last-checkpoint semantics for partially completed runs.
-3. Add broader site-specific adapters while keeping graceful fallback behavior.
+- **Field Adapter Breadth:** Expand generic field adapters to natively support file variants, address composites, and advanced site-specific controls.
+- **Checkpoint Resumption:** Implement robust resume-from-last-checkpoint semantics for interrupted or partially completed application runs.
+- **Site-Specific Adapters:** Broaden site-specific adapter coverage while guaranteeing safe, graceful fallback behaviors.
 
-## Inbox and OAuth
+## 7. Inbox and OAuth Integrations
 
-1. Complete live end-to-end Gmail and Outlook OAuth verification against real credentials.
-2. Add token refresh telemetry, re-auth prompts, and revoked-credential recovery UX.
-3. Add provider-specific tests for refresh-token rotation and invalid-grant handling.
-4. Add connection audit history and revoke-access guidance in diagnostics.
+- **Live End-to-End Testing:** Finalize full live end-to-end verification of Gmail and Outlook OAuth integrations against actual provider credentials.
+- **Token Management:** Implement robust token refresh telemetry, proactive re-auth prompts, and clear recovery UX for revoked credentials.
+- **Provider Edge Cases:** Add specific provider tests verifying refresh-token rotation behaviors and invalid-grant handling.
+- **Audit Tooling:** Integrate comprehensive connection audit histories and explicit revoke-access guidance within the diagnostics UI.
 
-## Diagnostics and admin
+## 8. Diagnostics and Admin Tools
 
-1. Expand the admin surface further for screenshot browsing, queue depth, and source-health drilldowns.
-2. Add better filtering and search across run history, feed events, and OTP events.
+- **Operator Tooling:** Significantly expand the admin interface to better surface screenshot browsing, worker queue depths, and source-health drilldowns.
+- **Search Capabilities:** Introduce advanced filtering and search tools across application run histories, feed events, and inbox OTP events.
 
-## Quality
+## 9. Quality Assurance
 
-1. Add integration tests for auth, jobs, resume parsing, and file export.
-2. Add Playwright E2E coverage for sign-in, profile edit, job scoring, and resume parsing.
-3. Add Playwright E2E coverage for inbox OAuth connect and OTP-assisted application pauses.
-4. Add CI for Python lint/tests and web lint/build/typecheck.
+- **Backend Integration Tests:** Add thorough integration test coverage spanning authentication, job ingestion, resume parsing, and file export pipelines.
+- **Frontend E2E (Playwright):** Introduce Playwright E2E coverage specifically targeting sign-in, profile editing, job scoring, and resume parsing.
+- **Automation E2E:** Build Playwright E2E coverage simulating inbox OAuth connections and OTP-assisted application pause states.
+- **CI Pipelines:** Establish rigorous Continuous Integration for Python linting/testing alongside Web linting/building/typechecking.
