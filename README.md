@@ -1,52 +1,52 @@
 # ApplyForge
 
-Your AI Job Hunt Operating System
+**Your AI Job Hunt Operating System**
 
-ApplyForge is a production-minded MVP monorepo for end-to-end job search operations. It combines resume intelligence, job discovery and fit scoring, tailored document generation, and guarded browser automation into a single product scaffold.
+ApplyForge is a production-minded MVP monorepo built for end-to-end job search operations. It seamlessly combines resume intelligence, job discovery, fit scoring, tailored document generation, and guarded browser automation into one unified product scaffold.
 
-## Final Architecture
+## Final Architecture Overview
 
-- `apps/web`: Next.js + TypeScript application for marketing pages, dashboard, profile editing, jobs, tracker, and diagnostics.
-- `apps/api`: FastAPI + SQLAlchemy service for auth, profile/resume flows, job normalization, scoring, tailoring, files, and application run state.
-- `apps/worker`: Celery + Playwright executor with a step-based assisted-apply skeleton that captures screenshots and pause points.
-- `packages/prompts`: Prompt templates for resume cleanup, job normalization, scoring, tailoring, cover letters, answers, and risk detection.
-- `infra`: Docker Compose and Dockerfiles for local orchestration.
-- `docs`: Architecture notes, TODOs, and product-operating documentation.
-- `.codex` and `.agents`: Project-local agent roles and skills for future AI-assisted maintenance.
+- **`apps/web`**: Next.js + TypeScript application powering marketing pages, dashboards, profile editing, job listings, trackers, and diagnostics.
+- **`apps/api`**: FastAPI + SQLAlchemy service handling authentication, profile/resume workflows, job normalization, scoring, tailoring, files, and application state.
+- **`apps/worker`**: Celery + Playwright executor with a step-based assisted-apply skeleton that reliably captures screenshots and handles pause points.
+- **`packages/prompts`**: Core prompt templates for resume cleanup, job normalization, scoring, tailoring, cover letters, question answering, and risk detection.
+- **`infra`**: Docker Compose and Dockerfiles for straightforward local orchestration.
+- **`docs`**: Comprehensive architecture notes, TODOs, and product-operating documentation.
+- **`.codex` and `.agents`**: Project-local agent roles and skills designed for future AI-assisted maintenance.
 
-## What Is Implemented
+## Implementation Status
 
 ### Phase 1
-- Email/password auth with cookie-backed session token.
-- Candidate profile CRUD and resume upload/parse flow.
-- Manual job ingestion with normalization and dedupe keys.
-- Role scrape runs with discovery-first job insertion and worker-queued enrichment.
+- Email/password authentication featuring cookie-backed session tokens.
+- Candidate profile CRUD operations alongside a resume upload/parse flow.
+- Manual job ingestion complete with normalization and deduplication keys.
+- Role scrape runs featuring discovery-first job insertion and worker-queued enrichment.
 - Packaged discovery preset registry with example search templates, direct-site presets, and Workday-style source presets.
-- Job scoring engine with transparent reasons, enrichment revisions, and recommendations.
-- Dashboard, jobs list, job detail, resume, and profile pages.
+- Job scoring engine providing transparent reasons, enrichment revisions, and actionable recommendations.
+- Core UI pages: Dashboard, jobs list, job detail, resume, and profile.
 
 ### Phase 2
-- Tailored resume generation with fact-locked content reuse.
-- ATS-friendly PDF export for resume versions.
-- Packaged Markdown and LaTeX resume starter templates plus developer CLI helpers.
-- Cover-letter generation flow.
-- Applications tracker board and settings page.
+- Tailored resume generation utilizing fact-locked content reuse.
+- ATS-friendly PDF export for various resume versions.
+- Packaged Markdown and LaTeX resume starter templates bundled with developer CLI helpers.
+- Seamless cover-letter generation flow.
+- Comprehensive applications tracker board and user settings page.
 
 ### Phase 3
-- Step-based application run records with persisted statuses.
-- Assisted and auto-run API flows with pause-before-submit behavior.
-- Draft packet-review runs for dry-run preparation.
-- Playwright worker skeleton with screenshots and basic field filling.
-- Run timeline and diagnostics UI.
-- Worker-backed job enrichment and score-change feed events.
-- Apply control center with pipeline-stage visibility and manual operator actions.
-- Setup wizard page with readiness checks and one-click role bootstrapping from packaged templates.
-- Formal run-state transitions plus reusable user-preference export for automation.
+- Step-based application run records with durably persisted statuses.
+- Assisted and auto-run API flows featuring pause-before-submit behavior.
+- Draft packet-review runs for thorough dry-run preparation.
+- Playwright worker skeleton that captures screenshots and performs basic field filling.
+- Run timeline and detailed diagnostics UI.
+- Worker-backed job enrichment alongside score-change feed events.
+- Apply control center providing pipeline-stage visibility and manual operator actions.
+- Setup wizard page offering readiness checks and one-click role bootstrapping from packaged templates.
+- Formal run-state transitions paired with a reusable user-preference export for automation.
 
-### Phase 4 foundations
-- User-scoped company intelligence directory with portals and contacts.
-- Resume template catalog and developer CLI aligned to structured Markdown and LaTeX workflows.
-- Portable automation preference export visible in Settings.
+### Phase 4 Foundations
+- User-scoped company intelligence directory containing portals and key contacts.
+- Resume template catalog and developer CLI deeply aligned with structured Markdown and LaTeX workflows.
+- Portable automation preference export accessible within Settings.
 
 ## Monorepo Layout
 
@@ -67,15 +67,15 @@ ApplyForge is a production-minded MVP monorepo for end-to-end job search operati
 /.agents
 ```
 
-## Quick Start
+## Quick Start Guide
 
 ### 1. Prerequisites
 
-- Docker + Docker Compose
+- Docker and Docker Compose
 - Node.js 20+
 - Python 3.12+
 
-### 2. Environment
+### 2. Environment Configuration
 
 ```bash
 cp apps/api/.env.example apps/api/.env
@@ -83,62 +83,56 @@ cp apps/web/.env.example apps/web/.env.local
 cp apps/worker/.env.example apps/worker/.env
 ```
 
-### 3. Start the stack with Docker
+### 3. Running with Docker
 
 ```bash
 cd infra
 docker compose up --build
 ```
 
-Services:
-
+**Services:**
 - Web: `http://localhost:3000`
 - API docs: `http://localhost:8000/docs`
 - Flower: `http://localhost:5555`
 
-### 4. Start locally without Docker
+### 4. Running Locally (Without Docker)
 
 ```bash
 make setup
 make dev
 ```
 
-Then in a separate shell:
-
+In a separate shell:
 ```bash
 make seed
 ```
 
-First local login credentials:
-
+**First Local Login Credentials:**
 - Email: `defaultuser@applyforge.dev`
 - Password: `defaultuser123`
 
-## Discovery Presets And Wizard
+## Discovery Presets & Wizard
 
-ApplyForge now ships a small packaged discovery registry inspired by the ApplyPilot-style config layout.
+ApplyForge ships with a small, packaged discovery registry inspired by the ApplyPilot config layout:
 
 - `packages/config/discovery/employers.yaml`
 - `packages/config/discovery/sites.yaml`
 - `packages/config/discovery/searches.example.yaml`
 
 These power:
-
 - `GET /roles/source-presets`
 - `GET /setup/wizard`
 - `POST /setup/wizard/bootstrap-role`
 
 In the web app:
+- `/wizard` displays first-run readiness and recommends role templates.
+- `/roles` allows users to attach packaged source presets (including Workday-style boards) without manual configuration.
 
-- `/wizard` shows first-run readiness and recommended role templates.
-- `/roles` lets you attach a packaged source preset, including Workday-style boards, without manually copying config.
+## Inbox OAuth Integration
 
-## Inbox OAuth Setup
+ApplyForge connects to Gmail or Outlook so application runs can automatically fetch OTP emails.
 
-ApplyForge can connect Gmail or Outlook so application runs can fetch OTP emails directly.
-
-Required API env vars in [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example):
-
+**Required API Environment Variables (in `apps/api/.env`):**
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `GOOGLE_OAUTH_REDIRECT_URI`
@@ -147,41 +141,37 @@ Required API env vars in [apps/api/.env.example](/home/ems/applyforge/apps/api/.
 - `MICROSOFT_OAUTH_TENANT`
 - `MICROSOFT_OAUTH_REDIRECT_URI`
 
-Recommended local redirect URIs:
-
+**Recommended Local Redirect URIs:**
 - Google: `http://localhost:8000/inbox/gmail/oauth/callback`
 - Microsoft: `http://localhost:8000/inbox/outlook/oauth/callback`
 
-Required provider scopes:
-
+**Required Provider Scopes:**
 - Gmail: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/gmail.readonly`
 - Outlook: `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/Mail.Read`
 
-After those values are set, open Settings in the web app and use the OAuth connect buttons. The settings page now shows whether each provider is configured and which env vars are still missing.
+Once configured, use the OAuth connect buttons on the web app's Settings page, which also highlights missing environment variables.
 
-## Resume Template Catalog And CLI
+## Resume Template Catalog & CLI
 
-ApplyForge now ships a small packaged resume-template layer inspired by ResumeCraftr-style source assets:
+ApplyForge includes a packaged resume-template layer modeled after ResumeCraftr:
 
 - `packages/config/resume/sections.json`
 - `packages/config/resume/resume_template.md`
 - `packages/config/resume/resume_template.tex`
 
 These power:
-
 - `GET /resume/templates`
 - `POST /resume/templates/render`
 - `python -m app.cli.main list-templates`
 - `python -m app.cli.main render-template --input /path/to/resume.json --template-key ats-markdown-starter`
 
 In the web app:
+- `/resume` lets users browse Markdown/LaTeX starter templates and render them using their canonical profile.
+- The main PDF export still uses the standard export pipeline, maintaining RenderCV compatibility alongside an internal fallback.
 
-- `/resume` now lets a user browse Markdown and LaTeX starter templates and render them from the current canonical profile.
-- the main PDF export path still uses the product's resume export pipeline, including RenderCV compatibility plus internal fallback.
+## Automation Preferences & FSM
 
-## Automation Preferences And FSM
-
-ApplyForge now includes Jobber-style equivalents for portable user preferences and a formal application run state machine:
+ApplyForge implements Jobber-style portable user preferences and a formal state machine for application runs:
 
 - `GET /profile/preferences/export?format=text`
 - `GET /profile/preferences/export?format=json`
@@ -189,20 +179,19 @@ ApplyForge now includes Jobber-style equivalents for portable user preferences a
 - `apps/api/app/services/application_fsm.py`
 
 In the web app:
-
-- `/settings` now shows the exported automation preference profile that combines canonical profile data, saved answers, target roles, keyword filters, and resume defaults.
-- application runs now use explicit transition rules for `queued`, `running`, `paused`, `failed`, `completed`, and `uncertain`.
+- `/settings` displays an exported automation preference profile merging canonical data, saved answers, roles, keywords, and resume defaults.
+- Application runs strictly follow transition rules for `queued`, `running`, `paused`, `failed`, `completed`, and `uncertain`.
 
 ## Documentation Map
 
-- [docs/LOCAL_DOCKER.md](/home/ems/applyforge/docs/LOCAL_DOCKER.md): local full-stack Docker startup, seed flow, smoke checks, and troubleshooting
-- [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md): deployment topology, env setup, smoke checks, and rollout caveats
-- [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md): current product requirements and invariants
-- [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md): runtime and data-flow architecture
-- [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md): fast orientation guide for future sessions
-- [docs/TODO.md](/home/ems/applyforge/docs/TODO.md): remaining hardening and follow-on work
-- [docs/FEATURE_REQUESTS/applypilot-core-roadmap.md](/home/ems/applyforge/docs/FEATURE_REQUESTS/applypilot-core-roadmap.md): status of the ApplyPilot-style roadmap
-- [docs/IDEAS/company-intelligence-directory.md](/home/ems/applyforge/docs/IDEAS/company-intelligence-directory.md): status of the company directory foundation
+- **[docs/LOCAL_DOCKER.md](docs/LOCAL_DOCKER.md):** Full-stack Docker startup, seed flow, smoke checks, and troubleshooting.
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md):** Deployment topology, env setup, smoke checks, and rollout notes.
+- **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md):** Current product requirements and core invariants.
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):** Runtime architecture and data flow.
+- **[docs/CONTEXT.md](docs/CONTEXT.md):** Fast orientation guide for future work.
+- **[docs/TODO.md](docs/TODO.md):** Remaining hardening tasks and future roadmap.
+- **[docs/FEATURE_REQUESTS/applypilot-core-roadmap.md](docs/FEATURE_REQUESTS/applypilot-core-roadmap.md):** ApplyPilot-style roadmap status.
+- **[docs/IDEAS/company-intelligence-directory.md](docs/IDEAS/company-intelligence-directory.md):** Status of the company directory feature.
 
 ## Useful Commands
 
@@ -217,17 +206,16 @@ make lint
 
 ## Core Safety Rules
 
-- Resume tailoring never invents facts and preserves fact-locked sections.
-- Unknown application questions return `Requires candidate review`.
-- Risky questions such as salary or visa prompts force manual approval.
-- Automation runs persist step logs, retry counts, timestamps, and structured outputs.
+- Resume tailoring never fabricates facts and always preserves fact-locked sections.
+- Unknown application questions immediately return `Requires candidate review`.
+- Risky questions (e.g., salary, visa) strictly force manual approval.
+- Automation runs reliably persist step logs, retry counts, timestamps, and structured outputs.
 
 ## Current Gaps
 
-- Full Alembic revision history is scaffolded but not yet fully authored.
-- Job enrichment is queued into the worker, but retry/backoff observability for enrichment tasks is still thin.
-- Frontend document editing is MVP-grade and will benefit from richer section editors.
-- Enterprise multi-user, agency workflows, and S3 storage remain future phases.
+- Full Alembic revision history is scaffolded but not entirely authored.
+- Job enrichment is worker-queued, but retry/backoff observability remains limited.
+- Frontend document editing is MVP-grade; it needs richer section editors.
+- Enterprise features (multi-user, agency workflows, S3 storage) are slated for future phases.
 
-See [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md), [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md), and [docs/TODO.md](/home/ems/applyforge/docs/TODO.md) for more detail.
-For fast future orientation, also see [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md).
+See the full documentation mapped above for additional technical depth and orientation.
