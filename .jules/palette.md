@@ -1,0 +1,3 @@
+## 2024-04-21 - Widespread missing form label bindings and error associations
+**Learning:** Multiple forms across `apps/web/components/forms/` (e.g., `role-create-form.tsx`, `job-create-form.tsx`, `profile-form.tsx`, `settings-form.tsx`, `auth-form.tsx`) currently have widespread accessibility issues, specifically lacking `htmlFor`/`id` bindings connecting labels to inputs, and missing `aria-describedby` linking inputs to validation errors equipped with `role='alert'`.
+**Action:** When updating or creating forms in `apps/web/components/forms/`, ensure that all labels use `htmlFor` matching the input's `id`. Additionally, add `aria-describedby` to inputs that reference error messages marked with `role="alert"`.
