@@ -1,0 +1,3 @@
+## 2024-05-15 - N+1 Query in List Serialization
+**Learning:** List endpoints utilizing `_serialize_[entity]` helpers (e.g., `_serialize_role`) intrinsically trigger N+1 database queries when fetching nested relationships like `TargetRoleSource`.
+**Action:** Add an optional `cache: dict | None = None` parameter to the helper, pre-fetch relationships using `.in_()` on the collected IDs in the route, and pass the mapped dictionary into the serialization loop. Explicitly seed the cache dictionary with empty collections (like `[]`) for all expected IDs to prevent fallback SQL queries when relations are non-existent.
