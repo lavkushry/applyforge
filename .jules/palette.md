@@ -1,0 +1,3 @@
+## 2025-05-15 - Missing Form Label Bindings & Accessibility
+**Learning:** Widespread pattern of missing `htmlFor` and `id` bindings connecting labels to inputs in `apps/web/components/forms/`. Validation errors lack `aria-describedby` linking and `role="alert"`. This negatively impacts screen reader users who rely on explicit associations between form controls and their descriptions/errors.
+**Action:** Always verify new or modified form components include explicit label-to-input mapping (`htmlFor`/`id`) and proper ARIA associations for validation feedback. Ensure this standard is applied across all forms like `job-create-form.tsx`, `role-create-form.tsx`, `profile-form.tsx`, and `settings-form.tsx`.
