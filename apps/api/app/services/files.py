@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -43,9 +44,21 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
         raise ValueError("Resume file exceeds the 5MB limit")
 
 
+def secure_filename(filename: str) -> str:
+    """Return a secure version of a filename."""
+    # Convert all path separators to forward slash
+    filename = filename.replace("\\", "/")
+    # Extract just the filename part
+    filename = Path(filename).name
+    # Keep only alphanumeric, dots, underscores, and hyphens
+    filename = re.sub(r"[^a-zA-Z0-9._-]", "", filename)
+    # Strip leading dots to prevent hidden files or traversal attempts
+    return filename.lstrip(".") or "uploaded_file"
+
+
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
-    safe_name = Path(filename).name
+    safe_name = secure_filename(filename)
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
     return str(target)
