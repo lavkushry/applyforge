@@ -1,0 +1,3 @@
+## 2024-05-18 - Avoid sweeping formatting changes in targeted performance patches
+**Learning:** Running `ruff format .` globally during a performance patch can unexpectedly modify dozens of unrelated files, making the PR impossible to review and violating the core directive to only introduce localized, targeted changes under 50 lines.
+**Action:** When working on localized performance fixes (e.g. N+1 queries), explicitly target `ruff format` and `ruff check --fix` *only* to the specific files modified (`ruff format path/to/file.py`), avoiding global formatting commands that pollute the repository.
