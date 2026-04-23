@@ -1,0 +1,3 @@
+## 2024-05-24 - Serialization Helper N+1 Queries
+**Learning:** List endpoints utilizing `_serialize_[entity]` helpers intrinsically trigger N+1 database queries. When serializing entities with relationships, iterating over each entity without pre-fetching its relationships will cause an additional query per entity.
+**Action:** To resolve this, add an optional `cache: dict | None = None` parameter to the helper, pre-fetch relationships using `.in_()` on the collected IDs in the route, and pass the mapped dictionary into the serialization loop. Crucially, explicitly seed the cache dictionary with empty collections (like `[]`) for all expected IDs to prevent fallback SQL queries when relations are non-existent.
