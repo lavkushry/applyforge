@@ -127,20 +127,21 @@ export function RoleCreateForm() {
       </div>
       <form className="grid gap-4 lg:grid-cols-2" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Role name</label>
-          <Input {...form.register("name")} />
+          <label htmlFor="name" className="text-sm text-slate-300">Role name</label>
+          <Input id="name" {...form.register("name")} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Keywords</label>
-          <Input {...form.register("keywords")} />
+          <label htmlFor="keywords" className="text-sm text-slate-300">Keywords</label>
+          <Input id="keywords" {...form.register("keywords")} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Preferred locations</label>
-          <Input {...form.register("preferred_locations")} />
+          <label htmlFor="preferred_locations" className="text-sm text-slate-300">Preferred locations</label>
+          <Input id="preferred_locations" {...form.register("preferred_locations")} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Source kind</label>
+          <label htmlFor="source_kind" className="text-sm text-slate-300">Source kind</label>
           <select
+            id="source_kind"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...form.register("source_kind")}
             disabled={Boolean(selectedPreset)}
@@ -154,8 +155,9 @@ export function RoleCreateForm() {
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Preset source</label>
+          <label htmlFor="source_preset_key" className="text-sm text-slate-300">Preset source</label>
           <select
+            id="source_preset_key"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...form.register("source_preset_key")}
           >
@@ -168,13 +170,14 @@ export function RoleCreateForm() {
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Source label</label>
-          <Input {...form.register("source_label")} placeholder="Nimbus AI Careers" disabled={Boolean(selectedPreset)} />
+          <label htmlFor="source_label" className="text-sm text-slate-300">Source label</label>
+          <Input id="source_label" {...form.register("source_label")} placeholder="Nimbus AI Careers" disabled={Boolean(selectedPreset)} />
         </div>
         {!isJobSpySource ? (
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Source URL</label>
+            <label htmlFor="source_url" className="text-sm text-slate-300">Source URL</label>
             <Input
+              id="source_url"
               {...form.register("source_url")}
               placeholder="https://boards.greenhouse.io/example"
               disabled={Boolean(selectedPreset)}
@@ -184,25 +187,25 @@ export function RoleCreateForm() {
         {isJobSpySource && !selectedPreset ? (
           <>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Job boards</label>
-              <Input {...form.register("jobspy_sites")} placeholder="linkedin, indeed, glassdoor, google, zip_recruiter" />
+              <label htmlFor="jobspy_sites" className="text-sm text-slate-300">Job boards</label>
+              <Input id="jobspy_sites" {...form.register("jobspy_sites")} placeholder="linkedin, indeed, glassdoor, google, zip_recruiter" />
               <p className="text-xs text-slate-400">Supported: linkedin, indeed, glassdoor, google, zip_recruiter, naukri, bayt, bdjobs.</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Search location</label>
-              <Input {...form.register("jobspy_location")} placeholder="India, Remote, San Francisco, CA" />
+              <label htmlFor="jobspy_location" className="text-sm text-slate-300">Search location</label>
+              <Input id="jobspy_location" {...form.register("jobspy_location")} placeholder="India, Remote, San Francisco, CA" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Indeed / Glassdoor country</label>
-              <Input {...form.register("jobspy_country_indeed")} placeholder="India, USA, United Arab Emirates" />
+              <label htmlFor="jobspy_country_indeed" className="text-sm text-slate-300">Indeed / Glassdoor country</label>
+              <Input id="jobspy_country_indeed" {...form.register("jobspy_country_indeed")} placeholder="India, USA, United Arab Emirates" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Results per site</label>
-              <Input {...form.register("jobspy_results_wanted", { valueAsNumber: true })} min={1} max={200} type="number" />
+              <label htmlFor="jobspy_results_wanted" className="text-sm text-slate-300">Results per site</label>
+              <Input id="jobspy_results_wanted" {...form.register("jobspy_results_wanted", { valueAsNumber: true })} min={1} max={200} type="number" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Hours old</label>
-              <Input {...form.register("jobspy_hours_old", { valueAsNumber: true })} min={1} max={720} type="number" />
+              <label htmlFor="jobspy_hours_old" className="text-sm text-slate-300">Hours old</label>
+              <Input id="jobspy_hours_old" {...form.register("jobspy_hours_old", { valueAsNumber: true })} min={1} max={720} type="number" />
             </div>
           </>
         ) : null}
