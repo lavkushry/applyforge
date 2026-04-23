@@ -1,0 +1,3 @@
+## 2024-04-23 - Widespread missing form label bindings
+**Learning:** Found a persistent pattern across `apps/web/components/forms/` components (`profile-form.tsx`, `settings-form.tsx`, `role-create-form.tsx`) where `<label>` elements were missing `htmlFor` attributes and the corresponding `<Input>` or `<select>` elements lacked matching `id` attributes. This breaks accessibility for screen readers and keyboard users as the label isn't programmatically associated with the input.
+**Action:** When working on form components in this repository, always ensure new or existing inputs have matching `id` attributes that are bound to their `<label>` elements using the `htmlFor` attribute.
