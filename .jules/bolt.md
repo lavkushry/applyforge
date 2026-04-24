@@ -1,0 +1,3 @@
+## 2024-05-24 - N+1 query in serialization helpers
+**Learning:** Found an N+1 query pattern in `_serialize_[entity]` helpers (like `_serialize_role`) where nested entities (like `TargetRoleSource`) are queried iteratively per role.
+**Action:** Always check `_serialize_[entity]` usage, especially when called inside list loops, and introduce a `cache` dict parameter. Pre-fetch nested entities in bulk before the loop using `.in_()` to eliminate N+1 queries. Initialize the cache with an empty collection for all expected IDs to avoid falling back to SQL queries for entities with no nested relations.
