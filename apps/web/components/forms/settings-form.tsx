@@ -136,8 +136,9 @@ export function SettingsForm() {
 
       <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Default mode</label>
+          <label htmlFor="mode" className="text-sm text-slate-300">Default mode</label>
           <select
+            id="mode"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...form.register("mode")}
           >
@@ -147,19 +148,20 @@ export function SettingsForm() {
           </select>
         </div>
 
-        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">
-          <input type="checkbox" {...form.register("pause_on_risk")} />
+        <label htmlFor="pause_on_risk" className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">
+          <input id="pause_on_risk" type="checkbox" {...form.register("pause_on_risk")} />
           Pause automation when risky questions are detected
         </label>
 
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Priority keywords</label>
-          <Input {...form.register("keyword_focus")} />
+          <label htmlFor="keyword_focus" className="text-sm text-slate-300">Priority keywords</label>
+          <Input id="keyword_focus" {...form.register("keyword_focus")} />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Default resume theme</label>
+          <label htmlFor="default_theme" className="text-sm text-slate-300">Default resume theme</label>
           <select
+            id="default_theme"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...form.register("default_theme")}
           >
@@ -219,7 +221,7 @@ export function SettingsForm() {
               <span className="text-slate-500">
                 {String(connection.metadata_json.connected_via || "manual")} · {connection.token_masked}
               </span>
-              <Button type="button" variant="ghost" onClick={() => disconnectMutation.mutate(connection.id)}>
+              <Button type="button" variant="ghost" aria-label={`Disconnect ${connection.email}`} onClick={() => disconnectMutation.mutate(connection.id)}>
                 Disconnect
               </Button>
             </div>
