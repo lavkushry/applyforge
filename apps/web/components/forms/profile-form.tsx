@@ -211,11 +211,15 @@ function compactLinks(values: FormValues["links"]) {
     .filter((item) => item.label || item.url);
 }
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ message, id }: { message?: string; id?: string }) {
   if (!message) {
     return null;
   }
-  return <p className="text-xs text-rose-300">{message}</p>;
+  return (
+    <p id={id} role="alert" className="text-xs text-rose-300">
+      {message}
+    </p>
+  );
 }
 
 function SectionHeader({
@@ -362,43 +366,43 @@ export function ProfileForm() {
       <form className="space-y-6" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Full name</label>
-            <Input {...form.register("full_name")} />
-            <FieldError message={form.formState.errors.full_name?.message} />
+            <label htmlFor="full_name" className="text-sm text-slate-300">Full name</label>
+            <Input id="full_name" {...form.register("full_name")} aria-describedby={form.formState.errors.full_name ? "full_name_error" : undefined} />
+            <FieldError id="full_name_error" message={form.formState.errors.full_name?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Headline</label>
-            <Input {...form.register("headline")} />
+            <label htmlFor="headline" className="text-sm text-slate-300">Headline</label>
+            <Input id="headline" {...form.register("headline")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Email</label>
-            <Input {...form.register("email")} />
-            <FieldError message={form.formState.errors.email?.message} />
+            <label htmlFor="email" className="text-sm text-slate-300">Email</label>
+            <Input id="email" {...form.register("email")} aria-describedby={form.formState.errors.email ? "email_error" : undefined} />
+            <FieldError id="email_error" message={form.formState.errors.email?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Phone</label>
-            <Input {...form.register("phone")} />
+            <label htmlFor="phone" className="text-sm text-slate-300">Phone</label>
+            <Input id="phone" {...form.register("phone")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Location</label>
-            <Input {...form.register("location")} />
+            <label htmlFor="location" className="text-sm text-slate-300">Location</label>
+            <Input id="location" {...form.register("location")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Target role</label>
-            <Input {...form.register("target_role")} />
+            <label htmlFor="target_role" className="text-sm text-slate-300">Target role</label>
+            <Input id="target_role" {...form.register("target_role")} />
           </div>
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm text-slate-300">Preferred locations</label>
-            <Input {...form.register("preferred_locations")} placeholder="Remote, Bengaluru, London" />
+            <label htmlFor="preferred_locations" className="text-sm text-slate-300">Preferred locations</label>
+            <Input id="preferred_locations" {...form.register("preferred_locations")} placeholder="Remote, Bengaluru, London" />
           </div>
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm text-slate-300">Summary</label>
-            <Textarea {...form.register("summary")} className="min-h-[140px]" />
-            <FieldError message={form.formState.errors.summary?.message} />
+            <label htmlFor="summary" className="text-sm text-slate-300">Summary</label>
+            <Textarea id="summary" {...form.register("summary")} className="min-h-[140px]" aria-describedby={form.formState.errors.summary ? "summary_error" : undefined} />
+            <FieldError id="summary_error" message={form.formState.errors.summary?.message} />
           </div>
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm text-slate-300">Skills</label>
-            <Input {...form.register("skills")} placeholder="Python, FastAPI, React, Playwright" />
+            <label htmlFor="skills" className="text-sm text-slate-300">Skills</label>
+            <Input id="skills" {...form.register("skills")} placeholder="Python, FastAPI, React, Playwright" />
           </div>
         </div>
 
@@ -406,40 +410,40 @@ export function ProfileForm() {
           <SectionHeader title="Application preferences" description="These answers power auto-fill, scoring, and policy gating." />
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Work authorization</label>
-              <Input {...form.register("work_authorization")} placeholder="Authorized to work in the United States" />
+              <label htmlFor="work_authorization" className="text-sm text-slate-300">Work authorization</label>
+              <Input id="work_authorization" {...form.register("work_authorization")} placeholder="Authorized to work in the United States" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Remote preference</label>
-              <Input {...form.register("remote_preference")} placeholder="remote, hybrid, onsite" />
+              <label htmlFor="remote_preference" className="text-sm text-slate-300">Remote preference</label>
+              <Input id="remote_preference" {...form.register("remote_preference")} placeholder="remote, hybrid, onsite" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Willing to relocate</label>
-              <Input {...form.register("willing_to_relocate")} placeholder="yes or no" />
+              <label htmlFor="willing_to_relocate" className="text-sm text-slate-300">Willing to relocate</label>
+              <Input id="willing_to_relocate" {...form.register("willing_to_relocate")} placeholder="yes or no" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Requires sponsorship</label>
-              <Input {...form.register("requires_sponsorship")} placeholder="yes or no" />
+              <label htmlFor="requires_sponsorship" className="text-sm text-slate-300">Requires sponsorship</label>
+              <Input id="requires_sponsorship" {...form.register("requires_sponsorship")} placeholder="yes or no" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Notice period</label>
-              <Input {...form.register("notice_period")} placeholder="Two weeks" />
+              <label htmlFor="notice_period" className="text-sm text-slate-300">Notice period</label>
+              <Input id="notice_period" {...form.register("notice_period")} placeholder="Two weeks" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Salary expectation</label>
-              <Input {...form.register("salary_expectation")} placeholder="$180,000" />
+              <label htmlFor="salary_expectation" className="text-sm text-slate-300">Salary expectation</label>
+              <Input id="salary_expectation" {...form.register("salary_expectation")} placeholder="$180,000" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Years of experience</label>
-              <Input {...form.register("years_of_experience")} placeholder="8" />
+              <label htmlFor="years_of_experience" className="text-sm text-slate-300">Years of experience</label>
+              <Input id="years_of_experience" {...form.register("years_of_experience")} placeholder="8" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300">Available start date</label>
-              <Input {...form.register("available_start_date")} placeholder="2026-04-15" />
+              <label htmlFor="available_start_date" className="text-sm text-slate-300">Available start date</label>
+              <Input id="available_start_date" {...form.register("available_start_date")} placeholder="2026-04-15" />
             </div>
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm text-slate-300">Authorized to work answer</label>
-              <Input {...form.register("authorized_to_work")} placeholder="yes or no" />
+              <label htmlFor="authorized_to_work" className="text-sm text-slate-300">Authorized to work answer</label>
+              <Input id="authorized_to_work" {...form.register("authorized_to_work")} placeholder="yes or no" />
             </div>
           </div>
         </Card>
