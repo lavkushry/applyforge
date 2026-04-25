@@ -1,0 +1,3 @@
+## 2024-05-16 - Prevent N+1 queries in _serialize_role
+**Learning:** The `list_roles` endpoint in `apps/api/app/api/routes/roles.py` suffered from an N+1 query problem due to `_serialize_role` querying `TargetRoleSource` for each role individually. This is a common pattern in FastAPI/SQLAlchemy applications when serializing lists of entities with relationships.
+**Action:** Always check list endpoints that use `_serialize_` helpers. Add an optional `cache` parameter to the helper, pre-fetch relationships using `.in_()` in the list endpoint, and explicitly seed the cache with empty collections for all IDs to prevent fallback SQL queries when relations are non-existent.
