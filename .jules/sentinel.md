@@ -1,0 +1,4 @@
+## 2024-05-18 - Path Traversal in File Uploads via Unstripped Backslashes
+**Vulnerability:** Path traversal in `apps/api/app/services/files.py` where `save_upload` used `Path(filename).name` to sanitize filenames.
+**Learning:** On POSIX systems (like Linux), Python's `Path(filename).name` does not strip backslashes (`\`) because backslashes are considered valid filename characters, not path separators. An attacker could upload a file named `..\..\etc\passwd` from a Windows client, and `Path(filename).name` would not remove the traversal characters.
+**Prevention:** Always manually replace backslashes with forward slashes (`filename.replace("\\", "/")`) before using `Path().name`, and further enforce an alphanumeric allowlist with `re.sub(r'[^a-zA-Z0-9.\-_]', '', filename)` to strip out traversal characters and hidden files entirely.
