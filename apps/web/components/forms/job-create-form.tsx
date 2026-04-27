@@ -77,8 +77,9 @@ export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => v
       </div>
       <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Role strategy</label>
+          <label htmlFor="role_id" className="text-sm text-slate-300">Role strategy</label>
           <select
+            id="role_id"
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...register("role_id")}
           >
@@ -91,32 +92,32 @@ export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => v
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Role</label>
-          <Input {...register("title")} />
-          {errors.title ? <p className="text-xs text-rose-300">{errors.title.message}</p> : null}
+          <label htmlFor="title" className="text-sm text-slate-300">Role</label>
+          <Input id="title" {...register("title")} aria-describedby={errors.title ? "title-error" : undefined} />
+          {errors.title ? <p id="title-error" role="alert" className="text-xs text-rose-300">{errors.title.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Company</label>
-          <Input {...register("company")} />
-          {errors.company ? <p className="text-xs text-rose-300">{errors.company.message}</p> : null}
+          <label htmlFor="company" className="text-sm text-slate-300">Company</label>
+          <Input id="company" {...register("company")} aria-describedby={errors.company ? "company-error" : undefined} />
+          {errors.company ? <p id="company-error" role="alert" className="text-xs text-rose-300">{errors.company.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Location</label>
-          <Input {...register("location")} />
+          <label htmlFor="location" className="text-sm text-slate-300">Location</label>
+          <Input id="location" {...register("location")} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Application URL</label>
-          <Input {...register("application_url")} />
-          {errors.application_url ? <p className="text-xs text-rose-300">{errors.application_url.message}</p> : null}
+          <label htmlFor="application_url" className="text-sm text-slate-300">Application URL</label>
+          <Input id="application_url" {...register("application_url")} aria-describedby={errors.application_url ? "application_url-error" : undefined} />
+          {errors.application_url ? <p id="application_url-error" role="alert" className="text-xs text-rose-300">{errors.application_url.message}</p> : null}
         </div>
         <div className="space-y-2 lg:col-span-2">
-          <label className="text-sm text-slate-300">Description</label>
-          <Textarea {...register("description")} className="min-h-[180px]" />
-          {errors.description ? <p className="text-xs text-rose-300">{errors.description.message}</p> : null}
+          <label htmlFor="description" className="text-sm text-slate-300">Description</label>
+          <Textarea id="description" {...register("description")} className="min-h-[180px]" aria-describedby={errors.description ? "description-error" : undefined} />
+          {errors.description ? <p id="description-error" role="alert" className="text-xs text-rose-300">{errors.description.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Salary</label>
-          <Input {...register("salary")} />
+          <label htmlFor="salary" className="text-sm text-slate-300">Salary</label>
+          <Input id="salary" {...register("salary")} />
         </div>
         <div className="flex items-end">
           <Button className="w-full" disabled={mutation.isPending} type="submit">
