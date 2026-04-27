@@ -1,0 +1,4 @@
+## 2024-04-28 - Missing Form Labels and Validation Accessibility
+
+**Learning:** There is a widespread pattern in this app's form components (e.g., `job-create-form.tsx`, `role-create-form.tsx`, `settings-form.tsx`, `profile-form.tsx`) where form `<label>` elements lack `htmlFor` attributes, and their corresponding input elements lack `id` attributes. Additionally, validation error messages are missing `role="alert"` and `aria-describedby` connections to their inputs. This causes significant accessibility issues for screen reader users and keyboard navigation.
+**Action:** When implementing new forms or modifying existing ones, always ensure proper label-to-input mapping using `htmlFor` and `id`. Also, connect inputs to their validation error messages using `aria-describedby` and ensure error messages have `role="alert"`.
