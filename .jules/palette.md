@@ -1,0 +1,3 @@
+## 2025-01-28 - Missing Form Bindings Widespread
+**Learning:** Found an accessibility issue pattern specific to this app's components: widespread missing `htmlFor` and `id` bindings connecting labels to inputs in form components (e.g., `role-create-form.tsx`, `settings-form.tsx`, `profile-form.tsx`). This breaks keyboard accessibility and screen reader support.
+**Action:** Always ensure `htmlFor` on the label perfectly matches the `id` on the input/select when creating or modifying forms in `apps/web/components/forms/`. Apply these corrections systematically across the application.
