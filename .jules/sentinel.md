@@ -1,0 +1,5 @@
+
+## 2025-02-28 - Path Traversal in File Uploads via Incomplete Filename Sanitization
+**Vulnerability:** File uploads in `apps/api/app/services/files.py` relied solely on `Path(filename).name` to extract the base name of user-provided filenames. This is insufficient on POSIX systems when the filename contains backslashes (e.g., `..\..\etc\passwd`), as `Path` treats backslashes as valid characters in filenames, not directory separators, allowing path traversal attacks.
+**Learning:** Python's `pathlib.Path().name` does not normalize backslashes on non-Windows systems. Relying on it for sanitizing untrusted input can lead to path traversal vulnerabilities if an attacker sends an uploaded filename specifically formatted with backslashes.
+**Prevention:** Always manually normalize backslashes to forward slashes before parsing filenames, and implement strict whitelisting using regex (e.g., alphanumeric, dots, underscores, hyphens) to remove unexpected characters. Also, strip leading dots to prevent creating hidden files or enabling `..` sequences.
