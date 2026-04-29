@@ -1,0 +1,3 @@
+## 2024-10-24 - N+1 Query in `_serialize_[entity]` Helpers
+**Learning:** In `apps/api`, list endpoints utilizing `_serialize_[entity]` helpers (e.g., `_serialize_role`) intrinsically trigger N+1 database queries. Sequential fetches within the loop for relationship entities (like `TargetRoleSource`) cause severe performance bottlenecks on lists.
+**Action:** When working on serialization of entities in list endpoints, resolve the N+1 pattern by passing a `cache` dict to the helper containing pre-fetched relationships using `.in_()`. Use a flag like `"is_fully_cached": True` in the cache to indicate missing keys mean no database record exists, safely preventing fallback SQL queries.
