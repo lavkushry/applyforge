@@ -211,11 +211,15 @@ function compactLinks(values: FormValues["links"]) {
     .filter((item) => item.label || item.url);
 }
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ message, id }: { message?: string; id?: string }) {
   if (!message) {
     return null;
   }
-  return <p className="text-xs text-rose-300">{message}</p>;
+  return (
+    <p id={id} role="alert" className="text-xs text-rose-300">
+      {message}
+    </p>
+  );
 }
 
 function SectionHeader({
@@ -362,39 +366,39 @@ export function ProfileForm() {
       <form className="space-y-6" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Full name</label>
-            <Input {...form.register("full_name")} />
-            <FieldError message={form.formState.errors.full_name?.message} />
+            <label htmlFor="full_name" className="text-sm text-slate-300">Full name</label>
+            <Input id="full_name" {...form.register("full_name")} aria-describedby={form.formState.errors.full_name ? "full_name-error" : undefined} />
+            <FieldError id="full_name-error" message={form.formState.errors.full_name?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Headline</label>
-            <Input {...form.register("headline")} />
+            <label htmlFor="headline" className="text-sm text-slate-300">Headline</label>
+            <Input id="headline" {...form.register("headline")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Email</label>
-            <Input {...form.register("email")} />
-            <FieldError message={form.formState.errors.email?.message} />
+            <label htmlFor="email" className="text-sm text-slate-300">Email</label>
+            <Input id="email" {...form.register("email")} aria-describedby={form.formState.errors.email ? "email-error" : undefined} />
+            <FieldError id="email-error" message={form.formState.errors.email?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Phone</label>
-            <Input {...form.register("phone")} />
+            <label htmlFor="phone" className="text-sm text-slate-300">Phone</label>
+            <Input id="phone" {...form.register("phone")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Location</label>
-            <Input {...form.register("location")} />
+            <label htmlFor="location" className="text-sm text-slate-300">Location</label>
+            <Input id="location" {...form.register("location")} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-slate-300">Target role</label>
-            <Input {...form.register("target_role")} />
+            <label htmlFor="target_role" className="text-sm text-slate-300">Target role</label>
+            <Input id="target_role" {...form.register("target_role")} />
           </div>
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm text-slate-300">Preferred locations</label>
-            <Input {...form.register("preferred_locations")} placeholder="Remote, Bengaluru, London" />
+            <label htmlFor="preferred_locations" className="text-sm text-slate-300">Preferred locations</label>
+            <Input id="preferred_locations" {...form.register("preferred_locations")} placeholder="Remote, Bengaluru, London" />
           </div>
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm text-slate-300">Summary</label>
-            <Textarea {...form.register("summary")} className="min-h-[140px]" />
-            <FieldError message={form.formState.errors.summary?.message} />
+            <label htmlFor="summary" className="text-sm text-slate-300">Summary</label>
+            <Textarea id="summary" {...form.register("summary")} className="min-h-[140px]" aria-describedby={form.formState.errors.summary ? "summary-error" : undefined} />
+            <FieldError id="summary-error" message={form.formState.errors.summary?.message} />
           </div>
           <div className="space-y-2 lg:col-span-2">
             <label className="text-sm text-slate-300">Skills</label>
