@@ -1,0 +1,3 @@
+## 2024-05-01 - Missing accessibility form bindings
+**Learning:** Found an accessibility issue pattern across application components where form inputs (especially those lacking built-in validation context or wrapper components) often miss explicit `htmlFor` and `id` pairings connecting labels to inputs, and lack `aria-describedby` linking to validation error components equipped with `role="alert"`. This makes screen reader navigation and error contextualization difficult.
+**Action:** When updating or creating new form components, ensure explicit `htmlFor` and `id` bindings are added, and attach `role="alert"` alongside `aria-describedby` logic for inline validation errors.
