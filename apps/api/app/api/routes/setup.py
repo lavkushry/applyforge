@@ -1,39 +1,72 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, func, exists
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.api.routes.roles import _serialize_role
 from app.db.session import get_db
-from app.models.entities import CandidateProfile, InboxConnection, Job, Resume, ResumeVersion, TargetRole, TargetRoleSource, User
+from app.models.entities import (
+    CandidateProfile,
+    InboxConnection,
+    Job,
+    Resume,
+    ResumeVersion,
+    TargetRole,
+    TargetRoleSource,
+    User,
+)
 from app.schemas.setup import WizardBootstrapRequest, WizardSummaryOut
-from app.services.discovery_registry import get_search_template, get_source_preset, load_discovery_registry
+from app.services.discovery_registry import (
+    get_search_template,
+    get_source_preset,
+    load_discovery_registry,
+)
 from app.services.jobspy_service import prepare_target_role_source_payload
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
 
 @router.get("/wizard", response_model=WizardSummaryOut)
-def wizard_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-    active_resume = db.query(Resume).filter(Resume.user_id == user.id, Resume.active.is_(True)).first()
-    inbox = (
-        db.query(InboxConnection)
-        .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")
-        .order_by(InboxConnection.updated_at.desc())
-        .first()
+def wizard_summary(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    profile = (
+        db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
     )
-    role_count = db.query(TargetRole).filter(TargetRole.user_id == user.id).count()
-    job_count = db.query(Job).filter(Job.user_id == user.id, Job.active.is_(True)).count()
-    tailored_resume_count = (
-        db.query(ResumeVersion)
+    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
+
+    # ⚡ Bolt Optimization: Consolidate 5 separate database queries into a single round-trip
+    stats_stmt = select(
+        exists()
+        .where(Resume.user_id == user.id, Resume.active.is_(True))
+        .label("resume_ready"),
+        exists()
+        .where(
+            InboxConnection.user_id == user.id, InboxConnection.status == "connected"
+        )
+        .label("inbox_ready"),
+        select(func.count())
+        .where(TargetRole.user_id == user.id)
+        .scalar_subquery()
+        .label("role_count"),
+        select(func.count())
+        .where(Job.user_id == user.id, Job.active.is_(True))
+        .scalar_subquery()
+        .label("job_count"),
+        select(func.count())
+        .select_from(ResumeVersion)
         .join(Resume, Resume.id == ResumeVersion.resume_id)
-        .filter(Resume.user_id == user.id)
-        .count()
+        .where(Resume.user_id == user.id)
+        .scalar_subquery()
+        .label("tailored_resume_count"),
     )
 
-    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
-    resume_ready = bool(active_resume)
-    inbox_ready = bool(inbox)
+    stats_result = db.execute(stats_stmt).first()
+    resume_ready = stats_result.resume_ready if stats_result else False
+    inbox_ready = stats_result.inbox_ready if stats_result else False
+    role_count = stats_result.role_count if stats_result else 0
+    job_count = stats_result.job_count if stats_result else 0
+    tailored_resume_count = stats_result.tailored_resume_count if stats_result else 0
 
     steps = [
         {
@@ -97,7 +130,11 @@ def bootstrap_role(
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
 
-    existing = db.query(TargetRole).filter(TargetRole.user_id == user.id, TargetRole.name == template["role_name"]).first()
+    existing = (
+        db.query(TargetRole)
+        .filter(TargetRole.user_id == user.id, TargetRole.name == template["role_name"])
+        .first()
+    )
     if existing:
         return _serialize_role(existing, db).model_dump(mode="json")
 

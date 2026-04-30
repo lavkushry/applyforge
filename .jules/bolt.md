@@ -1,0 +1,3 @@
+## 2025-02-28 - Consolidating multiple independent db queries on dashboard endpoints
+**Learning:** Dashboard-style endpoints (like `wizard_summary` in `apps/api`) often suffer from the "N+1" problem where multiple independent database queries are executed sequentially to fetch various counts or existence checks. Running independent queries like `db.query(...).count()` or `db.query(...).first()` consecutively slows down the API due to repeated round-trips to the database.
+**Action:** Consolidate multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement.
