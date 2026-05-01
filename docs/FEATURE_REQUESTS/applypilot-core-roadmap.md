@@ -1,142 +1,132 @@
 # ApplyPilot-Core Roadmap Status
 
-## Purpose
+## 🎯 Purpose
 
-This document no longer describes a greenfield feature request. It now records what ApplyForge has already implemented from the ApplyPilot-style roadmap and what remains.
+This document is no longer a proposal for a greenfield feature request. Instead, it serves as the definitive status record tracking what ApplyForge has successfully implemented from the original ApplyPilot-style product roadmap, and what specific hardening tasks remain.
 
-The target shape is still the same:
+The core target architecture remains unchanged across six fundamental stages:
+1. **Discover**
+2. **Enrich**
+3. **Score**
+4. **Tailor**
+5. **Prepare**
+6. **Execute**
 
-1. discover
-2. enrich
-3. score
-4. tailor
-5. prepare
-6. execute
+The focus of this document is explicitly on *status*, not aspiration.
 
-But the important question is now status, not aspiration.
+---
 
-## Completed or largely completed
+## ✅ Implemented vs. Pending
 
 ### 1. Discovery
+**Implemented:**
+- Role-driven source subscriptions.
+- Packaged discovery presets and advanced search templates.
+- Discovery-first asynchronous ingestion runs.
+- Comprehensive feed events (`discovered`, `enriched`, `score_changed`, `expired`).
+- Foundational MVP support for major ATS platforms (Greenhouse, Lever, Workday-style, direct-source).
 
-Implemented:
-
-- role-driven source subscriptions
-- packaged discovery presets and search templates
-- discovery-first ingestion runs
-- feed events for discovered, enriched, score-changed, and expired jobs
-- Greenhouse, Lever, Workday-style, and direct-source support at MVP depth
-
-Still thin:
-
-- source coverage breadth
-- source-health diagnostics
-- richer direct-site extraction
+**Still Thin (Pending Hardening):**
+- Breadth of source coverage requires expansion.
+- Source-health diagnostics and alerting.
+- Richer direct-site extraction strategies.
 
 ### 2. Enrichment
+**Implemented:**
+- Explicit architectural split between discovery and enrichment pipelines.
+- Worker-queued, job-specific background enrichment.
+- Tracking of enrichment status, metadata, and revision histories.
+- Durable source snapshot artifact linkage.
 
-Implemented:
-
-- explicit discovery -> enrichment split
-- worker-queued enrichment per job
-- enrichment status, metadata, and revision tracking
-- source snapshot artifact linkage
-
-Still thin:
-
-- richer structured extraction quality
-- operator-visible retry and backoff detail
-- more advanced extraction cascades
+**Still Thin (Pending Hardening):**
+- Quality of deep, structured extraction needs refinement.
+- Operator-visible retry and backoff details are lacking in the UI.
+- More advanced extraction cascades and fallback heuristics.
 
 ### 3. Scoring
+**Implemented:**
+- Algorithmic scoring deeply aware of target role parameters.
+- Final actionable recommendation outputs.
+- Granular breakdown of strengths, missing skills, and explicit reasoning.
+- Score snapshots tightly coupled to specific enrichment revisions.
 
-Implemented:
-
-- role-aware scoring
-- recommendation output
-- strengths, missing skills, and reasons
-- score snapshots tied to enrichment revisions
-
-Still thin:
-
-- stronger ontology or semantic matching
-- better compensation and visa calibration
-- more advanced readiness scoring
+**Still Thin (Pending Hardening):**
+- Requires a stronger semantic ontology for matching logic.
+- Improved calibration for complex compensation structures and visa requirements.
+- Advanced, multi-variable readiness scoring.
 
 ### 4. Tailoring
+**Implemented:**
+- Strict, fact-locked tailoring constraints (Zero Hallucination Policy).
+- Emphasized matching of skills, experience, and projects.
+- Diff metadata highlighting matched vs. uncovered requirements.
+- Theme-aware resume versions and exports.
+- Automated cover-letter generation.
 
-Implemented:
-
-- fact-locked tailoring
-- emphasized skills, experience, and projects
-- diff metadata with matched and uncovered requirements
-- theme-aware resume versions
-- cover-letter generation
-
-Still thin:
-
-- stronger experience bullet ranking
-- reusable multi-strategy resume families
-- higher-fidelity preview versus final export
+**Still Thin (Pending Hardening):**
+- Experience bullet ranking needs stronger contextual relevance.
+- Support for reusable, multi-strategy resume families.
+- Higher visual fidelity matching between the web preview and final PDF export.
 
 ### 5. Preparation
+**Implemented:**
+- Generation of formalized application packets prior to execution.
+- Comprehensive preflight readiness checks.
+- Resolved answers firmly attached to data provenance.
+- Clear packet summaries exposed in application UI surfaces.
 
-Implemented:
-
-- formal application packet generation
-- preflight readiness checks
-- resolved answers with provenance
-- packet summary in application surfaces
-
-Still thin:
-
-- deeper unsupported-field prediction before runtime
-- richer packet diagnostics in admin surfaces
+**Still Thin (Pending Hardening):**
+- Deeper predictive modeling to identify unsupported ATS fields *before* runtime execution begins.
+- Richer, more actionable packet diagnostics in admin surfaces.
 
 ### 6. Execution
+**Implemented:**
+- API-driven queued run creation.
+- Worker-backed background enrichment and dynamic application execution.
+- Durable, granular step-by-step logging.
+- Reliable screenshot persistence via the uploaded files architecture.
+- Anti-bot detection resulting in graceful pause states.
+- Assisted pause-before-submit gates for user verification.
+- First-class run steps for Inbox OTP retrieval.
+- Formal FSM (Finite State Machine) run transitions.
+- Operator override actions for paused, failed, and uncertain runs.
 
-Implemented:
+**Still Thin (Pending Hardening):**
+- Broadening field adapter coverage across complex, custom ATS elements.
+- Robust handling of complex, multi-page ATS pagination flows.
+- Stronger heuristics for verifying successful submit confirmations.
+- Richer restart and resumption semantics for partially failed runs.
 
-- queued run creation through the API
-- worker-backed enrichment and application execution
-- durable step logging
-- screenshot persistence through uploaded files
-- anti-bot detection with pause
-- assisted pause-before-submit
-- OTP retrieval as a first-class run step
-- formal run FSM transitions
-- operator resume action for paused, failed, and uncertain runs
+---
 
-Still thin:
+## 🔄 Roadmap Evolution
 
-- broad field adapter coverage
-- more robust multi-page ATS flows
-- stronger submit confirmation heuristics
-- richer restart semantics
+The original roadmap assumed several major architectural pillars were still open questions. Today, the following are fully present and must be treated as **baseline architecture**, not future work:
+- Worker dispatch as the primary execution path.
+- The persisted Application Packet model.
+- Durable step evidence tracking (logs + screenshots).
+- Formal FSM run status transitions.
 
-## What changed since the original roadmap
+---
 
-The original roadmap assumed these were still open:
+## 🚀 Remaining Roadmap Priorities
 
-- worker dispatch as the main run path
-- persisted application packet model
-- durable step evidence
-- run status transitions
+Future sprint cycles must prioritize the following to finalize the core implementation:
 
-Those are now present and should be treated as baseline architecture, not future work.
+1. **Adapter Expansion:** Broaden Playwright field adapter coverage across a wider array of ATS controls and multi-page form patterns.
+2. **Deep Enrichment:** Improve direct-site enrichment depth and implement proactive source-health diagnostics.
+3. **Evaluation Quality:** Strengthen the core quality of the semantic scoring and tailoring algorithms, moving beyond basic keyword breadth.
+4. **Operator Tooling:** Improve administration and diagnostic surfaces, specifically concerning retries, packet inspection, and failure analysis.
+5. **Live Integrations:** Conduct full live provider verification and build richer OAuth recovery and re-auth flows.
 
-## Remaining roadmap priorities
+---
 
-1. Expand field adapter coverage across more ATS controls and multi-page patterns.
-2. Improve direct-site enrichment depth and source-health diagnostics.
-3. Strengthen scoring and tailoring quality, not just breadth.
-4. Improve admin and diagnostics surfaces around retries, packets, and failures.
-5. Add live provider verification and richer OAuth recovery flows.
+## 🛡️ Non-Negotiable Guardrails
 
-## Guardrails that remain non-negotiable
+As development continues, the following core constraints remain absolute:
 
-1. Canonical profile remains authoritative.
-2. Tailoring may not invent facts.
-3. Risky or unknown answers remain approval-gated.
-4. Sensitive outputs remain masked.
-5. CAPTCHA or anti-bot flows pause rather than bypass.
+1. **The Canonical Profile is Absolute.** It remains the authoritative source for all data.
+2. **Zero Hallucination.** Tailoring algorithms may *not* invent facts.
+3. **Approval Gates.** Risky or unknown application answers remain strictly approval-gated.
+4. **Privacy Protection.** Sensitive outputs (Tokens, OTPs) remain aggressively masked.
+5. **Respect Security.** CAPTCHA or anti-bot flows must *pause* execution rather than attempt to bypass the challenge.

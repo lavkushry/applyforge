@@ -1,75 +1,72 @@
 # Company Intelligence Directory Status
 
-## Summary
+## 📊 Summary
 
-This is no longer just an idea. The foundation is implemented.
+The Company Intelligence Directory is no longer a theoretical idea; the core foundational architecture has been successfully implemented into ApplyForge.
 
-ApplyForge now has:
+ApplyForge now actively supports:
+- User-scoped `companies` records.
+- Associated `company_career_portals`.
+- Associated `company_contacts`.
+- Complete backend CRUD routes for company management.
+- A functional internal company directory page within the web UI.
+- Automated job-to-company resolution hooks triggered during both manual job creation and automated discovery flows.
 
-- user-scoped `companies`
-- `company_career_portals`
-- `company_contacts`
-- company CRUD routes
-- a thin internal company directory page
-- job-to-company resolution hooks in manual creation and discovery flows
+---
 
-## What is already shipped
+## ✅ What is Already Shipped
 
-### Data model
-
-Implemented tables:
-
+### Data Model
+The following core tables are fully implemented and integrated:
 - `companies`
 - `company_career_portals`
 - `company_contacts`
 
-### API
-
-Implemented routes:
-
+### API Integrations
+The following route structures are live:
 - `GET /companies`
 - `POST /companies`
 - `GET /companies/{company_id}`
 - `PUT /companies/{company_id}`
-- portal and contact create/list flows through the companies route group
+- Full portal and contact create/list flows nested within the companies route group.
 
-### Web
+### Web Interface
+The following UI components are implemented and accessible:
+- Paginated company list.
+- Dedicated company creation flow.
+- Seamless company selection inputs within relevant forms.
+- Portal and Contact creation interfaces.
+- Visibility of linked jobs directly on company records.
 
-Implemented UI:
+### System Behavior
+The following business logic is active:
+- Manual job creation forms support resolving jobs directly to a canonical `company_id`.
+- The background ingestion pipeline actively attempts company resolution by matching normalized company names and cross-referencing portal or hostname hints.
+- Company records successfully sit as an intelligence layer between raw source discovery and normalized job records.
 
-- company list
-- company create flow
-- company selection
-- portal creation
-- contact creation
-- linked job visibility
+---
 
-### Integration
+## 🚧 What Remains (Next Steps)
 
-Implemented behavior:
+While the foundation is solid, several critical features remain to mature the directory:
 
-- manual job creation can resolve to `company_id`
-- ingestion attempts company resolution from normalized company names and portal or hostname hints
-- company records sit between source discovery and job records
+1. **Deduplication Tooling:** Build robust merge capabilities and duplicate-review workflows for operators managing the company records.
+2. **Health Monitoring:** Implement automated portal health checks and expose portal-level diagnostic statuses.
+3. **Resolution Heuristics:** Enhance confidence scoring for job-to-company resolutions and provide a clearer, more explicit UI for manual overrides.
+4. **Recruiter Intelligence:** Integrate richer recruiter-source metadata and establish verification workflows for contacts.
+5. **Operator Dashboards:** Build dedicated operator tooling to manage review queues and manually handle unresolved company matches.
 
-## What remains
+---
 
-1. Add merge and duplicate-review tooling for company records.
-2. Add portal health checks and diagnostics.
-3. Add better confidence scoring and override UX for company resolution.
-4. Add richer recruiter-source metadata and verification workflows.
-5. Add operator tooling for review queues and unresolved company matches.
+## 🎯 Strategic Importance
 
-## Why this still matters
+Even though the foundational layer is shipped, continuing to invest in company intelligence remains a major strategic leverage point for ApplyForge. It directly enables:
 
-Even though the foundation is shipped, company intelligence remains a major leverage point for:
+- Significantly improved source resolution accuracy.
+- Stronger, more reliable job deduplication logic.
+- The foundation for future recruiter-aware and network-aware workflows.
+- The ability to establish company-level automation preferences (e.g., "Never auto-apply to Company X").
+- Clearer, more granular job-source diagnostics.
 
-- better source resolution
-- stronger dedupe quality
-- future recruiter-aware workflows
-- company-level automation preferences
-- clearer job-source diagnostics
-
-## Current guidance
-
-Future work should extend the existing company graph rather than building a parallel company model.
+### 🛡️ Development Guidance
+Future architectural work should focus on extending the *existing* company graph rather than attempting to build parallel or isolated company models.

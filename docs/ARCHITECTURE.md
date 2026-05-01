@@ -1,333 +1,225 @@
 # ApplyForge Architecture
 
-## System Overview
+## 🏛️ System Overview
 
-ApplyForge is a monorepo with three runtime applications and a small packaged config layer:
+ApplyForge is designed as a modern monorepo comprising three distinct runtime applications supported by a centralized configuration package:
 
-1. `apps/web`
-   - Next.js App Router frontend
-   - TanStack Query for API state
-   - React Hook Form + Zod for forms
-   - Zustand for session and toast state
+1. **`apps/web`**
+   - **Framework:** Next.js App Router (Frontend)
+   - **Data Fetching:** TanStack Query for robust API state management.
+   - **Forms:** React Hook Form coupled with Zod for strict validation.
+   - **State Management:** Zustand handling session and ephemeral toast states.
 
-2. `apps/api`
-   - FastAPI service
-   - SQLAlchemy ORM models for persistence
-   - Pydantic schemas for request and response contracts
-   - deterministic-first services for scoring, tailoring, parsing, export, and orchestration
+2. **`apps/api`**
+   - **Framework:** FastAPI (Backend Service)
+   - **Persistence:** SQLAlchemy ORM models interacting with PostgreSQL.
+   - **Contracts:** Pydantic schemas strictly defining request and response payloads.
+   - **Core Logic:** Deterministic-first domain services handling scoring, document tailoring, parsing, exporting, and overall orchestration.
 
-3. `apps/worker`
-   - Celery worker
-   - Playwright runtime
-   - job enrichment executor
-   - step-based application runner with durable screenshots and pause gates
+3. **`apps/worker`**
+   - **Task Queue:** Celery worker leveraging Redis.
+   - **Automation:** Playwright runtime for browser interactions.
+   - **Execution:** Handles background job enrichment and executes step-based application runs complete with durable screenshot captures and controlled pause gates.
 
-4. `packages/config`
-   - discovery preset registry
-   - resume template assets
-   - future home for more packaged product defaults
+4. **`packages/config`**
+   - **Registry:** Contains discovery preset registries.
+   - **Assets:** Houses baseline resume template assets.
+   - **Future:** Designed to hold an expanding set of packaged product defaults.
 
-Supporting context artifacts live under:
+**Contextual Artifacts:**
+- **`docs/`**: Product specs, architectural decisions, and roadmap documentation.
+- **`.agents/skills/`**: ApplyForge-specific domain knowledge and operational guidance for AI agents.
+- **`.codex/agents/`**: Project-local Codex agent role definitions.
 
-- `docs` for product, architecture, and roadmap documentation
-- `.agents/skills` for ApplyForge-specific domain and ops guidance
-- `.codex/agents` for project-local Codex role definitions
+---
 
-## Current Architectural Shape
+## 🧩 Current Architectural Shape
 
-ApplyForge now behaves like five connected subsystems:
+ApplyForge operates through five deeply interconnected subsystems:
 
-1. canonical profile and resume intelligence
-2. role-driven discovery, enrichment, and scoring
-3. company intelligence and source resolution
-4. tailored document generation and export
-5. guarded application automation with diagnostics and OTP support
+1. **Canonical Intelligence:** Management of the authoritative candidate profile and base resume data.
+2. **Role-Driven Pipeline:** Job discovery, data enrichment, and algorithmic scoring based on target roles.
+3. **Corporate Intelligence:** Company directory resolution, portal mapping, and source context.
+4. **Document Generation:** Tailored resume and cover letter generation with high-fidelity export mechanisms.
+5. **Guarded Execution:** Step-based application automation featuring diagnostic captures, OTP retrieval, and strict state management.
 
-Those subsystems share one product invariant: the canonical candidate profile is the only trusted source of resume facts.
+**Core Invariant:** The canonical candidate profile remains the single, unalterable source of truth for all factual resume generation.
 
-## Domain Boundaries
+---
 
-### 1. Auth and user scope
+## 🛑 Domain Boundaries
 
-- Cookie-backed JWT session flow
-- request-scoped IDs and structured logs on API responses
-- rate limiting on auth and inbox-sensitive endpoints
-- user-scoped profile, jobs, roles, companies, inbox connections, and applications
-- routes:
-  - `/auth/register`
-  - `/auth/login`
-  - `/auth/logout`
-  - `/auth/me`
+### 1. Authentication and User Scope
+- **Session Flow:** Secure, cookie-backed JWT implementation.
+- **Traceability:** Request-scoped IDs and structured JSON logging applied to all API responses.
+- **Protection:** Strict rate-limiting enforced on authentication and inbox-sensitive endpoints.
+- **Isolation:** All major entities (profiles, jobs, roles, companies, inbox connections, applications) are strictly user-scoped.
+- **Primary Routes:** `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me`
 
-### 2. Candidate brain
+### 2. Candidate Brain (Profile Core)
+- **Ingestion:** Upload and text extraction engines for PDF, DOCX, and TXT formats.
+- **Structured Parsing:** Transforms raw text into segmented sections (Basics, Summary, Skills, Experience, Projects, Education, Certifications, Links).
+- **Authority:** `candidate_profiles` acts as the fact-locked anchor.
+- **Editor:** The web profile editor supports granular, section-based editing and captures apply-critical preferences/saved answers.
+- **Preferences:** Dedicated settings management for automation thresholds, job filters, and resume preferences, culminating in a portable user-preference export tool.
 
-- resume upload and text extraction for PDF, DOCX, and TXT
-- parsed sections:
-  - basics
-  - summary
-  - skills
-  - experience
-  - projects
-  - education
-  - certifications
-  - links
-- `candidate_profiles` remains fact-locked and authoritative
-- the web profile editor now exposes section-based editing for:
-  - experience
-  - projects
-  - education
-  - certifications
-  - links
-  - apply-critical preferences and saved answers
-- profile settings persist:
-  - automation preferences
-  - job filters
-  - resume preferences
-- a portable user-preference export now exists for operators and future automation tooling
+### 3. Resume Themes, Templates, and Export
+- **Themes:** Ships with three built-in ATS-safe light themes.
+- **Generation:** Utilizes a RenderCV-compatible structured input builder, backed by an internal PDF fallback renderer ensuring export continuity.
+- **Assets:** Packaged templates include `sections.json`, `resume_template.md`, and `resume_template.tex`.
+- **Tooling:** A local CLI (`app.cli.main`) facilitates template listing and PDF rendering tests.
+- **Web Interface:** Users can browse templates, select themes, and preview rendered Markdown or LaTeX source code prior to export.
 
-### 3. Resume themes, templates, and export
+### 4. Role-Driven Discovery and Enrichment
+- **Strategy (`target_roles`):** Defines the core search logic (aliases, keywords, location/remote preferences, compensation targets, visa needs, company block/allow lists, and auto-apply thresholds).
+- **Sources (`target_role_sources`):** Manages active source subscriptions.
+- **Registry:** Packaged configurations supply ready-to-use presets and blocked domains.
+- **Lifecycle:** The ingestion pipeline is explicitly split into *Discovery*, *Worker-Queued Enrichment*, and *Revision-Aware Scoring*.
+- **Feed Events:** Job states are durably tracked via feed events (`discovered`, `enriched`, `score_changed`, `expired`).
 
-- three built-in ATS-safe light themes
-- RenderCV-compatible structured input builder
-- internal PDF fallback renderer when RenderCV fails
-- packaged resume-template assets:
-  - `packages/config/resume/sections.json`
-  - `packages/config/resume/resume_template.md`
-  - `packages/config/resume/resume_template.tex`
-- a small CLI exists for template listing, template rendering, and PDF export
-- web resume page exposes:
-  - theme selection
-  - template browsing
-  - rendered Markdown or LaTeX source preview
+### 5. Company Intelligence
+- **Identity (`companies`):** Provides a canonical, user-scoped company identifier.
+- **Portals (`company_career_portals`):** Preserves specific career site metadata (ATS providers, board tokens).
+- **Contacts (`company_contacts`):** Independently tracks recruiters and HR personnel.
+- **Resolution:** Newly discovered jobs utilize heuristic matching to map against known companies prior to falling back to free-text strings.
 
-### 4. Role-driven discovery and enrichment
+### 6. Scoring and Tailoring
+- **Scoring Engine:** Evaluates fit based on the canonical profile, the active target role, and the latest enrichment revision.
+- **Transparency:** Outputs detailed metrics including an overall score, categorical breakdowns, identified strengths, missing requirements, explicit reasons, and an ultimate recommendation.
+- **Tailoring Constraints:** Generation preserves and highlights matched requirements while identifying gaps. It emphasizes relevant experience and projects without hallucinating data.
+- **Ancillary Documents:** Cover letters are dynamically generated and durably stored per job application.
 
-- `target_roles` define:
-  - aliases
-  - keywords
-  - preferred locations
-  - remote preference
-  - salary target
-  - visa preference
-  - seniority
-  - company include/exclude lists
-  - automation threshold
-- `target_role_sources` define source subscriptions
-- packaged discovery registry provides:
-  - source presets
-  - search templates
-  - blocked domains
-- ingestion is split into:
-  - discovery
-  - worker-queued enrichment
-  - revision-aware scoring
-- job lifecycle is preserved through feed events:
-  - discovered
-  - enriched
-  - score_changed
-  - expired
+### 7. Application Packets and Orchestration
+- **Data Model:** `applications` (the core record), `application_runs` (execution attempts), and `application_steps` (granular evidence).
+- **Preflight (`application_packets`):** Assembles a formalized packet *before* execution, bundling resolved answers, data provenance, linked resume/cover letters, known blocking issues, risk assessments, and auto-submit eligibility flags.
+- **State Machine (FSM):** Governs strict run transitions: `queued` → `running` → (`paused` | `failed` | `completed` | `uncertain`).
 
-### 5. Company intelligence
+### 8. Worker Execution and Persistence
+- **Architecture:** Celery workers write directly to the shared PostgreSQL database and file storage.
+- **Evidence:** The `RunRecorder` captures step-by-step progress and status changes. Browser screenshots are persisted as `uploaded_files`.
+- **Resilience:** Application runs store retry/backoff metadata directly on the run record.
+- **Capabilities:** The Playwright runner currently handles navigation, standard input fields (text, select, radio, checkbox, date), file uploads, simple multi-step pagination, anti-bot detection pauses, required-field gate pauses, assisted submit pauses, and success confirmation heuristics.
 
-- `companies` provide canonical user-scoped company identity
-- `company_career_portals` preserve provider-specific careers metadata
-- `company_contacts` preserve recruiter and HR context independently of job records
-- jobs can resolve through company heuristics before staying as raw text only
+### 9. Inbox and OTP Integration
+- **Providers:** Native OAuth integrations for Google (Gmail) and Microsoft (Outlook).
+- **Security:** Tokens are encrypted at rest; API payloads are sanitized.
+- **Functionality:** Supports automated inbox fetching of OTP codes, falling back to manual entry if required. Events are masked to prevent secret leakage in logs.
+- **Integration:** OTP retrieval operates as a first-class step within the application run timeline.
 
-### 6. Scoring and tailoring
+---
 
-- scoring now depends on:
-  - canonical profile
-  - target role
-  - enrichment revision
-- score output includes:
-  - overall score
-  - breakdown
-  - strengths
-  - missing skills
-  - reasons
-  - recommendation
-- tailoring preserves:
-  - matched requirements
-  - uncovered requirements
-  - emphasized experience
-  - emphasized projects
-  - source enrichment revision
-- cover letters are generated and stored per job
+## 🗄️ Key Persistence Model
 
-### 7. Application packets and run orchestration
+The core PostgreSQL tables driving the system:
 
-- `applications` represent the job-level application record
-- `application_runs` represent execution attempts
-- `application_steps` represent step-level evidence
-- preflight builds a formal application packet before execution
-- packet contains:
-  - resolved answers
-  - provenance
-  - resume file linkage
-  - cover-letter linkage
-  - blocking issues
-  - risk summary
-  - auto-submit eligibility
-- a formal FSM now governs run transitions:
-  - `queued`
-  - `running`
-  - `paused`
-  - `failed`
-  - `completed`
-  - `uncertain`
-
-### 8. Worker execution and persistence
-
-- worker writes directly into shared database and file storage
-- `RunRecorder` persists step rows and status changes
-- screenshots are persisted as `uploaded_files`
-- application runs now persist retry and backoff history directly on the run record
-- application runner currently supports:
-  - navigation
-  - common text fields
-  - select, radio, checkbox, and date field adapters for common application questions
-  - resume upload
-  - next or continue transitions for simple multi-step flows
-  - anti-bot detection
-  - unsupported required-field pause
-  - assisted pause-before-submit
-  - submit confirmation detection
-
-### 9. Inbox and OTP
-
-- Gmail and Outlook OAuth integrations
-- provider readiness reporting in the UI
-- encrypted token storage and sanitized API responses
-- OTP retrieval supports:
-  - provider inbox fetch
-  - manual message payload fallback
-  - masked event logging
-- OTP steps are first-class run steps
-
-## Key Persistence Model
-
-Primary tables:
-
-- `users`
-- `candidate_profiles`
-- `resumes`
-- `resume_versions`
-- `resume_themes`
-- `jobs`
-- `job_scores`
-- `job_sources`
-- `target_roles`
-- `target_role_sources`
-- `job_ingestion_runs`
-- `job_feed_events`
-- `companies`
-- `company_career_portals`
-- `company_contacts`
-- `cover_letters`
-- `applications`
-- `application_runs`
-- `application_steps`
-- `inbox_connections`
-- `inbox_otp_events`
+- `users`, `settings`, `audit_logs`
+- `candidate_profiles`, `resumes`, `resume_versions`, `resume_themes`
+- `jobs`, `job_scores`, `job_sources`
+- `target_roles`, `target_role_sources`
+- `job_ingestion_runs`, `job_feed_events`
+- `companies`, `company_career_portals`, `company_contacts`
+- `cover_letters`, `applications`, `application_runs`, `application_steps`
+- `inbox_connections`, `inbox_otp_events`
 - `uploaded_files`
-- `settings`
-- `audit_logs`
 
-## Main Runtime Flows
+---
 
-### Resume flow
+## 🔄 Main Runtime Flows
 
-1. upload source resume
-2. extract raw text
-3. parse into canonical profile
-4. select theme or starter template
-5. generate tailored version
-6. export PDF through RenderCV-first fallback pipeline
+### 1. Resume Onboarding Flow
+1. User uploads a source resume document.
+2. System extracts raw text.
+3. Parser structures the text into a canonical profile.
+4. User selects an ATS-friendly theme or starter template.
+5. System generates a tailored variant based on the canonical data.
+6. Export pipeline triggers the RenderCV-first PDF generation (with internal fallback).
 
-### Discovery flow
+### 2. Discovery and Feed Flow
+1. User defines a target role strategy.
+2. User attaches packaged presets or manual source URLs.
+3. Scheduled discovery workers scrape job headers.
+4. System inserts deduplicated, normalized job records.
+5. Enrichment tasks are dispatched to the Celery worker queue per job.
+6. Enriched jobs are scored, generating score outputs and feed events for the UI.
 
-1. create target role
-2. attach packaged or manual sources
-3. run discovery
-4. insert or refresh normalized jobs
-5. dispatch enrichment per job
-6. write score and feed events
+### 3. Application Execution Flow
+1. System compiles a comprehensive preflight application packet.
+2. A new `queued` run is created via the FSM.
+3. Celery dispatches the run to the Playwright worker.
+4. Worker executes steps, continuously persisting logs, screenshots, and pauses.
+5. System seamlessly requests OTPs via the Inbox integration if challenged.
+6. The FSM transitions the run to `completed`, `paused`, `failed`, or `uncertain` based on the outcome.
 
-### Apply flow
+---
 
-1. prepare application packet
-2. create queued run
-3. dispatch worker
-4. persist steps, screenshots, and pauses
-5. request OTP if needed
-6. pause, fail, complete, or mark uncertain through the FSM
+## 🛡️ Safety and Reliability Patterns
 
-## Safety and Reliability Patterns
+- **Truth-Locked Generation:** Tailoring engines are strictly barred from inventing claims.
+- **Approval Gates:** Risk-flagged questions (e.g., legal, salary) always force a manual approval pause.
+- **Graceful Degradation:** Unknown answers default to a "candidate review" state rather than hallucinated text.
+- **Anti-Bot Compliance:** Encounters with CAPTCHAs or bot challenges immediately pause the run rather than attempting evasion.
+- **Idempotency:** Deduplication keys protect the discovery pipeline from double-inserting records.
+- **Observability:** Diagnostic panels expose worker retry controls, run histories, and screenshot evidence to human operators.
+- **Sanitization:** Provider tokens and OTP values are aggressively masked or encrypted before logging.
+- **Durable Evidence:** Worker step logs and screenshots remain accessible even if the overall run fails midway.
 
-- fact-locked tailoring with no invented claims
-- explicit risky-question approval gates
-- unknown answers degrade to candidate review
-- CAPTCHA and anti-bot flows pause rather than bypass
-- dedupe keys protect discovery from duplicate inserts
-- diagnostics expose enrichment retry and run retry controls
-- request IDs and structured logs improve API and worker traceability
-- run history now exposes screenshot evidence and retry metadata to the operator UI
-- provider tokens and OTPs stay masked or encrypted
-- worker evidence remains durable after partial failure
+---
 
-## Best File Entry Points
+## 📍 Best File Entry Points
 
-### Resume and document flows
+If you need to quickly orient yourself within specific sub-systems, start here:
 
-- [resume_parser.py](/home/ems/applyforge/apps/api/app/services/resume_parser.py)
-- [resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py)
-- [resume_templates.py](/home/ems/applyforge/apps/api/app/services/resume_templates.py)
-- [files.py](/home/ems/applyforge/apps/api/app/services/files.py)
-- [resume_templates.py](/home/ems/applyforge/apps/api/app/api/routes/resume_templates.py)
+**Resume and Document Flows:**
+- `apps/api/app/services/resume_parser.py`
+- `apps/api/app/services/resume_themes.py`
+- `apps/api/app/services/resume_templates.py`
+- `apps/api/app/services/files.py`
+- `apps/api/app/api/routes/resume_templates.py`
 
-### Discovery and scoring
+**Discovery and Scoring:**
+- `apps/api/app/services/role_ingestion.py`
+- `apps/api/app/services/job_dispatch.py`
+- `apps/api/app/services/job_enrichment.py`
+- `apps/api/app/services/company_directory.py`
+- `apps/api/app/services/scoring.py`
 
-- [role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
-- [job_dispatch.py](/home/ems/applyforge/apps/api/app/services/job_dispatch.py)
-- [job_enrichment.py](/home/ems/applyforge/apps/api/app/services/job_enrichment.py)
-- [company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py)
-- [scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py)
+**Automation and Preferences:**
+- `apps/api/app/services/application_packets.py`
+- `apps/api/app/services/application_fsm.py`
+- `apps/api/app/services/user_preferences.py`
+- `apps/worker/app/playwright_runner.py`
+- `apps/worker/app/persistence.py`
+- `apps/worker/app/run_fsm.py`
 
-### Automation and preferences
+**Primary UX Surfaces:**
+- `apps/web/app/resume/page.tsx`
+- `apps/web/app/jobs/page.tsx`
+- `apps/web/app/applications/page.tsx`
+- `apps/web/app/wizard/page.tsx`
+- `apps/web/components/forms/settings-form.tsx`
 
-- [application_packets.py](/home/ems/applyforge/apps/api/app/services/application_packets.py)
-- [application_fsm.py](/home/ems/applyforge/apps/api/app/services/application_fsm.py)
-- [user_preferences.py](/home/ems/applyforge/apps/api/app/services/user_preferences.py)
-- [applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py)
-- [application_runs.py](/home/ems/applyforge/apps/api/app/api/routes/application_runs.py)
-- [playwright_runner.py](/home/ems/applyforge/apps/worker/app/playwright_runner.py)
-- [persistence.py](/home/ems/applyforge/apps/worker/app/persistence.py)
-- [run_fsm.py](/home/ems/applyforge/apps/worker/app/run_fsm.py)
+---
 
-### UX surfaces
+## ⚠️ Migration Note
 
-- [resume/page.tsx](/home/ems/applyforge/apps/web/app/resume/page.tsx)
-- [jobs/page.tsx](/home/ems/applyforge/apps/web/app/jobs/page.tsx)
-- [applications/page.tsx](/home/ems/applyforge/apps/web/app/applications/page.tsx)
-- [settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
-- [companies/page.tsx](/home/ems/applyforge/apps/web/app/companies/page.tsx)
-- [wizard/page.tsx](/home/ems/applyforge/apps/web/app/wizard/page.tsx)
+- *Technical Debt:* The API currently invokes `Base.metadata.create_all` during startup for local MVP convenience.
+- *Future Work:* Runtime schema creation must be phased out entirely in favor of strict Alembic-only migrations before production release.
 
-## Migration Note
+---
 
-- The API still calls `create_all` at startup for local MVP convenience.
-- Long term, runtime schema creation should be removed in favor of Alembic-only migrations.
+## ✅ Verification Baseline
 
-## Verification Baseline
+Before opening a PR with nontrivial changes, verify system health by executing the following baseline commands from the repository root:
 
-For nontrivial changes, the expected baseline is:
-
-1. `python3 -m compileall apps/api/app apps/api/tests apps/worker/app apps/worker/tests`
-2. `PYTHONPATH=/tmp/applyforge-pydeps:apps/api python3 -m pytest apps/api/tests -q`
-3. `PYTHONPATH=/tmp/applyforge-pydeps:apps/worker DATABASE_URL=sqlite+pysqlite:///:memory: REDIS_URL=redis://localhost:6379/0 python3 -m pytest apps/worker/tests -q`
-4. `npm run lint` in `apps/web`
-5. `npm run build` in `apps/web`
-6. `npm run typecheck` in `apps/web`
-
-Note: in this repo, `typecheck` is safest after `build` because `tsconfig.json` includes `.next/types`.
+1. **Compile Python:**
+   `python3 -m compileall apps/api/app apps/api/tests apps/worker/app apps/worker/tests`
+2. **Test API:**
+   `PYTHONPATH=/tmp/applyforge-pydeps:$(pwd)/apps/api python3 -m pytest apps/api/tests -q`
+3. **Test Worker:**
+   `PYTHONPATH=/tmp/applyforge-pydeps:$(pwd)/apps/worker DATABASE_URL=sqlite+pysqlite:///:memory: REDIS_URL=redis://localhost:6379/0 python3 -m pytest apps/worker/tests -q`
+4. **Lint Frontend:**
+   `cd apps/web && pnpm lint`
+5. **Build Frontend:**
+   `cd apps/web && pnpm build`
+6. **Typecheck Frontend:**
+   `cd apps/web && pnpm typecheck` *(Note: In this repo, `typecheck` is safest after `build` because `tsconfig.json` relies on generated `.next/types`.)*

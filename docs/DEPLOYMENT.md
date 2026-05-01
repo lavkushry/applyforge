@@ -1,55 +1,49 @@
 # ApplyForge Deployment Guide
 
-## Deployment Posture
+## 🚀 Deployment Posture
 
-ApplyForge currently supports two practical deployment modes:
+ApplyForge currently supports two primary deployment modes:
 
-1. local or staging deployment with Docker Compose
-2. a single-VM production-style deployment with the same service split
+1. **Local or Staging Deployment:** Utilizing Docker Compose for rapid iteration and testing.
+2. **Single-VM Production-Style Deployment:** A more robust setup utilizing the same service split on a dedicated host.
 
-The repository already includes runnable container definitions under `infra/`, but the current compose file is development-oriented:
+**⚠️ Important Caveat:** The Docker Compose file provided in `infra/` is currently optimized for *development*. It mounts source code directly into containers, references local `.env.example` files, runs the Next.js development server (`npm run dev`), and relies on the FastAPI backend to create database tables at startup. While excellent for staging, it **must** be overridden with production-ready configurations before facing public traffic.
 
-- it mounts source code into containers
-- it uses the example env files directly
-- the web container runs `npm run dev`
-- the API still creates tables at startup with `Base.metadata.create_all(...)`
+---
 
-That means Compose is a good staging and operator test path today, but it should not be treated as a hardened production artifact without overrides.
+## 🏗️ Runtime Components
 
-## Runtime Components
+ApplyForge consists of five core runtime services:
 
-ApplyForge has five runtime services:
+- **`web`**: Next.js frontend running on port `3000`.
+- **`api`**: FastAPI backend service running on port `8000`.
+- **`worker`**: Celery worker responsible for data enrichment and Playwright application execution.
+- **`db`**: PostgreSQL 16 database.
+- **`redis`**: Redis 7, serving as both the Celery broker and system cache.
 
-- `web`: Next.js frontend on port `3000`
-- `api`: FastAPI service on port `8000`
-- `worker`: Celery worker for enrichment and application execution
-- `db`: PostgreSQL 16
-- `redis`: Redis 7 for Celery broker and cache
+*Optional Component:*
+- **`flower`**: Celery monitoring dashboard running on port `5555`.
 
-Optional:
+---
 
-- `flower`: Celery dashboard on port `5555`
+## 🔐 Required Environment Files
 
-## Required Environment Files
+Before deploying in any mode, you must provision actual environment variables.
 
-Create real env files before deployment.
+### API Environment (`apps/api/.env`)
+Begin by copying `apps/api/.env.example`.
 
-### API
-
-Start from [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example).
-
-Minimum values to change:
-
+**Critical Overrides:**
 - `ENV=prod`
-- `WEB_ORIGIN=https://your-web-domain`
-- `DATABASE_URL=postgresql+psycopg2://...`
-- `REDIS_URL=redis://...`
-- `SECRET_KEY=<strong-random-secret>`
-- `ACCESS_COOKIE_SECURE=true`
-- `OPENAI_API_KEY=<real-key>`
+- `WEB_ORIGIN=https://your-web-domain.com` (Crucial for CORS)
+- `DATABASE_URL=postgresql+psycopg2://<user>:<pass>@db:5432/<dbname>`
+- `REDIS_URL=redis://redis:6379/0`
+- `SECRET_KEY=<generate-a-strong-random-secret>`
+- `ACCESS_COOKIE_SECURE=true` (Required for HTTPS deployments)
+- `OPENAI_API_KEY=<your-real-key>`
 
-If inbox OTP is enabled, also set:
-
+*Optional: Inbox OTP Integrations*
+If enabling Inbox OTP functionality, you must configure your OAuth providers:
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `GOOGLE_OAUTH_REDIRECT_URI`
@@ -58,216 +52,168 @@ If inbox OTP is enabled, also set:
 - `MICROSOFT_OAUTH_TENANT`
 - `MICROSOFT_OAUTH_REDIRECT_URI`
 
-### Web
+### Web Environment (`apps/web/.env.local`)
+Begin by copying `apps/web/.env.example`.
 
-Start from [apps/web/.env.example](/home/ems/applyforge/apps/web/.env.example).
+**Critical Overrides:**
+- `NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com`
 
-Set:
+### Worker Environment (`apps/worker/.env`)
+Begin by copying `apps/worker/.env.example`.
 
-- `NEXT_PUBLIC_API_BASE_URL=https://your-api-domain`
-
-### Worker
-
-Start from [apps/worker/.env.example](/home/ems/applyforge/apps/worker/.env.example).
-
-Set:
-
-- `DATABASE_URL=postgresql+psycopg2://...`
-- `REDIS_URL=redis://...`
+**Critical Overrides:**
+- `DATABASE_URL=postgresql+psycopg2://<user>:<pass>@db:5432/<dbname>`
+- `REDIS_URL=redis://redis:6379/0`
 - `ARTIFACTS_PATH=/data/artifacts`
-- `PLAYWRIGHT_HEADLESS=true`
+- `PLAYWRIGHT_HEADLESS=true` (Must be true for server environments)
 
-## Local Or Staging Deployment With Compose
+---
 
-### 1. Prepare env files
+## 💻 Local or Staging Deployment (Docker Compose)
 
+### 1. Prepare Environment Files
+Initialize your local secrets:
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 cp apps/worker/.env.example apps/worker/.env
 ```
+*Be sure to populate these with valid test keys (e.g., OpenAI API).*
 
-Fill in real values.
+### 2. Address Compose Limitations
+The default `infra/docker-compose.yml` is hardcoded to reference `*.env.example` files. For a true staging test, manually update the `env_file` directives in `docker-compose.yml` (or create a `docker-compose.override.yml`) to point to your newly created real `.env` files.
 
-### 2. Important compose limitation
-
-The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) references the example env files:
-
-- `../apps/api/.env.example`
-- `../apps/web/.env.example`
-- `../apps/worker/.env.example`
-
-Before using Compose outside a demo setup, update those `env_file` entries to point at your real env files, or create a compose override that does so.
-
-### 3. Start the stack
-
+### 3. Launch the Stack
 ```bash
 cd infra
 docker compose up --build
 ```
 
-### 4. Smoke checks
+### 4. Perform Smoke Checks
+Verify service health:
+- **Web UI:** `http://localhost:3000`
+- **API Root:** `http://localhost:8000/`
+- **API Swagger Docs:** `http://localhost:8000/docs`
+- **System Health:** `http://localhost:8000/admin/health` *(Expected output: `status=ok`, `database=ok`, `redis=ok`)*
+- **Flower Dashboard:** `http://localhost:5555`
 
-After the stack is up:
+---
 
-- web: `http://localhost:3000`
-- API root: `http://localhost:8000/`
-- API docs: `http://localhost:8000/docs`
-- health: `http://localhost:8000/admin/health`
-- Flower: `http://localhost:5555`
+## 🌍 Single-VM Production-Style Deployment
 
-Expected health shape:
+Use this architecture when deploying to a single Linux host equipped with Docker and a reverse proxy.
 
-- `status=ok`
-- `database=ok`
-- `redis=ok`
+### Recommended Layout
+- **Reverse Proxy:** Nginx, Caddy, or Traefik.
+- **Containers:** Run `web`, `api`, `worker`, `db`, and `redis` as separate containers.
+- **Volumes:** Utilize persistent Docker volumes or host mounts for critical data.
 
-## Single-VM Production-Style Deployment
+### Persistent Volume Paths
+The API and Worker write critical operational evidence directly to local storage. You *must* map these to persistent host directories:
+- **Database:** `/srv/applyforge/postgres`
+- **API Uploads (`STORAGE_PATH`):** `/srv/applyforge/uploads`
+- **Artifacts (`ARTIFACTS_PATH`):** `/srv/applyforge/artifacts` (Shared between API and Worker)
 
-Use this when you want one Linux host with Docker and a reverse proxy.
+### Reverse Proxy Routing Guidelines
+Set up your proxy to route traffic cleanly:
+- `https://app.your-domain.com` ➡️ Routes to the Web container (Port 3000)
+- `https://api.your-domain.com` ➡️ Routes to the API container (Port 8000)
 
-### Recommended layout
+**Critical Alignment Checks:**
+- The API's `WEB_ORIGIN` env var must perfectly match the Web app's public URL (for CORS).
+- The Web's `NEXT_PUBLIC_API_BASE_URL` env var must resolve to the API's public URL.
+- OAuth redirect URIs registered with Google/Microsoft must precisely match the API's public callback URLs.
 
-- reverse proxy: Nginx, Caddy, or Traefik
-- `web`, `api`, `worker`, `db`, `redis` as containers
-- persistent volumes for PostgreSQL, uploads, and artifacts
+### Security Configurations
+For HTTPS deployments, strict security settings are required:
+- Set `ACCESS_COOKIE_SECURE=true` in the API.
+- Ensure CORS mappings (`WEB_ORIGIN`) are exact.
 
-### Required persistent paths
+### Example Rollout Sequence
+1. Provision host and initialize PostgreSQL/Redis containers.
+2. Deploy the `api` container with production `.env` and mounted storage volumes.
+3. Deploy the `worker` container, sharing the database connection and artifact mounts.
+4. Deploy the `web` container pointing to the public API URL.
+5. Validate `GET /admin/health` on the API.
+6. Verify the authentication flow via the Web UI.
+7. Confirm the Celery worker is successfully consuming background jobs via Flower.
+8. Test end-to-end resume upload and PDF export.
+9. Execute a role scrape and verify enrichment data flow.
 
-The API and worker write to local storage today.
+---
 
-- API upload storage: `STORAGE_PATH`
-- API artifact storage: `ARTIFACTS_PATH`
-- worker artifact storage: `ARTIFACTS_PATH`
+## 📧 OAuth Deployment Notes
 
-Recommended host mounts:
+If enabling Inbox OTP, public callback URLs are strictly required.
 
-- `/srv/applyforge/postgres`
-- `/srv/applyforge/uploads`
-- `/srv/applyforge/artifacts`
+**Standard Callback Patterns:**
+- **Google:** `https://api.your-domain.com/inbox/gmail/oauth/callback`
+- **Microsoft:** `https://api.your-domain.com/inbox/outlook/oauth/callback`
 
-### Reverse proxy routing
+**Required Provider Scopes:**
+- **Gmail:** `openid`, `email`, `profile`, `https://www.googleapis.com/auth/gmail.readonly`
+- **Outlook:** `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/Mail.Read`
 
-Recommended public routing:
+*Failure to align these exact scopes and URIs within the Google Cloud Console or Azure AD will result in immediate authentication failures.*
 
-- `https://app.example.com` → web container
-- `https://api.example.com` → API container
+---
 
-If you keep both behind one domain, make sure:
+## 📋 Post-Deploy Validation Checklist
 
-- `WEB_ORIGIN` matches the web origin exactly
-- `NEXT_PUBLIC_API_BASE_URL` points at the reachable API base URL
-- OAuth redirect URIs use the final public API callback URLs
+After every deployment, execute these checks:
 
-### Cookie and CORS settings
+1. [ ] Access the landing page and navigate to the dashboard.
+2. [ ] Ping `GET /` and `GET /docs` to confirm API availability.
+3. [ ] Check `GET /admin/health` ensuring database and Redis are `ok`.
+4. [ ] Successfully register a new user or log in.
+5. [ ] Upload a test resume and confirm a profile record is created.
+6. [ ] Create a target role and manually trigger a scrape.
+7. [ ] Ensure jobs populate the feed with `pending` or `completed` enrichment statuses.
+8. [ ] Generate a tailored resume and successfully export a PDF.
+9. [ ] Initiate a draft or assisted application run; confirm steps/logs are written.
+10. [ ] (If enabled) Connect Gmail/Outlook via the Settings page.
 
-For HTTPS deployment:
+---
 
-- set `ACCESS_COOKIE_SECURE=true`
-- set `WEB_ORIGIN` to the exact public web origin
+## 📈 Logging And Operational Checks
 
-The API currently derives CORS from `WEB_ORIGIN`, so a mismatch here will break auth and browser API calls.
+Monitor the following operational signals during and after rollout:
+- **API:** Review request-scoped structured JSON logs for auth, inbox, or file export anomalies.
+- **Worker:** Monitor logs closely for Playwright launch failures or enrichment timeouts.
+- **System:** Watch PostgreSQL disk utilization and track the growth of the artifact directory (screenshots and captures can consume significant space over time).
+- **Celery:** Utilize the Flower dashboard for queue depth visibility.
 
-Port reminder:
+---
 
-- API is HTTP on `8000`
-- web is HTTP on `3000`
-- Flower is HTTP on `5555`
-- Redis uses `redis://...:6379/0`
+## 💾 Backup And Recovery
 
-For example, on a host with IP `172.24.28.220`:
+At a minimum, ensure automated backups for:
+- The PostgreSQL data directory/volume.
+- Uploaded resumes/files located at `STORAGE_PATH`.
+- Operational evidence located at `ARTIFACTS_PATH` (if retaining screenshot/run evidence is a requirement).
 
-- web: `http://172.24.28.220:3000`
-- API: `http://172.24.28.220:8000`
-- Flower: `http://172.24.28.220:5555`
-- Redis: `redis://172.24.28.220:6379/0`
+*Note: If artifact storage is lost but the database survives, the system remains functional, though historical screenshot evidence will return 404s in the UI.*
 
-### Example rollout order
+---
 
-1. provision PostgreSQL and Redis
-2. deploy API with real env and mounted storage
-3. deploy worker with shared DB and artifact config
-4. deploy web with the public API URL
-5. verify `/admin/health`
-6. verify login flow
-7. verify worker is consuming jobs
-8. verify file upload and resume export
-9. verify role scrape and enrichment
+## ⚠️ Known Deployment Gaps
 
-## OAuth Deployment Notes
+Be aware of the following technical debt items before attempting a massive production scale-out:
 
-Inbox OTP support depends on public callback URLs.
+1. **Schema Management:** The API relies on `Base.metadata.create_all(...)` on startup. Proper Alembic migrations are required for safe schema evolution.
+2. **Compose Constraints:** The checked-in Docker Compose files are heavily skewed toward local development.
+3. **Web Server:** The web container currently executes the Next.js development server rather than an optimized production build.
+4. **Storage Adapter:** Storage is tightly coupled to the local disk; an S3-compatible adapter is a future requirement.
+5. **Database Resets:** Older local development databases may require resets (`docker compose down -v`) due to frequent schema changes during early development.
 
-Recommended callback patterns:
+---
 
-- Google: `https://api.example.com/inbox/gmail/oauth/callback`
-- Microsoft: `https://api.example.com/inbox/outlook/oauth/callback`
+## 🛠️ Recommended Next Hardening Steps
 
-Provider scopes currently expected by the app:
+Prioritize these tasks before a formal public launch:
 
-- Gmail: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/gmail.readonly`
-- Outlook: `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/Mail.Read`
-
-If these values do not match the provider app registration, inbox connect will fail even if the rest of the deployment is healthy.
-
-## Post-Deploy Validation Checklist
-
-Run these checks after each deployment:
-
-1. Open the landing page and dashboard.
-2. Open `GET /` and `GET /docs` on the API host and confirm the API is reachable.
-3. Hit `GET /admin/health` and confirm database and Redis are both `ok`.
-4. Register or log in through the web app.
-5. Upload a resume and confirm a profile record is created.
-6. Create a target role and run a scrape.
-7. Confirm jobs appear with `pending` or `completed` enrichment state.
-8. Trigger tailoring and export a resume PDF.
-9. Start a draft or assisted application run and confirm steps are written.
-10. If OAuth is configured, connect Gmail or Outlook from Settings.
-
-## Logging And Operational Checks
-
-Current operational signals:
-
-- API request-scoped structured logs
-- `/admin/health`
-- run diagnostics in `/admin`
-- retry metadata on application runs
-- Flower for Celery visibility
-
-Things to watch during rollout:
-
-- API logs for auth, inbox, and file export failures
-- worker logs for Playwright launch issues or enrichment failures
-- PostgreSQL disk growth
-- artifact directory growth from screenshots and enrichment captures
-
-## Backup And Recovery
-
-At minimum, back up:
-
-- PostgreSQL data
-- uploaded resumes and exported files under `STORAGE_PATH`
-- artifacts under `ARTIFACTS_PATH` if you want run evidence and screenshots retained
-
-If you lose artifact storage but keep PostgreSQL, the product will still have run records but screenshot and export evidence may be missing.
-
-## Known Deployment Gaps
-
-These are real current limitations, not hypothetical ones:
-
-1. The API still runs `Base.metadata.create_all(...)` at startup in [main.py](/home/ems/applyforge/apps/api/app/main.py), so schema evolution is not yet fully migration-driven.
-2. The checked-in Compose setup is development-oriented and should be overridden for production use.
-3. The web container currently runs the Next.js dev server rather than a production build server.
-4. Storage is local-disk based today; S3-compatible object storage is still future work.
-5. Existing older local databases may need a reset or migration because the schema has changed repeatedly during development.
-
-## Recommended Next Deployment Hardening Steps
-
-Before a real public launch, prioritize:
-
-1. add an explicit production compose or deployment manifest
-2. switch the web container to a production `next build` and `next start` flow
-3. replace runtime `create_all` with authored Alembic migrations
-4. move uploads and artifacts to durable object storage
-5. add TLS-terminated public deployment and secret management outside repo-local env files
+1. Create a dedicated `docker-compose.prod.yml` or Kubernetes manifest.
+2. Refactor the `web` container Dockerfile to utilize `next build` and `next start`.
+3. Eliminate runtime `create_all` in favor of strict Alembic migrations.
+4. Implement an S3-compatible backend for uploads and artifacts.
+5. Delegate TLS termination and secret management to external, robust systems (e.g., Traefik/AWS Secrets Manager) rather than relying on `.env` files.
