@@ -1,43 +1,41 @@
-# ApplyForge Agent Guide
+# 🤖 ApplyForge Agent Guide
 
-This repository uses a lightweight ECC-style workflow adapted to the agent and skill configuration that actually exists in this codebase.
+This repository utilizes a lightweight, ECC-style workflow tailored to the agent and skill configurations explicitly defined within this codebase. This guide outlines how AI agents and human operators should interact with the project.
 
-## Core Principles
+## 🎯 Core Principles
 
-1. Plan before editing when the change spans multiple modules.
-2. Keep ApplyForge truth-constrained: never invent resume facts or application answers.
-3. Persist operational evidence for automation runs.
-4. Prefer tests with focused coverage before broad refactors.
-5. Keep the repo understandable: small files, explicit boundaries, clear failure states.
+To maintain a healthy, predictable, and robust codebase, all agents must adhere to the following principles:
 
-## Local Agent Roles
+1. **Plan Before Executing:** Always architect and plan cross-module changes before writing code.
+2. **Uphold Truth (No Hallucinations):** ApplyForge must remain strictly truth-constrained. *Never* invent or fabricate resume facts, work histories, or application answers.
+3. **Capture Operational Evidence:** Always ensure automation runs persist detailed operational evidence (logs, screenshots, step statuses).
+4. **Prioritize Focused Tests:** Write and run localized, focused tests before attempting broad or sweeping refactors.
+5. **Maintain Legibility:** Keep the repository understandable. Strive for small files, explicit domain boundaries, and clear, descriptive failure states.
 
-Project-local agent roles live in [`.codex/agents`](/home/ems/applyforge/.codex/agents):
+---
 
-- `product-planner`
-  - Product decomposition, workflow design, roadmap shaping.
-- `ops-investigator`
-  - Worker behavior, diagnostics, queue/automation troubleshooting.
-- `explorer`
-  - Read-only repo investigation and context gathering.
-- `reviewer`
-  - Correctness, maintainability, and regression review.
-- `docs-researcher`
-  - Documentation cross-checking and API/reference validation.
+## 🎭 Local Agent Roles
 
-Use them when the harness supports multi-agent execution. If multi-agent is unavailable, follow the same division of concerns locally.
+Project-local agent roles are defined in [`.codex/agents`](./.codex/agents). These roles define specific operational focuses:
 
-## Local Skills
+- **`product-planner`**: Focuses on product decomposition, workflow design, and roadmap shaping.
+- **`ops-investigator`**: Specializes in diagnosing worker behavior, queue management, and automation troubleshooting.
+- **`explorer`**: Dedicated to read-only repository investigation and context gathering.
+- **`reviewer`**: Responsible for code correctness, maintainability audits, and regression reviews.
+- **`docs-researcher`**: Ensures documentation cross-checking and API/reference validation.
 
-Project-local skills live in [`.agents/skills`](/home/ems/applyforge/.agents/skills):
+*Usage:* Utilize these roles when the development harness supports multi-agent execution. If multi-agent execution is unavailable, a single agent should logically divide its workflow to respect these distinct concerns.
 
-- `applyforge-product`
-  - Resume intelligence, job scoring, tailoring, and application workflow product rules.
-- `applyforge-ops`
-  - Automation logging, OTP handling, diagnostics, worker behavior, and run evidence.
+---
 
-Repo-level Codex skills also apply when relevant, especially:
+## 🛠️ Local Skills
 
+Project-local skills are defined in [`.agents/skills`](./.agents/skills). These provide ApplyForge-specific domain knowledge:
+
+- **`applyforge-product`**: Deep context on resume intelligence, job scoring algorithms, tailoring constraints, and application workflow product rules.
+- **`applyforge-ops`**: Expertise in automation logging, OTP handling flows, diagnostics, worker execution behavior, and run evidence persistence.
+
+Additionally, standard repository-level Codex skills remain highly relevant:
 - `tdd-workflow`
 - `security-review`
 - `api-design`
@@ -46,66 +44,80 @@ Repo-level Codex skills also apply when relevant, especially:
 - `e2e-testing`
 - `verification-loop`
 
-## Product Invariants
+---
 
-- The canonical candidate profile is the only trusted fact source.
-- Resume tailoring may emphasize or reorder facts, but may not invent them.
-- Unknown or risky application questions must become review gates.
-- OTP handling must stay masked in logs and scoped to the user’s own application flow.
-- ATS-safe resume paths must remain available even when richer renderers fail.
-- Role strategy controls discovery, scoring context, and auto-apply eligibility.
+## 🛡️ Product Invariants
 
-## Engineering Workflow
+These rules are non-negotiable and dictate the absolute boundaries of the system's behavior:
 
-1. Inspect relevant code paths first.
-2. Write or extend tests for the behavior being changed.
-3. Implement the smallest coherent slice.
-4. Review for security and regression risk.
-5. Run focused verification before widening scope.
-6. Update docs when product or operational behavior changes.
+- **The Canonical Profile is Absolute:** The user's canonical candidate profile is the *only* trusted source of factual information.
+- **Strictly Fact-Locked Tailoring:** Resume tailoring algorithms may emphasize, summarize, or reorder facts, but they may *never* invent them.
+- **Approval Gates for the Unknown:** Unknown, ambiguous, or risky application questions (e.g., salary expectations) must trigger mandatory manual review gates.
+- **Secure OTP Handling:** One-Time Passwords (OTPs) must remain masked in all logs and strictly scoped to the user's active application flow.
+- **Resilient Export Paths:** ATS-safe resume export paths must remain highly available, serving as a reliable fallback even when richer, complex renderers fail.
+- **Role-Driven Strategy:** A user's defined 'Role Strategy' acts as the controlling input for job discovery, scoring context, and auto-apply eligibility.
 
-## Security Rules
+---
 
-- Never hardcode secrets, tokens, passwords, or provider credentials.
-- Validate all external inputs at system boundaries.
-- Keep OAuth and inbox tokens encrypted at rest and sanitized in responses.
-- Do not add CAPTCHA bypass, anti-bot circumvention, or fake-answer generation.
-- Avoid leaking sensitive details in logs, prompts, screenshots, or error payloads.
+## ⚙️ Engineering Workflow
 
-## Verification Expectations
+Follow this structured workflow for all development tasks:
 
-Backend changes:
+1. **Inspect:** Examine the relevant code paths and current state before proposing changes.
+2. **Test First:** Write or extend test coverage for the specific behavior being introduced or modified.
+3. **Iterate Small:** Implement the smallest coherent slice of functionality.
+4. **Review:** Audit the change for security vulnerabilities and regression risks.
+5. **Verify:** Run localized verification (linters, typechecks, unit tests) before widening the scope of the PR.
+6. **Document:** Always update relevant documentation when altering product or operational behavior.
 
-- Run the API test suite when API or service behavior changes.
-- Keep route and service coverage green.
+---
 
-Worker changes:
+## 🔒 Security Rules
 
-- Add focused unit tests for pure helper logic when browser runtime is not available.
-- Preserve durable run-state behavior and screenshot/file evidence handling.
+Security is a primary concern. The following rules must never be violated:
 
-Web changes:
+- **No Hardcoded Secrets:** Never commit hardcoded API keys, tokens, passwords, or provider credentials.
+- **Validate at Boundaries:** All external inputs must be validated at system boundaries.
+- **Encrypt at Rest:** OAuth tokens and inbox credentials must be stored encrypted at rest and thoroughly sanitized in API responses.
+- **Respect Boundaries:** Do *not* implement CAPTCHA bypasses, anti-bot circumvention mechanisms, or fake-answer generation features.
+- **Protect Privacy:** Ensure sensitive details (PII, tokens, prompts, error payloads) are never leaked in logs, screenshots, or error messages.
 
-- Run `npm run lint`
-- Run `npm run build`
-- Run `npm run typecheck`
+---
 
-## Architecture Boundaries
+## ✅ Verification Expectations
 
-- `apps/api`
-  - FastAPI API, schemas, domain services, auth, persistence.
-- `apps/web`
-  - Next.js operator UI and product surface.
-- `apps/worker`
-  - Celery tasks, Playwright automation, enrichment runners.
-- `packages/prompts`
-  - Prompt templates and model-facing instruction assets.
-- `docs`
-  - Product, architecture, context, roadmap, and idea documents.
+Before completing any task, ensure the appropriate verification loops have been executed successfully:
 
-## ApplyForge-Specific Notes
+**Backend Changes (`apps/api`):**
+- Execute the full API test suite (`make api-test`).
+- Ensure all route and service coverage remains green.
 
-- Near-realtime job feed means durable event history plus polling, not guaranteed live streaming.
-- Discovery and enrichment are separate stages.
-- Automation should fail loudly and usefully, not silently.
-- Admin/diagnostic surfaces should explain why a run paused, failed, or requires human intervention.
+**Worker Changes (`apps/worker`):**
+- Add focused unit tests for pure helper logic, especially when the Playwright browser runtime cannot be invoked locally.
+- Confirm that durable run-state behavior and screenshot/evidence handling remain intact.
+
+**Web Changes (`apps/web`):**
+- Run Next.js linting: `pnpm lint` (or `npm run lint`)
+- Verify the build: `pnpm build` (or `npm run build`)
+- Execute TypeScript checks: `pnpm typecheck` (or `npm run typecheck`)
+
+---
+
+## 🗺️ Architecture Boundaries
+
+Understand the primary domains of the monorepo:
+
+- **`apps/api`**: FastAPI application, Pydantic schemas, SQLAlchemy ORM, domain services, auth, and data persistence.
+- **`apps/web`**: Next.js App Router frontend serving the operator UI and core product surfaces.
+- **`apps/worker`**: Celery tasks, Playwright browser automation, and data enrichment runners.
+- **`packages/prompts`**: Centralized repository for prompt templates and LLM instruction assets.
+- **`docs`**: The source of truth for product requirements, architecture decisions, context, roadmaps, and ideas.
+
+---
+
+## 📌 ApplyForge-Specific Operational Notes
+
+- **"Near-Realtime" Definition:** The job feed operates on durable event histories combined with polling mechanisms. It is *not* a guaranteed live, streaming WebSocket connection.
+- **Separation of Concerns:** Job discovery and job enrichment are explicitly separate, independent stages in the pipeline.
+- **Fail Loudly:** Automation pipelines should fail loudly and provide useful context, rather than failing silently.
+- **Diagnostic Clarity:** Admin and diagnostic UI surfaces must clearly explain *why* a run paused, failed, or requires human intervention.
