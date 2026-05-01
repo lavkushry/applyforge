@@ -1,0 +1,3 @@
+## 2024-05-01 - Missing form label bindings and error associations
+**Learning:** The forms across the application (e.g., in `auth-form.tsx`, `job-create-form.tsx`) widely lack proper accessibility attributes. Specifically, `<label>` elements are missing `htmlFor` attributes to connect them to inputs, and inputs lack `id` and `aria-describedby` attributes to link them to their respective validation error messages.
+**Action:** When working on form components, always add `id` to inputs, `htmlFor` to corresponding labels, and use `aria-describedby` alongside `role="alert"` for validation error messages to ensure screen reader accessibility.
