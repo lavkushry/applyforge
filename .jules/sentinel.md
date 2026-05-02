@@ -1,0 +1,4 @@
+## 2024-05-24 - [Fix Path Traversal in File Uploads]
+**Vulnerability:** Found a path traversal vulnerability in `apps/api/app/services/files.py` where `save_upload` relied solely on `Path(filename).name` to sanitize filenames. On POSIX systems, `Path` does not recognize backslashes (`\`) as path separators, allowing malicious users to upload files with names like `..\..\etc\passwd`, which could overwrite arbitrary files or traverse directories.
+**Learning:** `Path(filename).name` is insufficient for securing user-provided filenames against path traversal attacks, especially across different operating systems, because it doesn't handle backslashes correctly on POSIX.
+**Prevention:** Always manually normalize backslashes to forward slashes before applying `Path(filename).name`, strip leading dots, and apply a strict regex allowlist to sanitize filenames (e.g., using a custom `secure_filename` function).
