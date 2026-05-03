@@ -1,0 +1,3 @@
+## 2024-05-03 - Consolidate independent counts and existence checks
+**Learning:** To optimize dashboard-style endpoints in `apps/api` (e.g., `wizard_summary`), consolidating multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement is much faster and reduces latency significantly compared to running multiple `db.query(...).count()` or `.first()` calls.
+**Action:** Use scalar subqueries combined into a single select statement to batch fetch boolean checks and aggregate counts for the user dashboard.
