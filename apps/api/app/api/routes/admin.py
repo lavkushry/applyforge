@@ -27,7 +27,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/runs")
-def runs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def runs(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(ApplicationRun, Application)
         .join(Application, Application.id == ApplicationRun.application_id)
@@ -55,7 +57,9 @@ def runs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) 
 
 
 @router.get("/ingestion-runs")
-def ingestion_runs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def ingestion_runs(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(JobIngestionRun, TargetRole)
         .join(TargetRole, TargetRole.id == JobIngestionRun.role_id)
@@ -86,12 +90,17 @@ def ingestion_runs(user: User = Depends(get_current_user), db: Session = Depends
 
 
 @router.get("/errors")
-def errors(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def errors(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(ApplicationStep, ApplicationRun, Application)
         .join(ApplicationRun, ApplicationRun.id == ApplicationStep.run_id)
         .join(Application, Application.id == ApplicationRun.application_id)
-        .filter(Application.user_id == user.id, ApplicationStep.status.in_(["failed", "paused"]))
+        .filter(
+            Application.user_id == user.id,
+            ApplicationStep.status.in_(["failed", "paused"]),
+        )
         .order_by(ApplicationStep.started_at.desc())
         .all()
     )
@@ -114,22 +123,34 @@ def errors(user: User = Depends(get_current_user), db: Session = Depends(get_db)
 
 
 @router.get("/prompt-logs")
-def prompt_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def prompt_logs(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(AuditLog)
-        .filter(AuditLog.action.like("prompt.%"), (AuditLog.user_id == user.id) | (AuditLog.user_id.is_(None)))
+        .filter(
+            AuditLog.action.like("prompt.%"),
+            (AuditLog.user_id == user.id) | (AuditLog.user_id.is_(None)),
+        )
         .order_by(AuditLog.created_at.desc())
         .limit(25)
         .all()
     )
     return [
-        {"id": row.id, "action": row.action, "metadata": row.event_metadata, "created_at": row.created_at}
+        {
+            "id": row.id,
+            "action": row.action,
+            "metadata": row.event_metadata,
+            "created_at": row.created_at,
+        }
         for row in rows
     ]
 
 
 @router.get("/otp-events")
-def otp_events(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def otp_events(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(InboxOtpEvent, InboxConnection)
         .join(InboxConnection, InboxConnection.id == InboxOtpEvent.connection_id)
@@ -155,7 +176,9 @@ def otp_events(user: User = Depends(get_current_user), db: Session = Depends(get
 
 
 @router.get("/enrichment-errors")
-def enrichment_errors(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+def enrichment_errors(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
     rows = (
         db.query(Job, TargetRole)
         .join(TargetRole, TargetRole.id == Job.role_id)
@@ -182,7 +205,9 @@ def enrichment_errors(user: User = Depends(get_current_user), db: Session = Depe
 
 
 @router.post("/jobs/{job_id}/retry-enrichment")
-def retry_enrichment(job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def retry_enrichment(
+    job_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
     job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -196,7 +221,9 @@ def retry_enrichment(job_id: int, user: User = Depends(get_current_user), db: Se
 
 
 @router.post("/runs/{run_id}/retry")
-def retry_run(run_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def retry_run(
+    run_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
     run_row = (
         db.query(ApplicationRun, Application)
         .join(Application, Application.id == ApplicationRun.application_id)
@@ -217,7 +244,10 @@ def retry_run(run_id: int, user: User = Depends(get_current_user), db: Session =
 
 
 @router.get("/health", response_model=HealthResponse)
-def health(db: Session = Depends(get_db)) -> HealthResponse:
+def health(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> HealthResponse:
+    # Security: Require authentication to view health diagnostics
     db.execute(text("SELECT 1"))
     redis_status = "unavailable"
     try:
