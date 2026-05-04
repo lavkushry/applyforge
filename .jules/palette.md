@@ -1,0 +1,3 @@
+## 2024-05-24 - Form Label Binding and Accessibility
+**Learning:** Found a common pattern where form `<label>` and `<Input>` components were not programmatically linked with `htmlFor` and `id`, and validation error messages lacked `id` and `role="alert"` attributes to link them with inputs via `aria-describedby`.
+**Action:** When adding or updating forms, always ensure proper label associations (`htmlFor`/`id`) and provide screen-reader support for error states (`aria-describedby` linking to a `role="alert"` element). Additionally, leverage `autoComplete` attributes on standard fields (like email and password) to improve the experience for password managers.
