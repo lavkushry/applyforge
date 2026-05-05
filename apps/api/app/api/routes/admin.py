@@ -217,7 +217,7 @@ def retry_run(run_id: int, user: User = Depends(get_current_user), db: Session =
 
 
 @router.get("/health", response_model=HealthResponse)
-def health(db: Session = Depends(get_db)) -> HealthResponse:
+def health(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> HealthResponse:
     db.execute(text("SELECT 1"))
     redis_status = "unavailable"
     try:
