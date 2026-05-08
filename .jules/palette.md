@@ -1,0 +1,3 @@
+## 2024-05-18 - Auth form missing accessibility bindings
+**Learning:** React Hook Form usage in this app often skips fundamental HTML form accessibility rules. Forms components (like `AuthForm` and `ProfileForm`) frequently lack `htmlFor` attributes on labels bound to `id`s on `<input>` elements. Additionally, form validation error messages are rarely connected to their respective inputs using `aria-describedby` or marked with `role="alert"`. This makes it difficult for screen readers to associate errors with the inputs that caused them.
+**Action:** When working on form components, always explicitly bind labels to inputs using `htmlFor` and `id`, and explicitly link validation errors with `aria-describedby` and `role="alert"`.
