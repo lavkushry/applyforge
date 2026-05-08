@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -33,7 +34,9 @@ def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int) -> None:
+def validate_resume_upload(
+    filename: str, mime_type: str | None, size_bytes: int
+) -> None:
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_UPLOAD_EXTENSIONS:
         raise ValueError("Unsupported file extension")
@@ -45,7 +48,11 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
 
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
-    safe_name = Path(filename).name
+    # Normalize backslashes and strip dangerous characters
+    normalized_filename = filename.replace("\\", "/")
+    base_name = Path(normalized_filename).name
+    safe_name = re.sub(r"[^a-zA-Z0-9.\-_]", "_", base_name)
+
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
     return str(target)
@@ -65,7 +72,9 @@ def _theme_from_payload(theme: dict) -> ResumeTheme:
     )
 
 
-def _render_resume_pdf_with_rendercv(content: dict, theme: dict | None = None) -> str | None:
+def _render_resume_pdf_with_rendercv(
+    content: dict, theme: dict | None = None
+) -> str | None:
     if not theme:
         return None
     try:
@@ -89,7 +98,9 @@ def _render_resume_pdf_with_rendercv(content: dict, theme: dict | None = None) -
             "--pdf-path",
             str(output_path),
         ]
-        completed = subprocess.run(command, check=False, capture_output=True, text=True, timeout=90)
+        completed = subprocess.run(
+            command, check=False, capture_output=True, text=True, timeout=90
+        )
         log_path.write_text(
             f"command={' '.join(command)}\n\nstdout:\n{completed.stdout}\n\nstderr:\n{completed.stderr}",
             encoding="utf-8",
@@ -114,8 +125,12 @@ def render_resume_pdf(content: dict, theme: dict | None = None) -> str:
     width = 520
     theme = theme or {}
     accent = HexColor(theme.get("accent_color", "#0f172a"))
-    heading_font_size = 11 if theme.get("metadata_json", {}).get("density") != "compact" else 10
-    body_font_size = 10 if theme.get("metadata_json", {}).get("density") != "compact" else 9
+    heading_font_size = (
+        11 if theme.get("metadata_json", {}).get("density") != "compact" else 10
+    )
+    body_font_size = (
+        10 if theme.get("metadata_json", {}).get("density") != "compact" else 9
+    )
 
     def draw_block(title: str, body_lines: list[str]) -> None:
         nonlocal y
@@ -137,7 +152,11 @@ def render_resume_pdf(content: dict, theme: dict | None = None) -> str:
     c.drawString(margin, y, basics.get("full_name", "Candidate"))
     y -= 20
     c.setFont("Helvetica", 10)
-    contact_parts = [basics.get("email", ""), basics.get("phone", ""), basics.get("location", "")]
+    contact_parts = [
+        basics.get("email", ""),
+        basics.get("phone", ""),
+        basics.get("location", ""),
+    ]
     c.drawString(margin, y, " | ".join(part for part in contact_parts if part))
     y -= 24
     if basics.get("headline"):
@@ -157,7 +176,12 @@ def render_resume_pdf(content: dict, theme: dict | None = None) -> str:
     if content.get("projects"):
         draw_block(
             "Projects",
-            [item.get("name", "") for item in content.get("projects", []) if item.get("name")] or ["No projects yet."],
+            [
+                item.get("name", "")
+                for item in content.get("projects", [])
+                if item.get("name")
+            ]
+            or ["No projects yet."],
         )
     if content.get("education"):
         draw_block(
