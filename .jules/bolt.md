@@ -1,0 +1,3 @@
+## 2024-05-10 - Resolve N+1 Queries in _serialize Helpers
+**Learning:** Endpoints returning lists of entities (like `list_roles` or `list_companies`) often rely on `_serialize_*` helper functions that inherently query related data (e.g., fetching `TargetRoleSource` for each `TargetRole`). This structure creates a hidden O(N+1) database query anti-pattern specific to how this codebase models response payloads.
+**Action:** Always batch fetch related records using `.in_([parent.id for parent in parents])` in the parent route handler. Organize these into a `cache: dict[int, list[Entity]]` structure, and modify the target `_serialize_*` function to accept this optional cache, falling back to an individual database query if `cache is None` to preserve compatibility.
