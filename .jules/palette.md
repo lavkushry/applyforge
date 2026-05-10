@@ -1,0 +1,3 @@
+## 2024-05-10 - Missing Form Accessibility Bindings
+**Learning:** Found a pattern where form fields were lacking accessibility bindings (`htmlFor`/`id` to connect labels, `aria-invalid`, `aria-describedby`, and `role="alert"` for validation errors).
+**Action:** Always add `id` to `Input` components to link with `htmlFor` on `label`. Add `aria-invalid={!!error}` and `aria-describedby="error-id"` to the `Input`, and provide `id="error-id"` and `role="alert"` on the error message text.
