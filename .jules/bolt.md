@@ -1,0 +1,3 @@
+## 2024-05-13 - N+1 Serialization Resolution in Roles List
+**Learning:** Found an N+1 performance bottleneck specific to how `TargetRoleSource` instances were fetched one-by-one via the `_serialize_role` helper in `apps/api/app/api/routes/roles.py`. Even though models mapped correctly, the helper lacked context of the parent loop and repeatedly triggered database round trips.
+**Action:** When a loop iteratively serializes items calling another function, pass a `cache` dict containing a batch-pre-fetched list of relationships. This pattern avoids unexpected N+1s by querying with `.in_()` first before iterating and grouping them.
