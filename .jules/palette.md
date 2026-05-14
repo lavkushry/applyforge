@@ -1,0 +1,3 @@
+## 2024-05-14 - Missing Form Label Bindings in Components
+**Learning:** React hook form inputs often lack explicit `htmlFor` and `id` bindings linking labels to inputs, which breaks screen reader accessibility and programmatic focus when labels are clicked. Additionally, error messages lack `aria-describedby` and `aria-invalid` relationships.
+**Action:** Always use React's `useId()` to generate a unique prefix for forms. Apply `htmlFor={`${formId}-field`}` on the label, `id={`${formId}-field`}` on the `<Input />`, and link error messages by providing `aria-invalid={!!errors.field}` and `aria-describedby={errors.field ? `${formId}-field-error` : undefined}` to the input, while adding `id={`${formId}-field-error`}` and `role="alert"` to the error message element.
