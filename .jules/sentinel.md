@@ -1,0 +1,4 @@
+## 2024-05-19 - Path Traversal in File Uploads
+**Vulnerability:** When saving user-uploaded files, `Path(filename).name` was used to extract the safe filename. However, on POSIX systems (like Linux/macOS), backslashes (`\`) are treated as normal characters, not path separators. An attacker could upload a file named `..\..\etc\passwd`, and `Path().name` would preserve the directory traversal characters, potentially allowing files to be written outside the intended storage directory.
+**Learning:** `Path().name` is insufficient for sanitizing user-provided filenames across different operating systems.
+**Prevention:** Always manually normalize backslashes to forward slashes (`filename.replace("\\", "/")`) before using `Path().name`, and apply a strict regex allowlist (`re.sub(r"[^a-zA-Z0-9.\-_]", "_", base_name)`) to ensure only safe characters are preserved.
