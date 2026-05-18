@@ -1,0 +1,4 @@
+## 2025-02-27 - Fix path traversal in file upload handling
+**Vulnerability:** In `apps/api/app/services/files.py`, user-provided filenames are processed with `Path(filename).name`, which is insufficient against path traversal because it does not strip backslashes (`\`) on POSIX systems.
+**Learning:** `Path(filename).name` on a POSIX backend treats backslashes as regular characters. An attacker could upload a file named `..\..\..\etc\passwd` and it would not be stripped correctly on Linux/macOS, potentially causing directory traversal risks when it gets joined with the storage path.
+**Prevention:** Always manually normalize backslashes to forward slashes before calling `Path().name`, and explicitly apply regex allowlists to strip unsafe characters from the base name, ensuring cross-platform safety.
