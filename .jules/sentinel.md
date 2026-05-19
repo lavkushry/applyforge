@@ -1,0 +1,4 @@
+## 2025-01-20 - Path Traversal in File Uploads
+**Vulnerability:** Found a Path Traversal vulnerability in the `save_upload` function of `apps/api/app/services/files.py`. The function used `Path(filename).name` to extract the file's base name. On POSIX systems (Linux/macOS), `Path` does not consider the backslash `\` to be a path separator, meaning `Path("..\..\..\etc\passwd").name` returns the whole string instead of just `passwd`.
+**Learning:** `Path.name` is not cross-platform safe for user-supplied paths. Backslashes are treated as literal characters on POSIX, which can allow an attacker to bypass file upload directory restrictions by providing Windows-style relative paths `..\` if the backend concatenates the result.
+**Prevention:** Always manually normalize backslashes to forward slashes before parsing file paths, or apply regex allowlisting (e.g., stripping everything except alphanumeric characters and specific extensions) for user-uploaded filenames.
