@@ -1,0 +1,3 @@
+## 2024-05-19 - Optimize dashboard endpoints with single-query consolidation
+**Learning:** Dashboard-style endpoints (like `wizard_summary`) that need multiple independent counts and existence checks can cause performance bottlenecks due to N+1 database round-trips.
+**Action:** Consolidate multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement. For JSON objects, extract only the required columns by chaining `.label()` inside the subquery to avoid loading full ORM models.
