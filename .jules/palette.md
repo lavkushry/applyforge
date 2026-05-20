@@ -1,0 +1,3 @@
+## 2024-05-20 - Forms accessibility and bindings
+**Learning:** React hook forms in this codebase (like `auth-form.tsx`) often lack proper `htmlFor` / `id` bindings between labels and inputs, and lack `aria-invalid` / `aria-describedby` links to field validation errors (which should have `role="alert"`).
+**Action:** Always use `useId()` from React to generate unique IDs and establish strict bindings for labels (`htmlFor`) and error messages (`aria-describedby`) when creating or modifying forms.

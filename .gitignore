@@ -34,3 +34,4 @@ rendercv_output/
 apps/api/uploads/
 apps/worker/artifacts/
 *.log
+.venv-verify
