@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func, select
 
 from app.api.deps import get_current_user
 from app.api.routes.roles import _serialize_role
@@ -14,26 +15,25 @@ router = APIRouter(prefix="/setup", tags=["setup"])
 
 @router.get("/wizard", response_model=WizardSummaryOut)
 def wizard_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-    active_resume = db.query(Resume).filter(Resume.user_id == user.id, Resume.active.is_(True)).first()
-    inbox = (
-        db.query(InboxConnection)
-        .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")
-        .order_by(InboxConnection.updated_at.desc())
-        .first()
-    )
-    role_count = db.query(TargetRole).filter(TargetRole.user_id == user.id).count()
-    job_count = db.query(Job).filter(Job.user_id == user.id, Job.active.is_(True)).count()
-    tailored_resume_count = (
-        db.query(ResumeVersion)
-        .join(Resume, Resume.id == ResumeVersion.resume_id)
-        .filter(Resume.user_id == user.id)
-        .count()
+    # ⚡ Bolt: Consolidated 6 separate DB queries into a single round-trip using scalar subqueries
+    query = select(
+        select(CandidateProfile.basics).filter(CandidateProfile.user_id == user.id).limit(1).scalar_subquery().label('profile_basics'),
+        select(CandidateProfile.skills).filter(CandidateProfile.user_id == user.id).limit(1).scalar_subquery().label('profile_skills'),
+        select(Resume.id).filter(Resume.user_id == user.id, Resume.active.is_(True)).limit(1).scalar_subquery().label('active_resume_id'),
+        select(InboxConnection.id).filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected").order_by(InboxConnection.updated_at.desc()).limit(1).scalar_subquery().label('inbox_id'),
+        select(func.count(TargetRole.id)).filter(TargetRole.user_id == user.id).scalar_subquery().label('role_count'),
+        select(func.count(Job.id)).filter(Job.user_id == user.id, Job.active.is_(True)).scalar_subquery().label('job_count'),
+        select(func.count(ResumeVersion.id)).join(Resume, Resume.id == ResumeVersion.resume_id).filter(Resume.user_id == user.id).scalar_subquery().label('tailored_resume_count')
     )
 
-    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
-    resume_ready = bool(active_resume)
-    inbox_ready = bool(inbox)
+    stats = db.execute(query).first()
+
+    profile_ready = bool(stats and stats.profile_basics and stats.profile_basics.get("full_name") and stats.profile_skills)
+    resume_ready = bool(stats and stats.active_resume_id)
+    inbox_ready = bool(stats and stats.inbox_id)
+    role_count = stats.role_count if stats else 0
+    job_count = stats.job_count if stats else 0
+    tailored_resume_count = stats.tailored_resume_count if stats else 0
 
     steps = [
         {
