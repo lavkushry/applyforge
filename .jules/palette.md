@@ -1,0 +1,3 @@
+## 2024-05-22 - Missing Form Label Bindings and Error Associations
+**Learning:** Many forms in `apps/web/components/forms/` (e.g., `auth-form.tsx`, `job-create-form.tsx`, `profile-form.tsx`) lack proper `htmlFor`/`id` bindings connecting labels to inputs. They also miss `aria-describedby` and `aria-invalid` attributes linking inputs to validation errors equipped with `role='alert'`.
+**Action:** When updating or creating forms, use `useId()` (or explicitly passed IDs) to establish strict bindings. Connect labels via `htmlFor`, and ensure validation error elements use `role="alert"` and are referenced by the input's `aria-describedby`.
