@@ -15,6 +15,9 @@ def ensure_bootstrap_default_user(db: Session) -> User | None:
     if existing_default:
         return existing_default
 
+    if not settings.bootstrap_default_user_password:
+        return None
+
     if db.query(User.id).first():
         return None
 

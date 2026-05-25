@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     artifacts_path: str = "./artifacts"
     bootstrap_default_user: bool = False
     bootstrap_default_user_email: str = "defaultuser@applyforge.dev"
-    bootstrap_default_user_password: str = "defaultuser123"
+    bootstrap_default_user_password: str | None = None
     prompt_root: str = Field(default="packages/prompts")
     enable_prompt_stub_fallback: bool = True
 
