@@ -336,10 +336,14 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
             source.last_checked_at = utcnow()
             continue
 
-        for payload in payloads:
+        # ⚡ Bolt: Two-pass pattern to batch fetch jobs and eliminate N+1 queries
+        normalized_payloads = [normalize_job_payload({**payload, "role_id": role.id}) for payload in payloads]
+        batch_keys = {p["dedupe_key"] for p in normalized_payloads}
+        existing_jobs = {job.dedupe_key: job for job in db.query(Job).filter(Job.dedupe_key.in_(batch_keys)).all()} if batch_keys else {}
+
+        for normalized in normalized_payloads:
             discovered_count += 1
             run.discovered_count = discovered_count
-            normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
             resolved_company = resolve_company_for_job(
                 db,
@@ -349,7 +353,7 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 source_url=source.base_url,
             )
             normalized["company_id"] = resolved_company.id if resolved_company else None
-            existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
+            existing = existing_jobs.get(normalized["dedupe_key"])
             event_type = "discovered"
             if existing:
                 existing.role_id = role.id
@@ -377,6 +381,7 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 )
                 db.add(job)
                 db.flush()
+                existing_jobs[normalized["dedupe_key"]] = job
                 inserted_count += 1
                 run.inserted_count = inserted_count
 
