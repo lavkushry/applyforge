@@ -138,22 +138,33 @@ def ingest_company(
         portal.last_job_count = len(payloads)
         portal.health_status = "healthy"
 
-        for payload in payloads:
+        # ⚡ Bolt: Two-pass pattern to batch fetch jobs and eliminate N+1 queries
+        normalized_payloads = [normalize_job_payload({**payload, "role_id": role.id}) for payload in payloads]
+        batch_keys = {p["dedupe_key"] for p in normalized_payloads}
+        existing_jobs = {job.dedupe_key: job for job in db.query(Job).filter(Job.dedupe_key.in_(batch_keys)).all()} if batch_keys else {}
+
+        for normalized in normalized_payloads:
             discovered_count += 1
             run.discovered_count = discovered_count
-            normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
-            resolved_company = resolve_company_for_job(
-                db,
-                user_id=user_id,
-                company_name=normalized.get("company", company.name),
-                application_url=normalized.get("application_url", ""),
-                source_url=source.base_url,
-                explicit_company_id=company.id,
-            )
+
+            # ⚡ Bolt: Avoid redundant DB query if company name matches current target company
+            company_name = normalized.get("company", company.name)
+            if company_name.strip().lower() == company.name.strip().lower():
+                resolved_company = company
+            else:
+                resolved_company = resolve_company_for_job(
+                    db,
+                    user_id=user_id,
+                    company_name=company_name,
+                    application_url=normalized.get("application_url", ""),
+                    source_url=source.base_url,
+                    explicit_company_id=company.id,
+                )
+
             normalized["company_id"] = resolved_company.id if resolved_company else company.id
             normalized["company_portal_id"] = portal.id
-            existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
+            existing = existing_jobs.get(normalized["dedupe_key"])
             event_type = "discovered"
             if existing:
                 existing.role_id = role.id
@@ -187,6 +198,7 @@ def ingest_company(
                 )
                 db.add(job)
                 db.flush()
+                existing_jobs[normalized["dedupe_key"]] = job
                 inserted_count += 1
                 run.inserted_count = inserted_count
 
