@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -32,6 +32,7 @@ const enableBootstrapLogin = process.env.NEXT_PUBLIC_ENABLE_BOOTSTRAP_LOGIN === 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const idPrefix = useId();
   const pushToast = useAppStore((state) => state.pushToast);
   const setSession = useAppStore((state) => state.setSession);
   const session = useAppStore((state) => state.session);
@@ -88,14 +89,27 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Email</label>
-          <Input {...register("email")} placeholder="you@example.com" />
-          {errors.email ? <p className="text-xs text-rose-300">{errors.email.message}</p> : null}
+          <label htmlFor={`${idPrefix}-email`} className="text-sm text-slate-300">Email</label>
+          <Input
+            id={`${idPrefix}-email`}
+            {...register("email")}
+            placeholder="you@example.com"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? `${idPrefix}-email-error` : undefined}
+          />
+          {errors.email ? <p id={`${idPrefix}-email-error`} role="alert" className="text-xs text-rose-300">{errors.email.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Password</label>
-          <Input {...register("password")} type="password" placeholder="At least 8 characters" />
-          {errors.password ? <p className="text-xs text-rose-300">{errors.password.message}</p> : null}
+          <label htmlFor={`${idPrefix}-password`} className="text-sm text-slate-300">Password</label>
+          <Input
+            id={`${idPrefix}-password`}
+            {...register("password")}
+            type="password"
+            placeholder="At least 8 characters"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? `${idPrefix}-password-error` : undefined}
+          />
+          {errors.password ? <p id={`${idPrefix}-password-error`} role="alert" className="text-xs text-rose-300">{errors.password.message}</p> : null}
         </div>
         <Button className="w-full" disabled={mutation.isPending} type="submit">
           {mutation.isPending ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
