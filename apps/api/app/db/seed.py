@@ -32,6 +32,8 @@ def run() -> None:
 
     user = db.query(User).filter(User.email == settings.bootstrap_default_user_email).first()
     if not user:
+        if not settings.bootstrap_default_user_password:
+            raise ValueError("bootstrap_default_user_password must be set in the environment to run the seed script")
         user = User(
             email=settings.bootstrap_default_user_email,
             password_hash=hash_password(settings.bootstrap_default_user_password),
@@ -260,7 +262,7 @@ def run() -> None:
     db.close()
     print(
         f"Seed complete: {settings.bootstrap_default_user_email} / "
-        f"{settings.bootstrap_default_user_password}"
+        f"{settings.bootstrap_default_user_password or '<password-not-set>'}"
     )
 
 
