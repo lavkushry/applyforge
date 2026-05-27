@@ -1,0 +1,3 @@
+## 2024-05-27 - Consolidate independent counts and existence checks using scalar_subquery()
+**Learning:** Dashboard-style endpoints (like `wizard_summary` in `apps/api`) often make multiple independent database queries for counts and existence checks (e.g. `db.query(...).count()` or `db.query(...).first()`). This leads to multiple database round-trips and increased latency, which is a common N+1 pattern for dashboard APIs.
+**Action:** Consolidate multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement.
