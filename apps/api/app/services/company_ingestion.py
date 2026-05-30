@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from app.models.entities import Company, CompanyCareerPortal, Job, JobIngestionRun, TargetRole
-from app.services.company_directory import resolve_company_for_job
+from app.services.company_directory import normalize_company_name, resolve_company_for_job
 from app.services.job_dispatch import dispatch_job_enrichment
 from app.services.job_normalizer import normalize_job_payload
 from app.services.role_ingestion import _log_feed_event, _maybe_finalize_run, fetch_jobs_for_source, record_enrichment_failure, utcnow
@@ -143,14 +143,19 @@ def ingest_company(
             run.discovered_count = discovered_count
             normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
-            resolved_company = resolve_company_for_job(
-                db,
-                user_id=user_id,
-                company_name=normalized.get("company", company.name),
-                application_url=normalized.get("application_url", ""),
-                source_url=source.base_url,
-                explicit_company_id=company.id,
-            )
+            # Reuse current company if names match to avoid N+1
+            job_company_name = normalized.get("company", company.name)
+            if job_company_name.lower() == company.name.lower() or normalize_company_name(job_company_name) == company.normalized_name:
+                resolved_company = company
+            else:
+                resolved_company = resolve_company_for_job(
+                    db,
+                    user_id=user_id,
+                    company_name=job_company_name,
+                    application_url=normalized.get("application_url", ""),
+                    source_url=source.base_url,
+                    explicit_company_id=company.id,
+                )
             normalized["company_id"] = resolved_company.id if resolved_company else company.id
             normalized["company_portal_id"] = portal.id
             existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
