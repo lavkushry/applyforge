@@ -1,0 +1,3 @@
+## 2024-12-05 - Missing Form Label Bindings
+**Learning:** Found that forms (like `auth-form.tsx`) were lacking `htmlFor` on `<label>` elements and `id` on `<Input>` fields, causing poor screen reader accessibility. Additionally, inline validation errors lacked `aria-invalid`, `aria-describedby`, and `role="alert"` attributes.
+**Action:** When adding or updating forms, always use React's `useId()` to generate consistent IDs, bind labels to inputs using `htmlFor` and `id`, and explicitly link validation error messages to inputs via `aria-describedby` while setting `role="alert"` on the error container.
