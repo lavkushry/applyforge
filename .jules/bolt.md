@@ -1,0 +1,3 @@
+## 2026-05-31 - Optimized Dashboard Wizard Summary
+**Learning:** Dashboard endpoints like `wizard_summary` often make independent DB queries (using `.first()` or `.count()`) for each piece of setup info, leading to a large number of database round-trips. SQLAlchemy's `scalar_subquery()` allows consolidating independent counts and existence checks (and extracting JSON properties) into a single DB query, drastically reducing round-trip overhead.
+**Action:** Next time I encounter a dashboard endpoint loading multiple counts and booleans from different tables, I will combine them using `scalar_subquery()` and a unified `select()` instead of doing many independent queries.
