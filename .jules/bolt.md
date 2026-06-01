@@ -1,0 +1,3 @@
+## 2026-06-01 - Consolidate independent queries in dashboard endpoints
+**Learning:** Dashboard-style endpoints (like `wizard_summary`) often make multiple independent database queries (counts, existence checks, etc.), leading to multiple database round-trips which slows down the endpoint.
+**Action:** Use `scalar_subquery()` wrapped inside a single SQLAlchemy `select()` statement to consolidate these multiple independent checks and counts into a single database round-trip. For `exists()` checks, avoid `AttributeError` by wrapping them in a secondary select: `select(select(Model.id).where(...).exists()).scalar_subquery()`.
