@@ -1,0 +1,3 @@
+## 2024-06-03 - Combine dashboard metrics into single database round-trip
+**Learning:** Dashboard-style endpoints that compute multiple independent counts and existence checks (like `wizard_summary`) can suffer from N+1 query patterns. Performing multiple separate `db.query(Model).filter(...).count()` or `.first()` calls results in multiple individual database round-trips.
+**Action:** When gathering multiple independent counts and properties for a single user/entity, wrap them in `scalar_subquery()` calls within a unified `select()` statement to execute them in a single database round-trip. Note that `exists()` needs to be wrapped in a secondary select: `select(select(Model.id).where(...).exists()).scalar_subquery()`.
