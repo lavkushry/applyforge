@@ -36,7 +36,7 @@ Create real env files before deployment.
 
 ### API
 
-Start from [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example).
+Start from [apps/api/.env.example](../apps/api/.env.example).
 
 Minimum values to change:
 
@@ -60,7 +60,7 @@ If inbox OTP is enabled, also set:
 
 ### Web
 
-Start from [apps/web/.env.example](/home/ems/applyforge/apps/web/.env.example).
+Start from [apps/web/.env.example](../apps/web/.env.example).
 
 Set:
 
@@ -68,7 +68,7 @@ Set:
 
 ### Worker
 
-Start from [apps/worker/.env.example](/home/ems/applyforge/apps/worker/.env.example).
+Start from [apps/worker/.env.example](../apps/worker/.env.example).
 
 Set:
 
@@ -91,7 +91,7 @@ Fill in real values.
 
 ### 2. Important compose limitation
 
-The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) references the example env files:
+The checked-in [docker-compose.yml](../infra/docker-compose.yml) references the example env files:
 
 - `../apps/api/.env.example`
 - `../apps/web/.env.example`
@@ -256,7 +256,7 @@ If you lose artifact storage but keep PostgreSQL, the product will still have ru
 
 These are real current limitations, not hypothetical ones:
 
-1. The API still runs `Base.metadata.create_all(...)` at startup in [main.py](/home/ems/applyforge/apps/api/app/main.py), so schema evolution is not yet fully migration-driven.
+1. The API still runs `Base.metadata.create_all(...)` at startup in [main.py](../apps/api/app/main.py), so schema evolution is not yet fully migration-driven.
 2. The checked-in Compose setup is development-oriented and should be overridden for production use.
 3. The web container currently runs the Next.js dev server rather than a production build server.
 4. Storage is local-disk based today; S3-compatible object storage is still future work.
