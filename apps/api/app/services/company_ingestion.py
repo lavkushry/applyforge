@@ -2,11 +2,22 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from app.models.entities import Company, CompanyCareerPortal, Job, JobIngestionRun, TargetRole
-from app.services.company_directory import resolve_company_for_job
+from app.models.entities import (
+    Company,
+    CompanyCareerPortal,
+    Job,
+    JobIngestionRun,
+    TargetRole,
+)
 from app.services.job_dispatch import dispatch_job_enrichment
 from app.services.job_normalizer import normalize_job_payload
-from app.services.role_ingestion import _log_feed_event, _maybe_finalize_run, fetch_jobs_for_source, record_enrichment_failure, utcnow
+from app.services.role_ingestion import (
+    _log_feed_event,
+    _maybe_finalize_run,
+    fetch_jobs_for_source,
+    record_enrichment_failure,
+    utcnow,
+)
 
 
 @dataclass(frozen=True)
@@ -17,7 +28,9 @@ class PortalSourceDescriptor:
     config: dict = field(default_factory=dict)
 
 
-def _portal_source_descriptor(company: Company, portal: CompanyCareerPortal) -> PortalSourceDescriptor:
+def _portal_source_descriptor(
+    company: Company, portal: CompanyCareerPortal
+) -> PortalSourceDescriptor:
     provider_kind = portal.provider_kind.strip().lower()
     kind_map = {
         "greenhouse": "greenhouse_board",
@@ -75,7 +88,11 @@ def _expire_missing_company_jobs(
             job_id=job.id,
             run_id=run.id,
             event_type="expired",
-            event_metadata={"company": job.company, "title": job.title, "company_id": company.id},
+            event_metadata={
+                "company": job.company,
+                "title": job.title,
+                "company_id": company.id,
+            },
         )
     return expired_count
 
@@ -88,7 +105,9 @@ def ingest_company(
     role: TargetRole,
     portal_id: int | None = None,
 ) -> JobIngestionRun:
-    portal_query = db.query(CompanyCareerPortal).filter(CompanyCareerPortal.company_id == company.id)
+    portal_query = db.query(CompanyCareerPortal).filter(
+        CompanyCareerPortal.company_id == company.id
+    )
     if portal_id is not None:
         portal_query = portal_query.filter(CompanyCareerPortal.id == portal_id)
     portals = portal_query.order_by(CompanyCareerPortal.id.asc()).all()
@@ -97,7 +116,9 @@ def ingest_company(
         role_id=role.id,
         company_id=company.id,
         company_portal_id=portal_id,
-        trigger_kind="company_portal_scrape" if portal_id is not None else "company_scrape",
+        trigger_kind="company_portal_scrape"
+        if portal_id is not None
+        else "company_scrape",
         status="running",
     )
     db.add(run)
@@ -125,7 +146,11 @@ def ingest_company(
             payloads = fetch_jobs_for_source(source)
         except Exception as exc:
             run.failed_count += 1
-            run.error_message = "\n".join(filter(None, [run.error_message, f"{portal.base_url or portal.id}: {exc}"]))
+            run.error_message = "\n".join(
+                filter(
+                    None, [run.error_message, f"{portal.base_url or portal.id}: {exc}"]
+                )
+            )
             portal.last_checked_at = utcnow()
             portal.last_error = str(exc)
             portal.last_job_count = 0
@@ -138,22 +163,26 @@ def ingest_company(
         portal.last_job_count = len(payloads)
         portal.health_status = "healthy"
 
+        normalized_payloads = []
         for payload in payloads:
             discovered_count += 1
-            run.discovered_count = discovered_count
             normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
-            resolved_company = resolve_company_for_job(
-                db,
-                user_id=user_id,
-                company_name=normalized.get("company", company.name),
-                application_url=normalized.get("application_url", ""),
-                source_url=source.base_url,
-                explicit_company_id=company.id,
-            )
-            normalized["company_id"] = resolved_company.id if resolved_company else company.id
+            normalized["company_id"] = company.id
             normalized["company_portal_id"] = portal.id
-            existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
+            normalized_payloads.append(normalized)
+
+        run.discovered_count = discovered_count
+
+        if normalized_payloads:
+            dedupe_keys = [p["dedupe_key"] for p in normalized_payloads]
+            existing_jobs = db.query(Job).filter(Job.dedupe_key.in_(dedupe_keys)).all()
+            existing_by_key = {j.dedupe_key: j for j in existing_jobs}
+        else:
+            existing_by_key = {}
+
+        for normalized in normalized_payloads:
+            existing = existing_by_key.get(normalized["dedupe_key"])
             event_type = "discovered"
             if existing:
                 existing.role_id = role.id
@@ -187,6 +216,7 @@ def ingest_company(
                 )
                 db.add(job)
                 db.flush()
+                existing_by_key[job.dedupe_key] = job
                 inserted_count += 1
                 run.inserted_count = inserted_count
 
@@ -219,7 +249,9 @@ def ingest_company(
                 )
             except Exception as exc:
                 process_error = f"{job.company} / {job.title}: dispatch failed: {exc}"
-                record_enrichment_failure(db, run=run, role_id=role.id, job=job, error_message=process_error)
+                record_enrichment_failure(
+                    db, run=run, role_id=role.id, job=job, error_message=process_error
+                )
 
             if event_type == "updated":
                 run.updated_count = updated_count

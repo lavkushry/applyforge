@@ -4,7 +4,15 @@ from urllib.parse import urlparse
 import httpx
 from sqlalchemy.orm import Session
 
-from app.models.entities import CandidateProfile, Job, JobFeedEvent, JobIngestionRun, JobScore, TargetRole, TargetRoleSource
+from app.models.entities import (
+    CandidateProfile,
+    Job,
+    JobFeedEvent,
+    JobIngestionRun,
+    JobScore,
+    TargetRole,
+    TargetRoleSource,
+)
 from app.services.company_directory import resolve_company_for_job
 from app.services.job_dispatch import dispatch_job_enrichment
 from app.services.job_enrichment import enrich_job_record
@@ -29,10 +37,14 @@ def _company_from_url(url: str) -> str:
 
 
 def _fetch_greenhouse_jobs(source: TargetRoleSource) -> list[dict]:
-    board_token = source.config.get("board_token") or _board_slug_from_url(source.base_url)
+    board_token = source.config.get("board_token") or _board_slug_from_url(
+        source.base_url
+    )
     if not board_token:
         return []
-    response = httpx.get(f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs", timeout=10.0)
+    response = httpx.get(
+        f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs", timeout=10.0
+    )
     response.raise_for_status()
     jobs = []
     for item in response.json().get("jobs", []):
@@ -42,19 +54,27 @@ def _fetch_greenhouse_jobs(source: TargetRoleSource) -> list[dict]:
                 "company": source.label or _company_from_url(source.base_url),
                 "location": item.get("location", {}).get("name", ""),
                 "application_url": item.get("absolute_url", ""),
-                "description": item.get("metadata", [{}])[0].get("value", "") or item.get("title", ""),
+                "description": item.get("metadata", [{}])[0].get("value", "")
+                or item.get("title", ""),
                 "source": "greenhouse",
-                "source_metadata": {"source_label": source.label, "source_kind": source.kind},
+                "source_metadata": {
+                    "source_label": source.label,
+                    "source_kind": source.kind,
+                },
             }
         )
     return jobs
 
 
 def _fetch_lever_jobs(source: TargetRoleSource) -> list[dict]:
-    site_token = source.config.get("site_token") or _board_slug_from_url(source.base_url)
+    site_token = source.config.get("site_token") or _board_slug_from_url(
+        source.base_url
+    )
     if not site_token:
         return []
-    response = httpx.get(f"https://api.lever.co/v0/postings/{site_token}?mode=json", timeout=10.0)
+    response = httpx.get(
+        f"https://api.lever.co/v0/postings/{site_token}?mode=json", timeout=10.0
+    )
     response.raise_for_status()
     jobs = []
     for item in response.json():
@@ -66,7 +86,10 @@ def _fetch_lever_jobs(source: TargetRoleSource) -> list[dict]:
                 "application_url": item.get("hostedUrl", ""),
                 "description": item.get("descriptionPlain", "") or item.get("text", ""),
                 "source": "lever",
-                "source_metadata": {"source_label": source.label, "source_kind": source.kind},
+                "source_metadata": {
+                    "source_label": source.label,
+                    "source_kind": source.kind,
+                },
             }
         )
     return jobs
@@ -75,7 +98,11 @@ def _fetch_lever_jobs(source: TargetRoleSource) -> list[dict]:
 def _fetch_direct_jobs(source: TargetRoleSource) -> list[dict]:
     response = httpx.get(source.base_url, timeout=10.0)
     response.raise_for_status()
-    title = response.text.split("<title>")[1].split("</title>")[0] if "<title>" in response.text else "Career Opportunity"
+    title = (
+        response.text.split("<title>")[1].split("</title>")[0]
+        if "<title>" in response.text
+        else "Career Opportunity"
+    )
     return [
         {
             "title": title.strip(),
@@ -84,7 +111,10 @@ def _fetch_direct_jobs(source: TargetRoleSource) -> list[dict]:
             "application_url": source.base_url,
             "description": response.text[:1000],
             "source": "direct_url",
-            "source_metadata": {"source_label": source.label, "source_kind": source.kind},
+            "source_metadata": {
+                "source_label": source.label,
+                "source_kind": source.kind,
+            },
         }
     ]
 
@@ -96,14 +126,24 @@ def _fetch_workday_jobs(source: TargetRoleSource) -> list[dict]:
     response = httpx.get(api_url, timeout=10.0, headers={"Accept": "application/json"})
     response.raise_for_status()
     payload = response.json()
-    postings = payload.get("jobPostings") or payload.get("jobs") or payload.get("positions") or []
+    postings = (
+        payload.get("jobPostings")
+        or payload.get("jobs")
+        or payload.get("positions")
+        or []
+    )
     jobs: list[dict] = []
     for item in postings:
-        title = item.get("title") or item.get("externalPath", "").split("/")[-1].replace("-", " ").title()
+        title = (
+            item.get("title")
+            or item.get("externalPath", "").split("/")[-1].replace("-", " ").title()
+        )
         location = (
             item.get("locationsText")
             or item.get("location")
-            or ", ".join(loc.get("displayName", "") for loc in item.get("locations", []))
+            or ", ".join(
+                loc.get("displayName", "") for loc in item.get("locations", [])
+            )
         )
         description = (
             item.get("jobDescription")
@@ -112,7 +152,11 @@ def _fetch_workday_jobs(source: TargetRoleSource) -> list[dict]:
             or title
         )
         application_path = item.get("externalPath") or item.get("url") or ""
-        application_url = application_path if application_path.startswith("http") else f"{source.base_url.rstrip('/')}/{application_path.lstrip('/')}"
+        application_url = (
+            application_path
+            if application_path.startswith("http")
+            else f"{source.base_url.rstrip('/')}/{application_path.lstrip('/')}"
+        )
         jobs.append(
             {
                 "title": title or "Workday role",
@@ -165,7 +209,9 @@ def _log_feed_event(
     )
 
 
-def _score_and_attach_job(db: Session, job: Job, profile: CandidateProfile | None, role: TargetRole) -> JobScore | None:
+def _score_and_attach_job(
+    db: Session, job: Job, profile: CandidateProfile | None, role: TargetRole
+) -> JobScore | None:
     if not profile:
         return None
     score_payload = score_job(
@@ -228,7 +274,9 @@ def process_job_enrichment(
     job: Job,
     source_context: dict | None = None,
 ) -> None:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user_id).first()
+    profile = (
+        db.query(CandidateProfile).filter(CandidateProfile.user_id == user_id).first()
+    )
     enrichment = enrich_job_record(
         db,
         user_id=user_id,
@@ -280,7 +328,9 @@ def process_job_enrichment(
     _maybe_finalize_run(run)
 
 
-def record_enrichment_failure(db: Session, *, run: JobIngestionRun, role_id: int, job: Job, error_message: str) -> None:
+def record_enrichment_failure(
+    db: Session, *, run: JobIngestionRun, role_id: int, job: Job, error_message: str
+) -> None:
     job.enrichment_status = "failed"
     job.enrichment_error = error_message
     run.failed_count += 1
@@ -296,9 +346,20 @@ def record_enrichment_failure(db: Session, *, run: JobIngestionRun, role_id: int
     _maybe_finalize_run(run)
 
 
-def _expire_missing_jobs(db: Session, *, user_id: int, role: TargetRole, seen_dedupe_keys: set[str], run: JobIngestionRun) -> int:
+def _expire_missing_jobs(
+    db: Session,
+    *,
+    user_id: int,
+    role: TargetRole,
+    seen_dedupe_keys: set[str],
+    run: JobIngestionRun,
+) -> int:
     expired_count = 0
-    active_jobs = db.query(Job).filter(Job.user_id == user_id, Job.role_id == role.id, Job.active.is_(True)).all()
+    active_jobs = (
+        db.query(Job)
+        .filter(Job.user_id == user_id, Job.role_id == role.id, Job.active.is_(True))
+        .all()
+    )
     for job in active_jobs:
         if job.dedupe_key in seen_dedupe_keys:
             continue
@@ -320,7 +381,11 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
     run = JobIngestionRun(role_id=role.id, trigger_kind="role_scrape", status="running")
     db.add(run)
     db.flush()
-    sources = db.query(TargetRoleSource).filter(TargetRoleSource.role_id == role.id, TargetRoleSource.enabled.is_(True)).all()
+    sources = (
+        db.query(TargetRoleSource)
+        .filter(TargetRoleSource.role_id == role.id, TargetRoleSource.enabled.is_(True))
+        .all()
+    )
     run.source_count = len(sources)
     discovered_count = 0
     inserted_count = 0
@@ -332,13 +397,18 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
             payloads = fetch_jobs_for_source(source)
         except Exception as exc:
             run.failed_count += 1
-            run.error_message = "\n".join(filter(None, [run.error_message, f"{source.label or source.base_url}: {exc}"]))
+            run.error_message = "\n".join(
+                filter(
+                    None,
+                    [run.error_message, f"{source.label or source.base_url}: {exc}"],
+                )
+            )
             source.last_checked_at = utcnow()
             continue
 
+        normalized_payloads = []
         for payload in payloads:
             discovered_count += 1
-            run.discovered_count = discovered_count
             normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
             resolved_company = resolve_company_for_job(
@@ -349,7 +419,19 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 source_url=source.base_url,
             )
             normalized["company_id"] = resolved_company.id if resolved_company else None
-            existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
+            normalized_payloads.append(normalized)
+
+        run.discovered_count = discovered_count
+
+        if normalized_payloads:
+            dedupe_keys = [p["dedupe_key"] for p in normalized_payloads]
+            existing_jobs = db.query(Job).filter(Job.dedupe_key.in_(dedupe_keys)).all()
+            existing_by_key = {j.dedupe_key: j for j in existing_jobs}
+        else:
+            existing_by_key = {}
+
+        for normalized in normalized_payloads:
+            existing = existing_by_key.get(normalized["dedupe_key"])
             event_type = "discovered"
             if existing:
                 existing.role_id = role.id
@@ -377,6 +459,7 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 )
                 db.add(job)
                 db.flush()
+                existing_by_key[job.dedupe_key] = job
                 inserted_count += 1
                 run.inserted_count = inserted_count
 
@@ -386,7 +469,10 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                 job_id=job.id,
                 run_id=run.id,
                 event_type=event_type,
-                event_metadata={"source": normalized.get("source"), "company": job.company},
+                event_metadata={
+                    "source": normalized.get("source"),
+                    "company": job.company,
+                },
             )
 
             try:
@@ -395,11 +481,16 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
                     job_id=job.id,
                     role_id=role.id,
                     user_id=user_id,
-                    source_context={"source_kind": source.kind, "source_url": source.base_url},
+                    source_context={
+                        "source_kind": source.kind,
+                        "source_url": source.base_url,
+                    },
                 )
             except Exception as exc:
                 process_error = f"{job.company} / {job.title}: dispatch failed: {exc}"
-                record_enrichment_failure(db, run=run, role_id=role.id, job=job, error_message=process_error)
+                record_enrichment_failure(
+                    db, run=run, role_id=role.id, job=job, error_message=process_error
+                )
             if event_type == "updated":
                 run.updated_count = updated_count
         source.last_checked_at = utcnow()
@@ -407,7 +498,9 @@ def ingest_target_role(db: Session, user_id: int, role: TargetRole) -> JobIngest
     run.discovered_count = discovered_count
     run.inserted_count = inserted_count
     run.updated_count = updated_count
-    run.expired_count = _expire_missing_jobs(db, user_id=user_id, role=role, seen_dedupe_keys=seen_dedupe_keys, run=run)
+    run.expired_count = _expire_missing_jobs(
+        db, user_id=user_id, role=role, seen_dedupe_keys=seen_dedupe_keys, run=run
+    )
     if discovered_count == 0:
         _maybe_finalize_run(run)
     elif run.enriched_count + run.failed_count < discovered_count:
