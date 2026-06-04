@@ -1,0 +1,3 @@
+## 2024-06-04 - Eliminate N+1 DB queries in job ingestion
+**Learning:** Ingestion loops querying the database for existing records one by one (`.first()`) creates severe N+1 bottlenecks when processing many payloads at once. Also discovered redundant lookups for known contextual data (e.g., resolving `company_id` when the company context is already known during company ingestion).
+**Action:** Implemented a two-pass batch pre-fetching pattern for ingestion loops: 1) Collect identifiers (`dedupe_key`), 2) Fetch all existing records in a single `.in_()` batch query into an in-memory dictionary. Update the dictionary in-memory when new records are flushed to the DB to handle intra-run duplicates accurately.
