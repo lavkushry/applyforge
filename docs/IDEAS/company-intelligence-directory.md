@@ -1,75 +1,20 @@
-# Company Intelligence Directory Status
+# Company Intelligence Matrix
 
-## Summary
+## Overview
+What began as an idea has successfully morphed into core infrastructure. ApplyForge now manages user-scoped company entities, mapping external jobs directly to tracked companies.
 
-This is no longer just an idea. The foundation is implemented.
+## What's Live Now
+- The schema houses `companies`, `company_career_portals`, and `company_contacts`.
+- Standard API endpoints cover CRUD operations for these models.
+- The web UI integrates company listings, selection modalities, and link visibility.
+- Manual application generation hooks automatically match jobs against known internal entities.
 
-ApplyForge now has:
+## Target Expansion Priorities
+To further refine the company matrix, the following are needed:
+1. Merge and duplicate remediation utilities for operators to clean up the directory.
+2. Portal-specific health polling to ensure career sites haven't altered their DOM structure.
+3. Expanded confidence scoring rules when predicting company associations.
+4. Robust recruitment metadata scraping.
 
-- user-scoped `companies`
-- `company_career_portals`
-- `company_contacts`
-- company CRUD routes
-- a thin internal company directory page
-- job-to-company resolution hooks in manual creation and discovery flows
-
-## What is already shipped
-
-### Data model
-
-Implemented tables:
-
-- `companies`
-- `company_career_portals`
-- `company_contacts`
-
-### API
-
-Implemented routes:
-
-- `GET /companies`
-- `POST /companies`
-- `GET /companies/{company_id}`
-- `PUT /companies/{company_id}`
-- portal and contact create/list flows through the companies route group
-
-### Web
-
-Implemented UI:
-
-- company list
-- company create flow
-- company selection
-- portal creation
-- contact creation
-- linked job visibility
-
-### Integration
-
-Implemented behavior:
-
-- manual job creation can resolve to `company_id`
-- ingestion attempts company resolution from normalized company names and portal or hostname hints
-- company records sit between source discovery and job records
-
-## What remains
-
-1. Add merge and duplicate-review tooling for company records.
-2. Add portal health checks and diagnostics.
-3. Add better confidence scoring and override UX for company resolution.
-4. Add richer recruiter-source metadata and verification workflows.
-5. Add operator tooling for review queues and unresolved company matches.
-
-## Why this still matters
-
-Even though the foundation is shipped, company intelligence remains a major leverage point for:
-
-- better source resolution
-- stronger dedupe quality
-- future recruiter-aware workflows
-- company-level automation preferences
-- clearer job-source diagnostics
-
-## Current guidance
-
-Future work should extend the existing company graph rather than building a parallel company model.
+## The Strategy Going Forward
+This intelligence directory must serve as a central pillar to reduce duplicate discovery loads and to track overarching automation policies defined per company rather than per job. Future updates should solely expand this existing graph.
