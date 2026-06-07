@@ -1,39 +1,96 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 
 from app.api.deps import get_current_user
 from app.api.routes.roles import _serialize_role
 from app.db.session import get_db
-from app.models.entities import CandidateProfile, InboxConnection, Job, Resume, ResumeVersion, TargetRole, TargetRoleSource, User
+from app.models.entities import (
+    CandidateProfile,
+    InboxConnection,
+    Job,
+    Resume,
+    ResumeVersion,
+    TargetRole,
+    TargetRoleSource,
+    User,
+)
 from app.schemas.setup import WizardBootstrapRequest, WizardSummaryOut
-from app.services.discovery_registry import get_search_template, get_source_preset, load_discovery_registry
+from app.services.discovery_registry import (
+    get_search_template,
+    get_source_preset,
+    load_discovery_registry,
+)
 from app.services.jobspy_service import prepare_target_role_source_payload
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
 
 @router.get("/wizard", response_model=WizardSummaryOut)
-def wizard_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-    active_resume = db.query(Resume).filter(Resume.user_id == user.id, Resume.active.is_(True)).first()
-    inbox = (
-        db.query(InboxConnection)
-        .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")
-        .order_by(InboxConnection.updated_at.desc())
-        .first()
+def wizard_summary(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    # ⚡ Bolt Optimization: Consolidate 6 separate DB queries into a single round-trip
+    summary_query = select(
+        select(
+            select(CandidateProfile.id)
+            .where(CandidateProfile.user_id == user.id)
+            .exists()
+        )
+        .scalar_subquery()
+        .label("has_profile"),
+        select(CandidateProfile.basics)
+        .where(CandidateProfile.user_id == user.id)
+        .limit(1)
+        .scalar_subquery()
+        .label("profile_basics"),
+        select(CandidateProfile.skills)
+        .where(CandidateProfile.user_id == user.id)
+        .limit(1)
+        .scalar_subquery()
+        .label("profile_skills"),
+        select(
+            select(Resume.id)
+            .where(Resume.user_id == user.id, Resume.active.is_(True))
+            .exists()
+        )
+        .scalar_subquery()
+        .label("has_resume"),
+        select(
+            select(InboxConnection.id)
+            .where(
+                InboxConnection.user_id == user.id,
+                InboxConnection.status == "connected",
+            )
+            .exists()
+        )
+        .scalar_subquery()
+        .label("has_inbox"),
+        select(func.count(TargetRole.id))
+        .where(TargetRole.user_id == user.id)
+        .scalar_subquery()
+        .label("role_count"),
+        select(func.count(Job.id))
+        .where(Job.user_id == user.id, Job.active.is_(True))
+        .scalar_subquery()
+        .label("job_count"),
+        select(func.count(ResumeVersion.id))
+        .where(ResumeVersion.resume_id == Resume.id, Resume.user_id == user.id)
+        .scalar_subquery()
+        .label("tailored_resume_count"),
     )
-    role_count = db.query(TargetRole).filter(TargetRole.user_id == user.id).count()
-    job_count = db.query(Job).filter(Job.user_id == user.id, Job.active.is_(True)).count()
-    tailored_resume_count = (
-        db.query(ResumeVersion)
-        .join(Resume, Resume.id == ResumeVersion.resume_id)
-        .filter(Resume.user_id == user.id)
-        .count()
-    )
+    result = db.execute(summary_query).first()
 
-    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
-    resume_ready = bool(active_resume)
-    inbox_ready = bool(inbox)
+    profile_basics = result.profile_basics or {}
+    profile_skills = result.profile_skills or []
+    profile_ready = bool(
+        result.has_profile and profile_basics.get("full_name") and profile_skills
+    )
+    resume_ready = bool(result.has_resume)
+    inbox_ready = bool(result.has_inbox)
+    role_count = result.role_count
+    job_count = result.job_count
+    tailored_resume_count = result.tailored_resume_count
 
     steps = [
         {
@@ -97,7 +154,11 @@ def bootstrap_role(
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
 
-    existing = db.query(TargetRole).filter(TargetRole.user_id == user.id, TargetRole.name == template["role_name"]).first()
+    existing = (
+        db.query(TargetRole)
+        .filter(TargetRole.user_id == user.id, TargetRole.name == template["role_name"])
+        .first()
+    )
     if existing:
         return _serialize_role(existing, db).model_dump(mode="json")
 
