@@ -1,0 +1,3 @@
+## 2024-06-07 - Missing Accessibility Bindings in Forms
+**Learning:** React hook forms in this application frequently lack semantic a11y bindings. Inputs are not explicitly bound to their labels using `htmlFor` and `id`, and validation errors are not linked using `aria-describedby` or marked with `role="alert"`. This makes it difficult for screen readers to associate validation messages with the correct input fields.
+**Action:** Use React's `useId()` to generate unique IDs for form fields, and establish strict bindings by using `htmlFor` on `<label>` elements, `id` on inputs, `aria-invalid` on inputs with errors, and `aria-describedby` pointing to the error message container which should have `role="alert"`.
