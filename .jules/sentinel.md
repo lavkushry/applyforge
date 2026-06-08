@@ -1,0 +1,4 @@
+## 2024-05-18 - Path Traversal Vulnerability in File Uploads
+**Vulnerability:** Path traversal vulnerability in `apps/api/app/services/files.py` when handling user-uploaded filenames via `Path(filename).name`.
+**Learning:** On POSIX systems, `Path(filename).name` does not strip backslashes (`\`) because they are treated as valid filename characters. This allows an attacker to bypass filename sanitization by uploading a file with a backslash in its name, potentially leading to path traversal and arbitrary file overwrite vulnerabilities if the file is saved to the local disk.
+**Prevention:** Always manually normalize backslashes to forward slashes (e.g., `filename.replace("\\", "/")`) before extracting the filename with `Path` when processing user-uploaded filenames.
