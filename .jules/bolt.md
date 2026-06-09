@@ -1,0 +1,3 @@
+## 2024-05-24 - Consolidate independent queries in dashboard endpoints
+**Learning:** Independent queries in dashboard endpoints can be consolidated into a single database round-trip by wrapping `func.count()` and `exists()` in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement, which is a codebase-specific optimization to avoid N independent query rounds on endpoints like dashboard wizard.
+**Action:** Always check if multiple disjoint counts or exists statements in API endpoints can be combined via a single overarching SQL select with `scalar_subquery` to save round-trips.
