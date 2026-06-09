@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -27,6 +28,18 @@ type FormValues = z.infer<typeof schema>;
 
 export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => void; roles: TargetRole[] }) {
   const pushToast = useAppStore((state) => state.pushToast);
+  const roleStrategyId = useId();
+  const roleId = useId();
+  const roleErrorId = useId();
+  const companyId = useId();
+  const companyErrorId = useId();
+  const locationId = useId();
+  const urlId = useId();
+  const urlErrorId = useId();
+  const descriptionId = useId();
+  const descriptionErrorId = useId();
+  const salaryId = useId();
+
   const {
     register,
     handleSubmit,
@@ -77,8 +90,9 @@ export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => v
       </div>
       <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Role strategy</label>
+          <label htmlFor={roleStrategyId} className="text-sm text-slate-300">Role strategy</label>
           <select
+            id={roleStrategyId}
             className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"
             {...register("role_id")}
           >
@@ -91,32 +105,53 @@ export function JobCreateForm({ onCreated, roles }: { onCreated: (job: Job) => v
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Role</label>
-          <Input {...register("title")} />
-          {errors.title ? <p className="text-xs text-rose-300">{errors.title.message}</p> : null}
+          <label htmlFor={roleId} className="text-sm text-slate-300">Role</label>
+          <Input
+            id={roleId}
+            {...register("title")}
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? roleErrorId : undefined}
+          />
+          {errors.title ? <p id={roleErrorId} role="alert" className="text-xs text-rose-300">{errors.title.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Company</label>
-          <Input {...register("company")} />
-          {errors.company ? <p className="text-xs text-rose-300">{errors.company.message}</p> : null}
+          <label htmlFor={companyId} className="text-sm text-slate-300">Company</label>
+          <Input
+            id={companyId}
+            {...register("company")}
+            aria-invalid={!!errors.company}
+            aria-describedby={errors.company ? companyErrorId : undefined}
+          />
+          {errors.company ? <p id={companyErrorId} role="alert" className="text-xs text-rose-300">{errors.company.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Location</label>
-          <Input {...register("location")} />
+          <label htmlFor={locationId} className="text-sm text-slate-300">Location</label>
+          <Input id={locationId} {...register("location")} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Application URL</label>
-          <Input {...register("application_url")} />
-          {errors.application_url ? <p className="text-xs text-rose-300">{errors.application_url.message}</p> : null}
+          <label htmlFor={urlId} className="text-sm text-slate-300">Application URL</label>
+          <Input
+            id={urlId}
+            {...register("application_url")}
+            aria-invalid={!!errors.application_url}
+            aria-describedby={errors.application_url ? urlErrorId : undefined}
+          />
+          {errors.application_url ? <p id={urlErrorId} role="alert" className="text-xs text-rose-300">{errors.application_url.message}</p> : null}
         </div>
         <div className="space-y-2 lg:col-span-2">
-          <label className="text-sm text-slate-300">Description</label>
-          <Textarea {...register("description")} className="min-h-[180px]" />
-          {errors.description ? <p className="text-xs text-rose-300">{errors.description.message}</p> : null}
+          <label htmlFor={descriptionId} className="text-sm text-slate-300">Description</label>
+          <Textarea
+            id={descriptionId}
+            {...register("description")}
+            className="min-h-[180px]"
+            aria-invalid={!!errors.description}
+            aria-describedby={errors.description ? descriptionErrorId : undefined}
+          />
+          {errors.description ? <p id={descriptionErrorId} role="alert" className="text-xs text-rose-300">{errors.description.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Salary</label>
-          <Input {...register("salary")} />
+          <label htmlFor={salaryId} className="text-sm text-slate-300">Salary</label>
+          <Input id={salaryId} {...register("salary")} />
         </div>
         <div className="flex items-end">
           <Button className="w-full" disabled={mutation.isPending} type="submit">
