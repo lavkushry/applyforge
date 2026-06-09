@@ -1,75 +1,58 @@
-# Company Intelligence Directory Status
+# Company Intelligence Directory: Implementation Status
 
-## Summary
+## Overview
 
-This is no longer just an idea. The foundation is implemented.
+The concept of a Company Intelligence Directory has transitioned from a proposed idea to an implemented foundational feature within ApplyForge.
 
-ApplyForge now has:
+The system now actively maintains a graph of user-scoped company entities, linking job postings to specific organizations rather than relying solely on raw text strings.
 
-- user-scoped `companies`
-- `company_career_portals`
-- `company_contacts`
-- company CRUD routes
-- a thin internal company directory page
-- job-to-company resolution hooks in manual creation and discovery flows
+## Current Capabilities
 
-## What is already shipped
+### Database Architecture
+The following tables have been established:
+- `companies`: The core entity representing an organization.
+- `company_career_portals`: Tracks metadata specific to the employer's ATS or career site.
+- `company_contacts`: Stores recruiter or HR contact information associated with the company.
 
-### Data model
+### API Surface
+The backend provides full CRUD operations for company management:
+- `GET /companies`: Retrieve the user's company directory.
+- `POST /companies`: Register a new company.
+- `GET /companies/{company_id}`: Fetch detailed company intelligence.
+- `PUT /companies/{company_id}`: Update company information.
+- Operations for creating portals and contacts are nested within this route group.
 
-Implemented tables:
+### User Interface
+The Next.js frontend now includes:
+- A dedicated directory view listing all recognized companies.
+- Workflows for manually creating companies, career portals, and specific recruiter contacts.
+- UI elements linking specific job postings to their parent company records.
 
-- `companies`
-- `company_career_portals`
-- `company_contacts`
+### System Integration
+Company resolution is actively woven into core workflows:
+- Jobs added manually can be explicitly linked to a known `company_id`.
+- The automated ingestion engine utilizes heuristics (matching normalized company names, portal URLs, and hostnames) to resolve scraped jobs to existing company records.
+- Companies act as an intermediate intelligence layer between raw source discovery and the final job record.
 
-### API
+## Remaining Development Tasks
 
-Implemented routes:
+While the foundation is solid, several advanced features remain pending:
 
-- `GET /companies`
-- `POST /companies`
-- `GET /companies/{company_id}`
-- `PUT /companies/{company_id}`
-- portal and contact create/list flows through the companies route group
+1. **Deduplication Workflows:** Develop administrative tools allowing users to review and merge duplicate company profiles.
+2. **Portal Diagnostics:** Implement automated health checks for recognized career portals to detect when a company changes its ATS provider.
+3. **Resolution Heuristics:** Enhance the confidence scoring algorithm for automated job-to-company mapping and provide a clearer UI for users to override incorrect matches.
+4. **Recruiter Metadata:** Expand the data model to capture richer source information regarding recruiter outreach and verification workflows.
+5. **Operator Dashboards:** Build queue management screens to help operators manually resolve pending or low-confidence company matches.
 
-### Web
+## Strategic Importance
 
-Implemented UI:
+The company intelligence layer is a critical leverage point for the system's future evolution. It provides the necessary structure for:
+- Improving the accuracy of source resolution during job scraping.
+- Significantly enhancing the quality of job deduplication.
+- Powering future workflows tailored specifically for interacting with recruiters.
+- Allowing users to set automation preferences at the company level (e.g., "Auto-apply to all Engineering roles at Company X").
+- Generating clearer diagnostic reports regarding which sources yield the most viable jobs.
 
-- company list
-- company create flow
-- company selection
-- portal creation
-- contact creation
-- linked job visibility
+## Development Directives
 
-### Integration
-
-Implemented behavior:
-
-- manual job creation can resolve to `company_id`
-- ingestion attempts company resolution from normalized company names and portal or hostname hints
-- company records sit between source discovery and job records
-
-## What remains
-
-1. Add merge and duplicate-review tooling for company records.
-2. Add portal health checks and diagnostics.
-3. Add better confidence scoring and override UX for company resolution.
-4. Add richer recruiter-source metadata and verification workflows.
-5. Add operator tooling for review queues and unresolved company matches.
-
-## Why this still matters
-
-Even though the foundation is shipped, company intelligence remains a major leverage point for:
-
-- better source resolution
-- stronger dedupe quality
-- future recruiter-aware workflows
-- company-level automation preferences
-- clearer job-source diagnostics
-
-## Current guidance
-
-Future work should extend the existing company graph rather than building a parallel company model.
+Any future enhancements must build upon this existing company graph structure. Do not architect parallel or redundant models for representing employers.

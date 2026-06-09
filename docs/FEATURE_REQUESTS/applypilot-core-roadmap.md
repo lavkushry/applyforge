@@ -1,142 +1,111 @@
-# ApplyPilot-Core Roadmap Status
+# ApplyPilot-Core Roadmap: Implementation Status
 
-## Purpose
+## Context
 
-This document no longer describes a greenfield feature request. It now records what ApplyForge has already implemented from the ApplyPilot-style roadmap and what remains.
+This document tracks the progress of the ApplyForge platform against the original ApplyPilot-inspired roadmap. It has evolved from a feature request document into an implementation status report.
 
-The target shape is still the same:
+The core pipeline envisioned—Discover -> Enrich -> Score -> Tailor -> Prepare -> Execute—remains the guiding structure.
 
-1. discover
-2. enrich
-3. score
-4. tailor
-5. prepare
-6. execute
+## Current Implementation Status
 
-But the important question is now status, not aspiration.
+### 1. Job Discovery
+**Implemented:**
+- Job source subscriptions driven by target roles.
+- Support for packaged discovery configurations and reusable search templates.
+- Initial ingestion runs prioritizing discovery.
+- A robust event feed tracking jobs through `discovered`, `enriched`, `score-changed`, and `expired` states.
+- Initial support for common platforms (Greenhouse, Lever, Workday) and direct-source parsing.
 
-## Completed or largely completed
+**Pending Enhancements:**
+- Expanding the breadth of supported job sources.
+- Improving diagnostics to monitor the health and uptime of job sources.
+- Refining direct-site text extraction capabilities.
 
-### 1. Discovery
+### 2. Data Enrichment
+**Implemented:**
+- Clear architectural separation between initial discovery and subsequent enrichment.
+- A worker-based queue system handling asynchronous job enrichment.
+- Tracking of enrichment statuses, metadata, and versioning (revisions).
+- Saving snapshot artifacts from the original job source.
 
-Implemented:
+**Pending Enhancements:**
+- Improving the accuracy and structure of the extracted data.
+- Exposing detailed retry logic and backoff schedules to the system operator.
+- Implementing more complex, cascading extraction rules.
 
-- role-driven source subscriptions
-- packaged discovery presets and search templates
-- discovery-first ingestion runs
-- feed events for discovered, enriched, score-changed, and expired jobs
-- Greenhouse, Lever, Workday-style, and direct-source support at MVP depth
+### 3. Match Scoring
+**Implemented:**
+- Dynamic scoring based on the specific target role.
+- Generation of actionable recommendations.
+- Identification of candidate strengths, missing skills, and detailed reasoning for the score.
+- Archiving score snapshots tied directly to specific enrichment revisions.
 
-Still thin:
+**Pending Enhancements:**
+- Integrating stronger semantic matching and deeper ontological understanding.
+- Refining the calibration for compensation and visa requirement matches.
+- Developing more sophisticated scoring for application readiness.
 
-- source coverage breadth
-- source-health diagnostics
-- richer direct-site extraction
+### 4. Resume Tailoring
+**Implemented:**
+- Strict, fact-locked tailoring ensuring no fabrication of experience.
+- Algorithmic emphasis on relevant skills, historical experience, and specific projects.
+- Detailed diff generation highlighting both matched requirements and uncovered gaps.
+- Exporting tailored resumes using multiple theme variants.
+- Automated cover letter generation.
 
-### 2. Enrichment
+**Pending Enhancements:**
+- Improving the ranking logic for individual experience bullet points.
+- Supporting multi-strategy resume families that can be reused.
+- Ensuring the web-based preview more accurately reflects the final PDF export.
 
-Implemented:
+### 5. Application Preparation
+**Implemented:**
+- Assembly of formal "application packets."
+- Execution of preflight readiness checks before allowing a submission attempt.
+- Resolution of application questions with clear provenance back to the canonical profile.
+- Summarization of the packet within the application tracking UI.
 
-- explicit discovery -> enrichment split
-- worker-queued enrichment per job
-- enrichment status, metadata, and revision tracking
-- source snapshot artifact linkage
+**Pending Enhancements:**
+- Enhancing the system's ability to predict unsupported field types before execution begins.
+- Providing deeper, more actionable diagnostic tools for application packets within the admin interface.
 
-Still thin:
+### 6. Automated Execution
+**Implemented:**
+- API-driven creation of queued application runs.
+- Utilizing the asynchronous worker for both enrichment and active application execution.
+- Durable, step-by-step logging of the execution process.
+- Storing browser screenshots as uploaded file artifacts for later review.
+- Identifying anti-bot mechanisms and automatically pausing the run.
+- Supporting an "assisted mode" that pauses for human review before final submission.
+- Treating OTP retrieval as a native, trackable step in the execution pipeline.
+- Enforcing strict Finite State Machine (FSM) transitions for run statuses.
+- Providing the operator with actions to handle paused, failed, or uncertain runs.
 
-- richer structured extraction quality
-- operator-visible retry and backoff detail
-- more advanced extraction cascades
+**Pending Enhancements:**
+- Expanding the library of field adapters to cover a wider variety of ATS controls.
+- Improving handling for complex, multi-page application flows.
+- Developing more reliable heuristics to confirm successful application submissions.
+- Enhancing the logic for restarting runs from intermediate checkpoints.
 
-### 3. Scoring
+## Significant Architectural Shifts
+Since the initial roadmap, several key components have moved from theoretical concepts to baseline infrastructure:
+- The async worker dispatch system is now the primary execution path.
+- The concept of a persistent "application packet" is fully realized in the data model.
+- Step-by-step execution evidence is now durably stored.
+- State transitions are now governed by a formal FSM.
 
-Implemented:
+## Ongoing Priorities
+Future development efforts should focus on:
+1. Expanding field adapter capabilities to handle more diverse and complex ATS structures.
+2. Deepening direct-site enrichment and improving source-health monitoring.
+3. Enhancing the qualitative accuracy of the scoring and tailoring algorithms.
+4. Upgrading the admin interfaces to better manage retries, inspect packets, and diagnose failures.
+5. Implementing live validation for OAuth providers and robust recovery flows for broken connections.
 
-- role-aware scoring
-- recommendation output
-- strengths, missing skills, and reasons
-- score snapshots tied to enrichment revisions
-
-Still thin:
-
-- stronger ontology or semantic matching
-- better compensation and visa calibration
-- more advanced readiness scoring
-
-### 4. Tailoring
-
-Implemented:
-
-- fact-locked tailoring
-- emphasized skills, experience, and projects
-- diff metadata with matched and uncovered requirements
-- theme-aware resume versions
-- cover-letter generation
-
-Still thin:
-
-- stronger experience bullet ranking
-- reusable multi-strategy resume families
-- higher-fidelity preview versus final export
-
-### 5. Preparation
-
-Implemented:
-
-- formal application packet generation
-- preflight readiness checks
-- resolved answers with provenance
-- packet summary in application surfaces
-
-Still thin:
-
-- deeper unsupported-field prediction before runtime
-- richer packet diagnostics in admin surfaces
-
-### 6. Execution
-
-Implemented:
-
-- queued run creation through the API
-- worker-backed enrichment and application execution
-- durable step logging
-- screenshot persistence through uploaded files
-- anti-bot detection with pause
-- assisted pause-before-submit
-- OTP retrieval as a first-class run step
-- formal run FSM transitions
-- operator resume action for paused, failed, and uncertain runs
-
-Still thin:
-
-- broad field adapter coverage
-- more robust multi-page ATS flows
-- stronger submit confirmation heuristics
-- richer restart semantics
-
-## What changed since the original roadmap
-
-The original roadmap assumed these were still open:
-
-- worker dispatch as the main run path
-- persisted application packet model
-- durable step evidence
-- run status transitions
-
-Those are now present and should be treated as baseline architecture, not future work.
-
-## Remaining roadmap priorities
-
-1. Expand field adapter coverage across more ATS controls and multi-page patterns.
-2. Improve direct-site enrichment depth and source-health diagnostics.
-3. Strengthen scoring and tailoring quality, not just breadth.
-4. Improve admin and diagnostics surfaces around retries, packets, and failures.
-5. Add live provider verification and richer OAuth recovery flows.
-
-## Guardrails that remain non-negotiable
-
-1. Canonical profile remains authoritative.
-2. Tailoring may not invent facts.
-3. Risky or unknown answers remain approval-gated.
-4. Sensitive outputs remain masked.
-5. CAPTCHA or anti-bot flows pause rather than bypass.
+## Immutable Safety Rules
+These principles remain non-negotiable regardless of future roadmap changes:
+1. The user's canonical profile is the definitive source of truth.
+2. Tailoring processes are strictly forbidden from inventing facts.
+3. Questions carrying high risk or lacking confident answers must trigger a manual approval gate.
+4. Sensitive data (like OTPs) must be heavily masked in logs and interfaces.
+5. Encounters with CAPTCHAs or anti-bot measures must pause the automation rather than attempt bypass.
