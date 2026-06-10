@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -35,6 +35,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const pushToast = useAppStore((state) => state.pushToast);
   const setSession = useAppStore((state) => state.setSession);
   const session = useAppStore((state) => state.session);
+  const emailId = useId();
+  const passwordId = useId();
   const {
     register,
     handleSubmit,
@@ -88,14 +90,42 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Email</label>
-          <Input {...register("email")} placeholder="you@example.com" />
-          {errors.email ? <p className="text-xs text-rose-300">{errors.email.message}</p> : null}
+          <label htmlFor={emailId} className="text-sm font-medium text-slate-300">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <Input
+            id={emailId}
+            type="email"
+            autoComplete="email"
+            aria-invalid={errors.email ? "true" : "false"}
+            aria-describedby={errors.email ? `${emailId}-error` : undefined}
+            {...register("email")}
+            placeholder="you@example.com"
+          />
+          {errors.email ? (
+            <p id={`${emailId}-error`} role="alert" className="text-xs text-rose-300">
+              {errors.email.message}
+            </p>
+          ) : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Password</label>
-          <Input {...register("password")} type="password" placeholder="At least 8 characters" />
-          {errors.password ? <p className="text-xs text-rose-300">{errors.password.message}</p> : null}
+          <label htmlFor={passwordId} className="text-sm font-medium text-slate-300">
+            Password <span className="text-red-500">*</span>
+          </label>
+          <Input
+            id={passwordId}
+            type="password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            aria-invalid={errors.password ? "true" : "false"}
+            aria-describedby={errors.password ? `${passwordId}-error` : undefined}
+            {...register("password")}
+            placeholder="At least 8 characters"
+          />
+          {errors.password ? (
+            <p id={`${passwordId}-error`} role="alert" className="text-xs text-rose-300">
+              {errors.password.message}
+            </p>
+          ) : null}
         </div>
         <Button className="w-full" disabled={mutation.isPending} type="submit">
           {mutation.isPending ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
