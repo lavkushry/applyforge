@@ -1,0 +1,3 @@
+## 2024-06-11 - Add proper accessibility bindings to form inputs
+**Learning:** Found a specific accessibility issue pattern in the app's form components where `<label>` and `<Input>` were not linked via `htmlFor` and `id`, and error messages were missing `aria-invalid`, `aria-describedby`, and `role="alert"`. This made the form difficult for screen readers to navigate and announce errors contextually.
+**Action:** When creating or modifying forms in this app, explicitly generate IDs using React's `useId()` and use them to bind labels (`htmlFor`) to inputs (`id`), and error messages (`id`) to inputs via `aria-describedby` alongside `aria-invalid` and `role="alert"`.
