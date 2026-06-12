@@ -45,7 +45,7 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
 
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
-    safe_name = Path(filename).name
+    safe_name = Path(filename.replace("\\", "/")).name
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
     return str(target)
