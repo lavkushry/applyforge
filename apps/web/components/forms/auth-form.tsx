@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -43,6 +43,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     resolver: zodResolver(schema),
     defaultValues: mode === "signin" && enableBootstrapLogin ? defaultSignInValues : undefined,
   });
+
+  const emailId = useId();
+  const passwordId = useId();
 
   useEffect(() => {
     if (mode === "signin" && session) {
@@ -88,14 +91,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Email</label>
-          <Input {...register("email")} placeholder="you@example.com" />
-          {errors.email ? <p className="text-xs text-rose-300">{errors.email.message}</p> : null}
+          <label htmlFor={emailId} className="text-sm text-slate-300">Email</label>
+          <Input {...register("email")} id={emailId} aria-invalid={!!errors.email} aria-describedby={errors.email ? `${emailId}-error` : undefined} placeholder="you@example.com" />
+          {errors.email ? <p id={`${emailId}-error`} role="alert" className="text-xs text-rose-300">{errors.email.message}</p> : null}
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-300">Password</label>
-          <Input {...register("password")} type="password" placeholder="At least 8 characters" />
-          {errors.password ? <p className="text-xs text-rose-300">{errors.password.message}</p> : null}
+          <label htmlFor={passwordId} className="text-sm text-slate-300">Password</label>
+          <Input {...register("password")} id={passwordId} aria-invalid={!!errors.password} aria-describedby={errors.password ? `${passwordId}-error` : undefined} type="password" placeholder="At least 8 characters" />
+          {errors.password ? <p id={`${passwordId}-error`} role="alert" className="text-xs text-rose-300">{errors.password.message}</p> : null}
         </div>
         <Button className="w-full" disabled={mutation.isPending} type="submit">
           {mutation.isPending ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
