@@ -1,0 +1,4 @@
+## 2024-10-25 - Path Traversal via Backslashes on POSIX
+**Vulnerability:** Path traversal vulnerability due to unnormalized backslashes in user-uploaded filenames.
+**Learning:** On POSIX systems, `Path(filename).name` does not treat backslashes as directory separators. If a filename contains backslashes (e.g., `..\..\passwd`), they are treated as literal characters in the filename, bypassing simple path name extraction and potentially causing path traversal if the file is later processed by Windows or other systems.
+**Prevention:** Always normalize backslashes to forward slashes (`filename.replace("\", "/")`) before parsing user-provided paths with `Path`.
