@@ -1,0 +1,3 @@
+## 2025-02-27 - Consolidated Wizard Summary Query
+**Learning:** The wizard summary endpoint performed 6 separate sequential database queries to compute dashboard metrics, causing unnecessary N+1 round-trips. We can consolidate multiple `count()`, `exists()`, and field retrievals into a single `db.execute()` call by using `scalar_subquery()` directly within a primary `select()`.
+**Action:** When building dashboard or summary endpoints that need multiple independent aggregates or existence checks for a specific user, use a unified `select()` with `scalar_subquery()` columns to fetch all metrics in a single database round-trip.
