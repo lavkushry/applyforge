@@ -1,0 +1,3 @@
+## 2025-03-05 - Batch Job Fetching N+1 Query Optimization
+**Learning:** Ingestion services iterating through payloads suffer from N+1 query problems when fetching individual Job records by `dedupe_key`. Also, caching lookup objects inside loop requires manual cache updates (e.g. `existing_jobs[dedupe_key] = job`) after `db.add()`/`db.flush()` to prevent duplication of newly added elements later in the loop.
+**Action:** Implement two-pass loop (normalization -> batch `.in_(keys)` query -> insertion) instead of `db.query(...).first()` per element, and always update the dictionary cache synchronously right after DB flush.
