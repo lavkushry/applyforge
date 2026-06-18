@@ -1,0 +1,3 @@
+## 2024-06-18 - Form Accessibility Disconnects
+**Learning:** Standard HTML labels without `htmlFor` do not implicitly associate with custom React `Input` components unless they wrap the input. The app uses adjacent `<label>` and `<Input>` components. This breaks screen reader accessibility and prevents clicking the label to focus the input. Furthermore, React Hook Form validations don't automatically announce to screen readers without `aria-invalid`, `aria-describedby`, and `role="alert"`.
+**Action:** Always explicitly link `<label>` and `<Input>` pairs with `htmlFor` and `id`, and explicitly map validation errors using `aria-invalid` and `aria-describedby` when building custom form layouts.
