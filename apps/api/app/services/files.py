@@ -34,6 +34,8 @@ def sha256_bytes(content: bytes) -> str:
 
 
 def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int) -> None:
+    # Prevent path traversal by normalizing backslashes
+    filename = filename.replace("\\", "/")
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_UPLOAD_EXTENSIONS:
         raise ValueError("Unsupported file extension")
@@ -45,6 +47,8 @@ def validate_resume_upload(filename: str, mime_type: str | None, size_bytes: int
 
 def save_upload(filename: str, content: bytes) -> str:
     ensure_directory(settings.storage_path)
+    # Prevent path traversal by normalizing backslashes
+    filename = filename.replace("\\", "/")
     safe_name = Path(filename).name
     target = Path(settings.storage_path) / f"{uuid4()}_{safe_name}"
     target.write_bytes(content)
