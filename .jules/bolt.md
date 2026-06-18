@@ -1,0 +1,3 @@
+## 2024-05-18 - Two-Pass Batching
+**Learning:** N+1 queries when ingesting jobs can be eliminated with a two-pass pattern (collecting dedupe keys and doing a `.in_()` batch fetch), but the lookup cache must be updated immediately after any `db.add()` and `db.flush()` inside the second pass loop. Otherwise, cross-source duplicates or duplicates within the exact same ingestion run will be missed and result in database constraint errors.
+**Action:** When converting N+1 iterations to a two-pass batching pattern, ensure that any mutation inside the iteration updates the corresponding local batch cache.
