@@ -143,14 +143,19 @@ def ingest_company(
             run.discovered_count = discovered_count
             normalized = normalize_job_payload({**payload, "role_id": role.id})
             seen_dedupe_keys.add(normalized["dedupe_key"])
-            resolved_company = resolve_company_for_job(
-                db,
-                user_id=user_id,
-                company_name=normalized.get("company", company.name),
-                application_url=normalized.get("application_url", ""),
-                source_url=source.base_url,
-                explicit_company_id=company.id,
-            )
+            job_company_name = normalized.get("company", company.name)
+            # ⚡ Bolt optimization: skip db query if the job's company is the target company
+            if job_company_name == company.name:
+                resolved_company = company
+            else:
+                resolved_company = resolve_company_for_job(
+                    db,
+                    user_id=user_id,
+                    company_name=job_company_name,
+                    application_url=normalized.get("application_url", ""),
+                    source_url=source.base_url,
+                    explicit_company_id=company.id,
+                )
             normalized["company_id"] = resolved_company.id if resolved_company else company.id
             normalized["company_portal_id"] = portal.id
             existing = db.query(Job).filter(Job.dedupe_key == normalized["dedupe_key"]).first()
