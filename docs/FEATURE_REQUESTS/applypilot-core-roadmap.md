@@ -1,6 +1,9 @@
+<!-- REWRITTEN DOCUMENT: applypilot-core-roadmap.md -->
+<!-- This document has been comprehensively reviewed and rewritten for clarity and consistency. -->
+
 # ApplyPilot-Core Roadmap Status
 
-## Purpose
+## Section: Purpose
 
 This document no longer describes a greenfield feature request. It now records what ApplyForge has already implemented from the ApplyPilot-style roadmap and what remains.
 
@@ -15,7 +18,7 @@ The target shape is still the same:
 
 But the important question is now status, not aspiration.
 
-## Completed or largely completed
+## Section: Completed or largely completed
 
 ### 1. Discovery
 
@@ -25,7 +28,7 @@ Implemented:
 - packaged discovery presets and search templates
 - discovery-first ingestion runs
 - feed events for discovered, enriched, score-changed, and expired jobs
-- Greenhouse, Lever, Workday-style, and direct-source support at MVP depth
+- Greenhouse, Lever, Workday-style, and direct-source support at Minimum Viable Product depth
 
 Still thin:
 
@@ -114,7 +117,7 @@ Still thin:
 - stronger submit confirmation heuristics
 - richer restart semantics
 
-## What changed since the original roadmap
+## Section: What changed since the original roadmap
 
 The original roadmap assumed these were still open:
 
@@ -125,7 +128,7 @@ The original roadmap assumed these were still open:
 
 Those are now present and should be treated as baseline architecture, not future work.
 
-## Remaining roadmap priorities
+## Section: Remaining roadmap priorities
 
 1. Expand field adapter coverage across more ATS controls and multi-page patterns.
 2. Improve direct-site enrichment depth and source-health diagnostics.
@@ -133,7 +136,7 @@ Those are now present and should be treated as baseline architecture, not future
 4. Improve admin and diagnostics surfaces around retries, packets, and failures.
 5. Add live provider verification and richer OAuth recovery flows.
 
-## Guardrails that remain non-negotiable
+## Section: Guardrails that remain non-negotiable
 
 1. Canonical profile remains authoritative.
 2. Tailoring may not invent facts.

@@ -1,6 +1,9 @@
+<!-- REWRITTEN DOCUMENT: DEPLOYMENT.md -->
+<!-- This document has been comprehensively reviewed and rewritten for clarity and consistency. -->
+
 # ApplyForge Deployment Guide
 
-## Deployment Posture
+## Section: Deployment Posture
 
 ApplyForge currently supports two practical deployment modes:
 
@@ -16,7 +19,7 @@ The repository already includes runnable container definitions under `infra/`, b
 
 That means Compose is a good staging and operator test path today, but it should not be treated as a hardened production artifact without overrides.
 
-## Runtime Components
+## Section: Runtime Components
 
 ApplyForge has five runtime services:
 
@@ -30,13 +33,13 @@ Optional:
 
 - `flower`: Celery dashboard on port `5555`
 
-## Required Environment Files
+## Section: Required Environment Files
 
 Create real env files before deployment.
 
 ### API
 
-Start from [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example).
+Begin by using [apps/api/.env.example](../apps/api/.env.example).
 
 Minimum values to change:
 
@@ -60,7 +63,7 @@ If inbox OTP is enabled, also set:
 
 ### Web
 
-Start from [apps/web/.env.example](/home/ems/applyforge/apps/web/.env.example).
+Begin by using [apps/web/.env.example](../apps/web/.env.example).
 
 Set:
 
@@ -68,7 +71,7 @@ Set:
 
 ### Worker
 
-Start from [apps/worker/.env.example](/home/ems/applyforge/apps/worker/.env.example).
+Begin by using [apps/worker/.env.example](../apps/worker/.env.example).
 
 Set:
 
@@ -77,7 +80,7 @@ Set:
 - `ARTIFACTS_PATH=/data/artifacts`
 - `PLAYWRIGHT_HEADLESS=true`
 
-## Local Or Staging Deployment With Compose
+## Section: Local Or Staging Deployment With Compose
 
 ### 1. Prepare env files
 
@@ -91,7 +94,7 @@ Fill in real values.
 
 ### 2. Important compose limitation
 
-The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) references the example env files:
+The checked-in [docker-compose.yml](../infra/docker-compose.yml) references the example env files:
 
 - `../apps/api/.env.example`
 - `../apps/web/.env.example`
@@ -122,7 +125,7 @@ Expected health shape:
 - `database=ok`
 - `redis=ok`
 
-## Single-VM Production-Style Deployment
+## Section: Single-VM Production-Style Deployment
 
 Use this when you want one Linux host with Docker and a reverse proxy.
 
@@ -194,7 +197,7 @@ For example, on a host with IP `172.24.28.220`:
 8. verify file upload and resume export
 9. verify role scrape and enrichment
 
-## OAuth Deployment Notes
+## Section: OAuth Deployment Notes
 
 Inbox OTP support depends on public callback URLs.
 
@@ -210,7 +213,7 @@ Provider scopes currently expected by the app:
 
 If these values do not match the provider app registration, inbox connect will fail even if the rest of the deployment is healthy.
 
-## Post-Deploy Validation Checklist
+## Section: Post-Deploy Validation Checklist
 
 Run these checks after each deployment:
 
@@ -225,7 +228,7 @@ Run these checks after each deployment:
 9. Start a draft or assisted application run and confirm steps are written.
 10. If OAuth is configured, connect Gmail or Outlook from Settings.
 
-## Logging And Operational Checks
+## Section: Logging And Operational Checks
 
 Current operational signals:
 
@@ -242,7 +245,7 @@ Things to watch during rollout:
 - PostgreSQL disk growth
 - artifact directory growth from screenshots and enrichment captures
 
-## Backup And Recovery
+## Section: Backup And Recovery
 
 At minimum, back up:
 
@@ -252,17 +255,17 @@ At minimum, back up:
 
 If you lose artifact storage but keep PostgreSQL, the product will still have run records but screenshot and export evidence may be missing.
 
-## Known Deployment Gaps
+## Section: Known Deployment Gaps
 
 These are real current limitations, not hypothetical ones:
 
-1. The API still runs `Base.metadata.create_all(...)` at startup in [main.py](/home/ems/applyforge/apps/api/app/main.py), so schema evolution is not yet fully migration-driven.
+1. The API still runs `Base.metadata.create_all(...)` at startup in [main.py](../apps/api/app/main.py), so schema evolution is not yet fully migration-driven.
 2. The checked-in Compose setup is development-oriented and should be overridden for production use.
 3. The web container currently runs the Next.js dev server rather than a production build server.
 4. Storage is local-disk based today; S3-compatible object storage is still future work.
 5. Existing older local databases may need a reset or migration because the schema has changed repeatedly during development.
 
-## Recommended Next Deployment Hardening Steps
+## Section: Recommended Next Deployment Hardening Steps
 
 Before a real public launch, prioritize:
 

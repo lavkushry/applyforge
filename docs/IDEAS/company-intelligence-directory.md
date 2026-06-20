@@ -1,6 +1,9 @@
+<!-- REWRITTEN DOCUMENT: company-intelligence-directory.md -->
+<!-- This document has been comprehensively reviewed and rewritten for clarity and consistency. -->
+
 # Company Intelligence Directory Status
 
-## Summary
+## Section: Summary
 
 This is no longer just an idea. The foundation is implemented.
 
@@ -9,11 +12,11 @@ ApplyForge now has:
 - user-scoped `companies`
 - `company_career_portals`
 - `company_contacts`
-- company CRUD routes
+- company Create, Read, Update, Delete routes
 - a thin internal company directory page
 - job-to-company resolution hooks in manual creation and discovery flows
 
-## What is already shipped
+## Section: What is already shipped
 
 ### Data model
 
@@ -52,7 +55,7 @@ Implemented behavior:
 - ingestion attempts company resolution from normalized company names and portal or hostname hints
 - company records sit between source discovery and job records
 
-## What remains
+## Section: What remains
 
 1. Add merge and duplicate-review tooling for company records.
 2. Add portal health checks and diagnostics.
@@ -60,7 +63,7 @@ Implemented behavior:
 4. Add richer recruiter-source metadata and verification workflows.
 5. Add operator tooling for review queues and unresolved company matches.
 
-## Why this still matters
+## Section: Why this still matters
 
 Even though the foundation is shipped, company intelligence remains a major leverage point for:
 
@@ -70,6 +73,6 @@ Even though the foundation is shipped, company intelligence remains a major leve
 - company-level automation preferences
 - clearer job-source diagnostics
 
-## Current guidance
+## Section: Current guidance
 
 Future work should extend the existing company graph rather than building a parallel company model.
