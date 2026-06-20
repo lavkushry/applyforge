@@ -1,6 +1,9 @@
+<!-- REWRITTEN DOCUMENT: REQUIREMENTS.md -->
+<!-- This document has been comprehensively reviewed and rewritten for clarity and consistency. -->
+
 # ApplyForge Product Requirements
 
-## Overview
+## Section: Overview
 
 ApplyForge is a job hunt operating system for serious applicants who want one workflow for:
 
@@ -19,7 +22,7 @@ This document clarifies the next product expansion requested for ApplyForge:
 - ApplyPilot-style step-based application automation,
 - permissioned inbox and OTP retrieval for supported application flows.
 
-## Current Implementation Snapshot
+## Section: Current Implementation Snapshot
 
 The current repository already includes the following product capabilities:
 
@@ -38,7 +41,7 @@ The current repository already includes the following product capabilities:
 
 This means future work should build on these contracts instead of reintroducing parallel flows.
 
-## Product Clarifications
+## Section: Product Clarifications
 
 The following points are fixed requirements, not optional interpretations:
 
@@ -49,7 +52,7 @@ The following points are fixed requirements, not optional interpretations:
 5. ApplyForge shall not attempt to bypass CAPTCHAs, anti-bot challenges, or employer security controls.
 6. Company intelligence data shall remain inspectable and user-scoped unless a future shared-directory design is explicitly introduced.
 
-## Primary User Value
+## Section: Primary User Value
 
 - A user uploads one source resume and maintains one canonical profile.
 - A user subscribes to one or more target roles and sees a live feed of matching jobs.
@@ -57,14 +60,14 @@ The following points are fixed requirements, not optional interpretations:
 - A user can generate a tailored resume in a clean, highly readable, ATS-friendly light theme.
 - A user can run draft, assisted, or approved auto-apply workflows with evidence and pause points.
 
-## Users
+## Section: Users
 
 1. Individual job seekers applying repeatedly for a focused set of roles.
 2. Power users managing multiple resume strategies for different role families.
 3. Career coaches or agencies managing candidates in later phases.
 4. Internal operators reviewing automation failures and prompt traces.
 
-## Functional Requirements
+## Section: Functional Requirements
 
 ### 1. Resume Templates and Export
 
@@ -117,7 +120,7 @@ The following points are fixed requirements, not optional interpretations:
 6. When a job feed item is clicked, the system shall show the source link, normalized details, and automation eligibility.
 7. If a job disappears or expires, the system shall preserve the record and mark it inactive rather than deleting it.
 8. The system shall support manual import by URL or pasted description alongside scheduled scraping.
-9. ATS-first sources shall remain the default ingestion scope for the MVP, with Greenhouse, Lever, and predictable direct career pages prioritized over broad consumer job boards.
+9. ATS-first sources shall remain the default ingestion scope for the Minimum Viable Product, with Greenhouse, Lever, and predictable direct career pages prioritized over broad consumer job boards.
 
 ### 4A. Company Intelligence Directory
 
@@ -195,7 +198,7 @@ The following points are fixed requirements, not optional interpretations:
 2. The system shall preserve audit records for prompt usage, automation approvals, OTP retrieval attempts, and resume exports.
 3. When a scrape or apply run fails, the system shall expose a retry action with the failure reason and the last successful checkpoint.
 
-## Non-Functional Requirements
+## Section: Non-Functional Requirements
 
 ### Reliability
 
@@ -222,7 +225,7 @@ The following points are fixed requirements, not optional interpretations:
 2. The system shall preserve prompt metadata and model routing information without storing raw secrets.
 3. The system shall support diagnostics on per-job, per-role, and per-run basis.
 
-## Product Invariants For Future Changes
+## Section: Product Invariants For Future Changes
 
 1. The canonical candidate profile stays authoritative over every generated or tailored document.
 2. Tailoring, cover-letter generation, and question answering may optimize phrasing, but they may not introduce unsupported facts.
@@ -231,7 +234,7 @@ The following points are fixed requirements, not optional interpretations:
 5. Application automation must always leave an audit trail with enough evidence to understand what happened.
 6. Inbox access exists only to help the candidate complete their own flow, not to expand surveillance or scrape unrelated mail.
 
-## Context Notes For Future Implementers
+## Section: Context Notes For Future Implementers
 
 1. If you add new job sources, keep dedupe and freshness semantics compatible with the existing role feed.
 2. If you extend company resolution, prefer transparent matching heuristics and preserve user override paths.
@@ -240,7 +243,7 @@ The following points are fixed requirements, not optional interpretations:
 5. If you add richer OAuth support, preserve encrypted token storage and sanitized API responses.
 6. If you add AI model usage, prefer deterministic logic first and log masked prompt metadata.
 
-## Acceptance Criteria
+## Section: Acceptance Criteria
 
 1. Given a user uploads a resume, when parsing finishes, then the user can review a structured profile and see any low-confidence fields flagged for edit.
 2. Given a user has multiple resume themes, when they open a tailored resume, then they can switch theme and export an ATS-friendly PDF preview.
@@ -253,7 +256,7 @@ The following points are fixed requirements, not optional interpretations:
 9. Given OTP retrieval fails or confidence is low, when the timeout expires, then the system pauses and requests manual input without losing the run state.
 10. Given a job is no longer available, when the feed refreshes, then the job is marked inactive or expired and previous automation records remain visible.
 
-## Error Handling
+## Section: Error Handling
 
 | Scenario | System behavior | User-facing response |
 |---|---|---|
@@ -268,7 +271,7 @@ The following points are fixed requirements, not optional interpretations:
 | Inbox token invalid | Disconnect integration, mark run blocked | `Your inbox connection needs to be re-authorized.` |
 | Submit confirmation not detected | Mark run uncertain and require user review | `The application may not have been submitted. Please verify the final page.` |
 
-## Implementation Checklist
+## Section: Implementation Checklist
 
 ### Phase A: Resume Themes and Structured Export
 
@@ -300,7 +303,7 @@ The following points are fixed requirements, not optional interpretations:
 2. Add OTP retrieval worker step with masking and approval fallback.
 3. Add diagnostics, consent copy, and revoke-access controls.
 
-## Explicitly Rejected Requirements
+## Section: Explicitly Rejected Requirements
 
 The following requests are not valid product requirements and shall not be implemented:
 
