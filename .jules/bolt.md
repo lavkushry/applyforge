@@ -1,0 +1,4 @@
+
+## $(date +%Y-%m-%d) - Consolidated Dashboard Queries Using `scalar_subquery()`
+**Learning:** In SQLAlchemy 2.0 (especially when using PostgreSQL JSONB or sqlite in tests), combining multiple `func.count()` or `exists()` checks into a single query via `select(select(...).exists())` or similar row-level queries can fail with `sqlite3.OperationalError: sub-select returns 2 columns - expected 1` if not properly using `.scalar_subquery()` for each sub-select clause.
+**Action:** When refactoring multiple database queries into one round-trip for performance, always use `.scalar_subquery()` on each selected property instead of relying on default row-tuple mapping, and extract JSON or Array columns using standard truthy checks instead of `is not None` to correctly handle both nulls and empty structures on the Python side.
