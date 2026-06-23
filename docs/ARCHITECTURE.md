@@ -280,39 +280,39 @@ Primary tables:
 
 ### Resume and document flows
 
-- [resume_parser.py](/home/ems/applyforge/apps/api/app/services/resume_parser.py)
-- [resume_themes.py](/home/ems/applyforge/apps/api/app/services/resume_themes.py)
-- [resume_templates.py](/home/ems/applyforge/apps/api/app/services/resume_templates.py)
-- [files.py](/home/ems/applyforge/apps/api/app/services/files.py)
-- [resume_templates.py](/home/ems/applyforge/apps/api/app/api/routes/resume_templates.py)
+- [resume_parser.py](../apps/api/app/services/resume_parser.py)
+- [resume_themes.py](../apps/api/app/services/resume_themes.py)
+- [resume_templates.py](../apps/api/app/services/resume_templates.py)
+- [files.py](../apps/api/app/services/files.py)
+- [resume_templates.py](../apps/api/app/api/routes/resume_templates.py)
 
 ### Discovery and scoring
 
-- [role_ingestion.py](/home/ems/applyforge/apps/api/app/services/role_ingestion.py)
-- [job_dispatch.py](/home/ems/applyforge/apps/api/app/services/job_dispatch.py)
-- [job_enrichment.py](/home/ems/applyforge/apps/api/app/services/job_enrichment.py)
-- [company_directory.py](/home/ems/applyforge/apps/api/app/services/company_directory.py)
-- [scoring.py](/home/ems/applyforge/apps/api/app/services/scoring.py)
+- [role_ingestion.py](../apps/api/app/services/role_ingestion.py)
+- [job_dispatch.py](../apps/api/app/services/job_dispatch.py)
+- [job_enrichment.py](../apps/api/app/services/job_enrichment.py)
+- [company_directory.py](../apps/api/app/services/company_directory.py)
+- [scoring.py](../apps/api/app/services/scoring.py)
 
 ### Automation and preferences
 
-- [application_packets.py](/home/ems/applyforge/apps/api/app/services/application_packets.py)
-- [application_fsm.py](/home/ems/applyforge/apps/api/app/services/application_fsm.py)
-- [user_preferences.py](/home/ems/applyforge/apps/api/app/services/user_preferences.py)
-- [applications.py](/home/ems/applyforge/apps/api/app/api/routes/applications.py)
-- [application_runs.py](/home/ems/applyforge/apps/api/app/api/routes/application_runs.py)
-- [playwright_runner.py](/home/ems/applyforge/apps/worker/app/playwright_runner.py)
-- [persistence.py](/home/ems/applyforge/apps/worker/app/persistence.py)
-- [run_fsm.py](/home/ems/applyforge/apps/worker/app/run_fsm.py)
+- [application_packets.py](../apps/api/app/services/application_packets.py)
+- [application_fsm.py](../apps/api/app/services/application_fsm.py)
+- [user_preferences.py](../apps/api/app/services/user_preferences.py)
+- [applications.py](../apps/api/app/api/routes/applications.py)
+- [application_runs.py](../apps/api/app/api/routes/application_runs.py)
+- [playwright_runner.py](../apps/worker/app/playwright_runner.py)
+- [persistence.py](../apps/worker/app/persistence.py)
+- [run_fsm.py](../apps/worker/app/run_fsm.py)
 
 ### UX surfaces
 
-- [resume/page.tsx](/home/ems/applyforge/apps/web/app/resume/page.tsx)
-- [jobs/page.tsx](/home/ems/applyforge/apps/web/app/jobs/page.tsx)
-- [applications/page.tsx](/home/ems/applyforge/apps/web/app/applications/page.tsx)
-- [settings-form.tsx](/home/ems/applyforge/apps/web/components/forms/settings-form.tsx)
-- [companies/page.tsx](/home/ems/applyforge/apps/web/app/companies/page.tsx)
-- [wizard/page.tsx](/home/ems/applyforge/apps/web/app/wizard/page.tsx)
+- [resume/page.tsx](../apps/web/app/resume/page.tsx)
+- [jobs/page.tsx](../apps/web/app/jobs/page.tsx)
+- [applications/page.tsx](../apps/web/app/applications/page.tsx)
+- [settings-form.tsx](../apps/web/components/forms/settings-form.tsx)
+- [companies/page.tsx](../apps/web/app/companies/page.tsx)
+- [wizard/page.tsx](../apps/web/app/wizard/page.tsx)
 
 ## Migration Note
 
