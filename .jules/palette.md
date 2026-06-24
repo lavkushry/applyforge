@@ -1,0 +1,3 @@
+## 2024-06-25 - Ensure focus-visible on core inputs and buttons
+**Learning:** Core UI elements (Button, Input, Textarea) were lacking distinct `focus-visible` styling, which is a critical accessibility issue for keyboard users who rely on visual focus indicators to navigate. While some elements had general `focus` states, they lacked explicit `focus-visible` rings.
+**Action:** Always ensure that fundamental interactive components ship with clear, high-contrast `focus-visible` styles (e.g. using Tailwind's `focus-visible:ring-2 focus-visible:ring-cyan-400`) by default so that all instances throughout the app remain accessible.
