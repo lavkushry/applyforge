@@ -12,7 +12,7 @@ Use this if you want:
 
 ## What Starts
 
-The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) starts:
+The checked-in [docker-compose.yml](../infra/docker-compose.yml) starts:
 
 - `db` on `5432`
 - `redis` on `6379`
@@ -49,7 +49,7 @@ docker compose version
 This uses the checked-in example env files as they are.
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose up --build
 ```
 
@@ -80,13 +80,13 @@ Important:
 If you want real local secrets or OAuth credentials, create local env files first:
 
 ```bash
-cp /home/ems/applyforge/apps/api/.env.example /home/ems/applyforge/apps/api/.env
-cp /home/ems/applyforge/apps/web/.env.example /home/ems/applyforge/apps/web/.env.local
-cp /home/ems/applyforge/apps/worker/.env.example /home/ems/applyforge/apps/worker/.env
-cp /home/ems/applyforge/infra/.env.example /home/ems/applyforge/infra/.env
+cp ../apps/api/.env.example ../apps/api/.env
+cp ../apps/web/.env.example ../apps/web/.env.local
+cp ../apps/worker/.env.example ../apps/worker/.env
+cp ../infra/.env.example ../infra/.env
 ```
 
-Then set the host IP in `/home/ems/applyforge/infra/.env`:
+Then set the host IP in `../infra/.env`:
 
 ```bash
 PUBLIC_HOST=172.24.28.220
@@ -95,7 +95,7 @@ PUBLIC_HOST=172.24.28.220
 Then start:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose up --build
 ```
 
@@ -115,7 +115,7 @@ Docker-internal traffic still uses service names:
 Once the stack is up, seed demo data from another terminal:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose exec api python -m app.db.seed
 ```
 
@@ -183,28 +183,28 @@ If you are testing from another machine on the network, use:
 Start in background:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose up --build -d
 ```
 
 Follow logs:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose logs -f api worker web
 ```
 
 Stop the stack:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose down
 ```
 
 Stop and remove volumes:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose down -v
 ```
 
@@ -239,14 +239,14 @@ The provider app registration must match those URIs exactly.
 
 ### Port already in use
 
-If `3000`, `5432`, `6379`, `8000`, or `5555` is already taken, stop the conflicting process or change the published port mapping in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml).
+If `3000`, `5432`, `6379`, `8000`, or `5555` is already taken, stop the conflicting process or change the published port mapping in [docker-compose.yml](../infra/docker-compose.yml).
 
 ### Worker not processing tasks
 
 Check:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose logs -f worker redis
 ```
 
@@ -257,7 +257,7 @@ The API currently creates tables at startup, but older local databases may still
 If needed, reset local state:
 
 ```bash
-cd /home/ems/applyforge/infra
+cd ../infra
 docker compose down -v
 docker compose up --build
 ```
@@ -273,6 +273,6 @@ Make sure your API env file includes:
 
 ## Related Docs
 
-- [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md)
-- [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md)
-- [README.md](/home/ems/applyforge/README.md)
+- [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)
+- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)
+- [README.md](../README.md)
