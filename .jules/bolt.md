@@ -1,0 +1,3 @@
+## 2024-06-25 - Consolidate wizard dashboard queries to fix N+1
+**Learning:** Dashboard-style endpoints (like `wizard_summary`) performing multiple independent counts and existence checks can be safely consolidated into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement.
+**Action:** When replacing `.first()` and multiple scalar queries, consolidate them using `select(column).limit(1).scalar_subquery()` to reduce database round-trips. Be careful with `is not None` and `exists()` clauses wrapper.
