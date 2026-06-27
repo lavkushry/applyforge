@@ -1,0 +1,3 @@
+## 2024-05-18 - Optimize Dashboard Summary Queries
+**Learning:** In SQLAlchemy, dashboard-style endpoints doing multiple `.count()` or `.exists()` queries cause significant N+1-like overhead. Consolidating them into a single round-trip using `scalar_subquery()` and wrapping multiple subqueries in one `select(...)` is a massive optimization. Note: Wrap `exists()` inside a secondary select (e.g., `select(select(Model.id).where(...).exists()).scalar_subquery()`) to prevent AttributeError.
+**Action:** When seeing 3+ independent aggregations (counts/exists) in an endpoint, consolidate them into a single `db.execute()` with scalar subqueries to reduce DB latency.
