@@ -1,142 +1,42 @@
-# ApplyPilot-Core Roadmap Status
+# ApplyForge Roadmap: ApplyPilot Core Parity
 
-## Purpose
+This document tracks the progress toward achieving feature parity with the conceptual ApplyPilot product roadmap.
 
-This document no longer describes a greenfield feature request. It now records what ApplyForge has already implemented from the ApplyPilot-style roadmap and what remains.
+## Objective
 
-The target shape is still the same:
+The goal is to evolve ApplyForge into a comprehensive, end-to-end job search automation platform that significantly reduces the friction of discovering, tracking, and applying for relevant roles.
 
-1. discover
-2. enrich
-3. score
-4. tailor
-5. prepare
-6. execute
+## Phase 1: Foundation & Discovery (Completed)
 
-But the important question is now status, not aspiration.
+- [x] Basic user authentication and session management.
+- [x] Canonical profile creation and resume parsing integration.
+- [x] Manual job URL ingestion and basic data normalization.
+- [x] Implementation of the core job scoring algorithm based on profile fit.
+- [x] Development of the fundamental web dashboard and job tracking list.
+- [x] Role-based discovery presets for targeted job searching.
 
-## Completed or largely completed
+## Phase 2: Document Intelligence (Completed)
 
-### 1. Discovery
+- [x] Dynamic resume tailoring prioritizing existing facts over hallucination.
+- [x] Integration of PDF generation tools for ATS-compliant resume exports.
+- [x] Support for Markdown and LaTeX resume starter templates.
+- [x] Basic cover letter generation aligned with specific job descriptions.
+- [x] Centralized application tracking board within the web interface.
 
-Implemented:
+## Phase 3: Automation Execution (In Progress)
 
-- role-driven source subscriptions
-- packaged discovery presets and search templates
-- discovery-first ingestion runs
-- feed events for discovered, enriched, score-changed, and expired jobs
-- Greenhouse, Lever, Workday-style, and direct-source support at MVP depth
+- [x] Implementation of the Finite State Machine (FSM) for application runs.
+- [x] Integration of the Celery/Playwright worker for browser automation.
+- [x] Support for "assisted" application modes requiring manual review checkpoints.
+- [x] Capture and storage of diagnostic screenshots during automation failures.
+- [ ] Expansion of automated field mapping to support a wider array of ATS platforms (e.g., Workday, Greenhouse, Lever).
+- [ ] Full implementation of "auto-run" mode for highly confident application submissions.
+- [ ] Comprehensive handling of complex form inputs (e.g., dynamic dropdowns, multi-page forms).
 
-Still thin:
+## Phase 4: Enterprise & Scale (Planned)
 
-- source coverage breadth
-- source-health diagnostics
-- richer direct-site extraction
-
-### 2. Enrichment
-
-Implemented:
-
-- explicit discovery -> enrichment split
-- worker-queued enrichment per job
-- enrichment status, metadata, and revision tracking
-- source snapshot artifact linkage
-
-Still thin:
-
-- richer structured extraction quality
-- operator-visible retry and backoff detail
-- more advanced extraction cascades
-
-### 3. Scoring
-
-Implemented:
-
-- role-aware scoring
-- recommendation output
-- strengths, missing skills, and reasons
-- score snapshots tied to enrichment revisions
-
-Still thin:
-
-- stronger ontology or semantic matching
-- better compensation and visa calibration
-- more advanced readiness scoring
-
-### 4. Tailoring
-
-Implemented:
-
-- fact-locked tailoring
-- emphasized skills, experience, and projects
-- diff metadata with matched and uncovered requirements
-- theme-aware resume versions
-- cover-letter generation
-
-Still thin:
-
-- stronger experience bullet ranking
-- reusable multi-strategy resume families
-- higher-fidelity preview versus final export
-
-### 5. Preparation
-
-Implemented:
-
-- formal application packet generation
-- preflight readiness checks
-- resolved answers with provenance
-- packet summary in application surfaces
-
-Still thin:
-
-- deeper unsupported-field prediction before runtime
-- richer packet diagnostics in admin surfaces
-
-### 6. Execution
-
-Implemented:
-
-- queued run creation through the API
-- worker-backed enrichment and application execution
-- durable step logging
-- screenshot persistence through uploaded files
-- anti-bot detection with pause
-- assisted pause-before-submit
-- OTP retrieval as a first-class run step
-- formal run FSM transitions
-- operator resume action for paused, failed, and uncertain runs
-
-Still thin:
-
-- broad field adapter coverage
-- more robust multi-page ATS flows
-- stronger submit confirmation heuristics
-- richer restart semantics
-
-## What changed since the original roadmap
-
-The original roadmap assumed these were still open:
-
-- worker dispatch as the main run path
-- persisted application packet model
-- durable step evidence
-- run status transitions
-
-Those are now present and should be treated as baseline architecture, not future work.
-
-## Remaining roadmap priorities
-
-1. Expand field adapter coverage across more ATS controls and multi-page patterns.
-2. Improve direct-site enrichment depth and source-health diagnostics.
-3. Strengthen scoring and tailoring quality, not just breadth.
-4. Improve admin and diagnostics surfaces around retries, packets, and failures.
-5. Add live provider verification and richer OAuth recovery flows.
-
-## Guardrails that remain non-negotiable
-
-1. Canonical profile remains authoritative.
-2. Tailoring may not invent facts.
-3. Risky or unknown answers remain approval-gated.
-4. Sensitive outputs remain masked.
-5. CAPTCHA or anti-bot flows pause rather than bypass.
+- [ ] Migration from local disk storage to S3-compatible object storage for all artifacts.
+- [ ] Implementation of full database schema migrations using Alembic for production stability.
+- [ ] Multi-tenant support to enable agency workflows and team-based collaborations.
+- [ ] Advanced analytics dashboard detailing application success rates and pipeline bottlenecks.
+- [ ] Browser extension for one-click job ingestion directly from external job boards.
