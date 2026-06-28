@@ -1,75 +1,34 @@
-# Company Intelligence Directory Status
+# Idea: Company Intelligence Directory
 
-## Summary
+This document outlines the conceptual foundation and planned implementation for the Company Intelligence Directory within ApplyForge.
 
-This is no longer just an idea. The foundation is implemented.
+## Concept Overview
 
-ApplyForge now has:
+Currently, ApplyForge treats "Companies" primarily as string attributes attached to "Jobs". The Company Intelligence Directory aims to elevate companies to first-class entities within the system. This directory will serve as a centralized knowledge base for specific employers, enriching the application process with deeper context.
 
-- user-scoped `companies`
-- `company_career_portals`
-- `company_contacts`
-- company CRUD routes
-- a thin internal company directory page
-- job-to-company resolution hooks in manual creation and discovery flows
+## Core Capabilities
 
-## What is already shipped
+1. **Centralized Information Hub**: Store aggregated data about a company, including industry, size, mission statement, and core values.
+2. **Application Portal Mapping**: Maintain verified links to the company's primary career portal and specific ATS instances (e.g., distinguishing between a company's Workday instance and their corporate site).
+3. **Contact Registry**: Track known recruiter contacts or hiring managers associated with the company, facilitating targeted follow-ups.
+4. **Historical Interaction Tracking**: Provide a unified view of all past job applications, interviews, and outcomes associated with a specific company across the user's history.
 
-### Data model
+## Technical Implementation Plan
 
-Implemented tables:
+### Database Schema Evolution
+- Create a dedicated `Company` model in SQLAlchemy.
+- Establish foreign key relationships linking the `Job` model to the new `Company` model.
+- Implement models for `CompanyPortal` and `CompanyContact` linked back to the primary `Company` entity.
 
-- `companies`
-- `company_career_portals`
-- `company_contacts`
+### API Enhancements
+- Develop dedicated CRUD endpoints (`/api/companies/*`) to manage company records.
+- Update the job ingestion pipeline to attempt automatic resolution and linking to existing company records based on normalized names or domains.
 
-### API
+### UI Integration
+- Build a `/companies` dashboard in the Next.js frontend, providing a searchable directory view.
+- Enhance the job detail view to include a "Company Snapshot" sidebar, surfacing relevant intelligence during the application review phase.
 
-Implemented routes:
+## Potential Future Expansions
 
-- `GET /companies`
-- `POST /companies`
-- `GET /companies/{company_id}`
-- `PUT /companies/{company_id}`
-- portal and contact create/list flows through the companies route group
-
-### Web
-
-Implemented UI:
-
-- company list
-- company create flow
-- company selection
-- portal creation
-- contact creation
-- linked job visibility
-
-### Integration
-
-Implemented behavior:
-
-- manual job creation can resolve to `company_id`
-- ingestion attempts company resolution from normalized company names and portal or hostname hints
-- company records sit between source discovery and job records
-
-## What remains
-
-1. Add merge and duplicate-review tooling for company records.
-2. Add portal health checks and diagnostics.
-3. Add better confidence scoring and override UX for company resolution.
-4. Add richer recruiter-source metadata and verification workflows.
-5. Add operator tooling for review queues and unresolved company matches.
-
-## Why this still matters
-
-Even though the foundation is shipped, company intelligence remains a major leverage point for:
-
-- better source resolution
-- stronger dedupe quality
-- future recruiter-aware workflows
-- company-level automation preferences
-- clearer job-source diagnostics
-
-## Current guidance
-
-Future work should extend the existing company graph rather than building a parallel company model.
+- **Automated Intelligence Gathering**: Utilize the Celery worker to periodically scrape company "About Us" pages to automatically refresh mission statements and values.
+- **Network Graphing**: Visually map connections between companies (e.g., parent/subsidiary relationships) or identify potential internal referral networks based on the user's uploaded contact list.

@@ -1,111 +1,39 @@
-# ApplyForge Agent Guide
+# ApplyForge AI Agent Guidelines
 
-This repository uses a lightweight ECC-style workflow adapted to the agent and skill configuration that actually exists in this codebase.
+This document provides instructions and context for autonomous AI agents operating within the ApplyForge repository. Agents are expected to adhere to these rules to ensure code quality, architectural integrity, and security.
 
-## Core Principles
+## General Directives
 
-1. Plan before editing when the change spans multiple modules.
-2. Keep ApplyForge truth-constrained: never invent resume facts or application answers.
-3. Persist operational evidence for automation runs.
-4. Prefer tests with focused coverage before broad refactors.
-5. Keep the repo understandable: small files, explicit boundaries, clear failure states.
+1. **Test Verification**: After implementing any code modifications, you must execute the relevant test suites (API unit tests, frontend type checks, etc.) to ensure no regressions were introduced.
+2. **Commit Hygiene**: Ensure all generated build artifacts (e.g., `tsconfig.tsbuildinfo`, `.next/`) and temporary scratch scripts are explicitly removed or excluded before proposing a commit.
+3. **Environment Management**: When installing new dependencies, ensure they are added to the appropriate requirements file (`requirements.txt` for Python, `package.json` for Node.js) and that package lock files are correctly updated.
 
-## Local Agent Roles
+## Architectural Boundaries
 
-Project-local agent roles live in [`.codex/agents`](/home/ems/applyforge/.codex/agents):
+- The `apps/api` directory is strictly for backend business logic, database interactions, and API endpoint definitions using FastAPI and SQLAlchemy.
+- The `apps/web` directory is strictly for frontend UI components, client-side state, and Next.js routing. Do not place direct database connection logic here.
+- The `apps/worker` directory handles asynchronous, long-running tasks via Celery and Playwright. Browser automation logic belongs exclusively here.
 
-- `product-planner`
-  - Product decomposition, workflow design, roadmap shaping.
-- `ops-investigator`
-  - Worker behavior, diagnostics, queue/automation troubleshooting.
-- `explorer`
-  - Read-only repo investigation and context gathering.
-- `reviewer`
-  - Correctness, maintainability, and regression review.
-- `docs-researcher`
-  - Documentation cross-checking and API/reference validation.
+## Security Constraints
 
-Use them when the harness supports multi-agent execution. If multi-agent is unavailable, follow the same division of concerns locally.
+- **Never** hardcode secrets, API keys, or sensitive credentials in the source code. Always rely on environment variables.
+- When handling user data within logging or diagnostic outputs, ensure Personally Identifiable Information (PII) is appropriately masked.
 
-## Local Skills
+## Persona-Specific Instructions
 
-Project-local skills live in [`.agents/skills`](/home/ems/applyforge/.agents/skills):
+### The 'Sentinel' (Security Agent)
+When acting in a security-focused capacity:
+- Prioritize the identification and remediation of critical vulnerabilities (e.g., SQL injection risks, XSS vulnerabilities in the frontend).
+- Document all codebase-specific security findings in `.jules/sentinel.md` using the precise format defined in your memory constraints.
 
-- `applyforge-product`
-  - Resume intelligence, job scoring, tailoring, and application workflow product rules.
-- `applyforge-ops`
-  - Automation logging, OTP handling, diagnostics, worker behavior, and run evidence.
+### The 'Palette' (UX/Accessibility Agent)
+When acting in a UI/UX capacity:
+- Ensure all new interactive elements include appropriate ARIA attributes.
+- Limit modifications to small, focused improvements (< 50 lines) using existing CSS utilities.
+- Document accessibility learnings in `.jules/palette.md`.
 
-Repo-level Codex skills also apply when relevant, especially:
-
-- `tdd-workflow`
-- `security-review`
-- `api-design`
-- `backend-patterns`
-- `frontend-patterns`
-- `e2e-testing`
-- `verification-loop`
-
-## Product Invariants
-
-- The canonical candidate profile is the only trusted fact source.
-- Resume tailoring may emphasize or reorder facts, but may not invent them.
-- Unknown or risky application questions must become review gates.
-- OTP handling must stay masked in logs and scoped to the user’s own application flow.
-- ATS-safe resume paths must remain available even when richer renderers fail.
-- Role strategy controls discovery, scoring context, and auto-apply eligibility.
-
-## Engineering Workflow
-
-1. Inspect relevant code paths first.
-2. Write or extend tests for the behavior being changed.
-3. Implement the smallest coherent slice.
-4. Review for security and regression risk.
-5. Run focused verification before widening scope.
-6. Update docs when product or operational behavior changes.
-
-## Security Rules
-
-- Never hardcode secrets, tokens, passwords, or provider credentials.
-- Validate all external inputs at system boundaries.
-- Keep OAuth and inbox tokens encrypted at rest and sanitized in responses.
-- Do not add CAPTCHA bypass, anti-bot circumvention, or fake-answer generation.
-- Avoid leaking sensitive details in logs, prompts, screenshots, or error payloads.
-
-## Verification Expectations
-
-Backend changes:
-
-- Run the API test suite when API or service behavior changes.
-- Keep route and service coverage green.
-
-Worker changes:
-
-- Add focused unit tests for pure helper logic when browser runtime is not available.
-- Preserve durable run-state behavior and screenshot/file evidence handling.
-
-Web changes:
-
-- Run `npm run lint`
-- Run `npm run build`
-- Run `npm run typecheck`
-
-## Architecture Boundaries
-
-- `apps/api`
-  - FastAPI API, schemas, domain services, auth, persistence.
-- `apps/web`
-  - Next.js operator UI and product surface.
-- `apps/worker`
-  - Celery tasks, Playwright automation, enrichment runners.
-- `packages/prompts`
-  - Prompt templates and model-facing instruction assets.
-- `docs`
-  - Product, architecture, context, roadmap, and idea documents.
-
-## ApplyForge-Specific Notes
-
-- Near-realtime job feed means durable event history plus polling, not guaranteed live streaming.
-- Discovery and enrichment are separate stages.
-- Automation should fail loudly and usefully, not silently.
-- Admin/diagnostic surfaces should explain why a run paused, failed, or requires human intervention.
+### The 'Bolt' (Performance Agent)
+When acting in a performance optimization capacity:
+- Address N+1 query issues in SQLAlchemy using appropriate eager loading strategies.
+- Do not engage in premature optimization; ensure an actual bottleneck exists before refactoring complex logic.
+- Document significant performance patterns in `.jules/bolt.md`.

@@ -1,61 +1,31 @@
-# TODO / Next Hardening Steps
+# ApplyForge TODO
 
-This file tracks what still remains after the current resume-template, company-directory, preference-export, and FSM work.
+This document tracks upcoming improvements, technical debt, and product features for ApplyForge.
 
-## Platform
+## High Priority
 
-1. Remove runtime `create_all` and move fully to Alembic-managed migrations.
-2. Add S3-compatible storage adapter and signed downloads.
-3. Add webhook or stream-based updates for long-running runs instead of polling only.
+- Expand worker test coverage for edge cases during Playwright interactions.
+- Implement robust retry mechanisms with exponential backoff for Celery tasks.
+- Finalize schema migrations and enable Alembic in production.
+- Refine error handling in the FastAPI layer to ensure user-friendly error messages.
 
-## Auth and security
+## Medium Priority
 
-1. Replace the basic cookie session flow with refresh-token rotation and stricter session policies.
-2. Add per-route authorization layers for future multi-user and agency roles.
-3. Encrypt sensitive profile answers at rest instead of leaving all preferences in plain JSON.
-4. Expand rate limiting beyond auth and inbox-sensitive endpoints into broader write-heavy automation surfaces.
+- Enhance the web dashboard with more detailed analytics on job application statuses.
+- Support cloud-based file storage (e.g., AWS S3, Google Cloud Storage) instead of local disk storage.
+- Implement comprehensive e2e tests for the Next.js frontend using Playwright.
+- Improve accessibility (a11y) across the web application, following ARIA best practices.
+- Add support for multiple resume templates (e.g., visual templates, non-ATS templates).
 
-## Resume and document system
+## Low Priority
 
-1. Add multiple resume strategies and reusable tailored variants by role family.
-2. Complete live RenderCV production validation and artifact retention rules.
-3. Improve preview fidelity so web previews more closely match exported artifacts.
-4. Add richer LaTeX or Typst-grade theme support while preserving ATS-safe defaults.
+- Explore integrating advanced LLM capabilities for cover letter generation.
+- Implement multi-tenant support for agency or team-based workflows.
+- Investigate caching strategies (e.g., Redis caching for API responses) to improve performance.
 
-## Discovery and enrichment
+## Completed
 
-1. Add richer direct-page extraction for company career sites and Workday-like pages.
-2. Add source-health diagnostics, retry visibility, and stale-source alerts.
-3. Expand source coverage while preserving ATS-first dedupe and freshness semantics.
-4. Add richer per-source retry history and stale-source alerting, not just manual enrichment retry.
-
-## Company intelligence
-
-1. Add company merge and review tooling for duplicate company records.
-2. Add portal health checks and portal-level diagnostics.
-3. Add better job-to-company resolution confidence tracking and override UX.
-
-## Automation
-
-1. Expand generic field adapters further for file variants, address composites, and more site-specific controls.
-2. Add richer resume-from-last-checkpoint semantics for partially completed runs.
-3. Add broader site-specific adapters while keeping graceful fallback behavior.
-
-## Inbox and OAuth
-
-1. Complete live end-to-end Gmail and Outlook OAuth verification against real credentials.
-2. Add token refresh telemetry, re-auth prompts, and revoked-credential recovery UX.
-3. Add provider-specific tests for refresh-token rotation and invalid-grant handling.
-4. Add connection audit history and revoke-access guidance in diagnostics.
-
-## Diagnostics and admin
-
-1. Expand the admin surface further for screenshot browsing, queue depth, and source-health drilldowns.
-2. Add better filtering and search across run history, feed events, and OTP events.
-
-## Quality
-
-1. Add integration tests for auth, jobs, resume parsing, and file export.
-2. Add Playwright E2E coverage for sign-in, profile edit, job scoring, and resume parsing.
-3. Add Playwright E2E coverage for inbox OAuth connect and OTP-assisted application pauses.
-4. Add CI for Python lint/tests and web lint/build/typecheck.
+- Setup FastAPI backend and Next.js frontend scaffolding.
+- Implement basic resume parsing and job scoring capabilities.
+- Integrate initial Celery worker for background processing.
+- Build the manual job ingestion and role discovery flows.
