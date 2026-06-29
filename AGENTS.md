@@ -12,7 +12,7 @@ This repository uses a lightweight ECC-style workflow adapted to the agent and s
 
 ## Local Agent Roles
 
-Project-local agent roles live in [`.codex/agents`](/home/ems/applyforge/.codex/agents):
+Project-local agent roles live in [`.codex/agents`](.codex/agents):
 
 - `product-planner`
   - Product decomposition, workflow design, roadmap shaping.
@@ -29,7 +29,7 @@ Use them when the harness supports multi-agent execution. If multi-agent is unav
 
 ## Local Skills
 
-Project-local skills live in [`.agents/skills`](/home/ems/applyforge/.agents/skills):
+Project-local skills live in [`.agents/skills`](.agents/skills):
 
 - `applyforge-product`
   - Resume intelligence, job scoring, tailoring, and application workflow product rules.
