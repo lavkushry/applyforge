@@ -1,0 +1,3 @@
+## 2024-07-01 - Accessible Form Labels and Error Validation
+**Learning:** In React Hook Form layouts with adjacent `<label>` and `<Input>` components, missing explicit `htmlFor` and `id` links prevents screen readers from correctly associating labels with inputs. Missing `aria-invalid` and `aria-describedby` on inputs leaves users blind to validation errors.
+**Action:** Always pair `<label htmlFor="field-name">` with `<Input id="field-name">`. When displaying validation errors, explicitly map them using `aria-invalid="true"`, `aria-describedby="field-name-error"`, and add `id="field-name-error" role="alert"` to the error message container.
