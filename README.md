@@ -137,7 +137,7 @@ In the web app:
 
 ApplyForge can connect Gmail or Outlook so application runs can fetch OTP emails directly.
 
-Required API env vars in [apps/api/.env.example](/home/ems/applyforge/apps/api/.env.example):
+Required API env vars in [apps/api/.env.example](apps/api/.env.example):
 
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
@@ -195,14 +195,14 @@ In the web app:
 
 ## Documentation Map
 
-- [docs/LOCAL_DOCKER.md](/home/ems/applyforge/docs/LOCAL_DOCKER.md): local full-stack Docker startup, seed flow, smoke checks, and troubleshooting
-- [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md): deployment topology, env setup, smoke checks, and rollout caveats
-- [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md): current product requirements and invariants
-- [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md): runtime and data-flow architecture
-- [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md): fast orientation guide for future sessions
-- [docs/TODO.md](/home/ems/applyforge/docs/TODO.md): remaining hardening and follow-on work
-- [docs/FEATURE_REQUESTS/applypilot-core-roadmap.md](/home/ems/applyforge/docs/FEATURE_REQUESTS/applypilot-core-roadmap.md): status of the ApplyPilot-style roadmap
-- [docs/IDEAS/company-intelligence-directory.md](/home/ems/applyforge/docs/IDEAS/company-intelligence-directory.md): status of the company directory foundation
+- [docs/LOCAL_DOCKER.md](docs/LOCAL_DOCKER.md): local full-stack Docker startup, seed flow, smoke checks, and troubleshooting
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deployment topology, env setup, smoke checks, and rollout caveats
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md): current product requirements and invariants
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and data-flow architecture
+- [docs/CONTEXT.md](docs/CONTEXT.md): fast orientation guide for future sessions
+- [docs/TODO.md](docs/TODO.md): remaining hardening and follow-on work
+- [docs/FEATURE_REQUESTS/applypilot-core-roadmap.md](docs/FEATURE_REQUESTS/applypilot-core-roadmap.md): status of the ApplyPilot-style roadmap
+- [docs/IDEAS/company-intelligence-directory.md](docs/IDEAS/company-intelligence-directory.md): status of the company directory foundation
 
 ## Useful Commands
 
@@ -229,5 +229,5 @@ make lint
 - Frontend document editing is MVP-grade and will benefit from richer section editors.
 - Enterprise multi-user, agency workflows, and S3 storage remain future phases.
 
-See [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md), [docs/REQUIREMENTS.md](/home/ems/applyforge/docs/REQUIREMENTS.md), and [docs/TODO.md](/home/ems/applyforge/docs/TODO.md) for more detail.
-For fast future orientation, also see [docs/CONTEXT.md](/home/ems/applyforge/docs/CONTEXT.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), and [docs/TODO.md](docs/TODO.md) for more detail.
+For fast future orientation, also see [docs/CONTEXT.md](docs/CONTEXT.md).
