@@ -1,0 +1,3 @@
+## 2024-05-18 - Dashboard Performance Optimization
+**Learning:** In SQLAlchemy, multiple `.count()`, `.exists()` or `.first()` checks inside endpoints can trigger numerous individual N+1 query trips to the database, drastically decreasing performance. Consolidating queries into a single query using `select()` and `scalar_subquery()` allows PostgreSQL/SQLite to process all the aggregates concurrently and return the results as a single row.
+**Action:** Always review dashboard or summary style endpoints which make more than 3-4 distinct queries across various tables, and try refactoring them into a single `select()` query using `scalar_subquery()`.
