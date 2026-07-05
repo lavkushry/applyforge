@@ -1,0 +1,3 @@
+## 2024-07-05 - Optimize SQLAlchemy multiple first/count dashboard queries
+**Learning:** In dashboard-style endpoints in `apps/api` (e.g., `wizard_summary`), doing multiple independent `.first()` and `.count()` queries results in a fixed N+1 inefficiency. We can consolidate multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()`, `exists()`, and column selects in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement.
+**Action:** When refactoring dashboard endpoints to reduce round-trips, use `select(...).scalar_subquery()` to package individual aggregates and existence checks, ensuring `limit(1)` is added to replacements for `.first()`, and wrapping `.exists()` appropriately.
