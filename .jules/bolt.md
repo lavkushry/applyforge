@@ -1,0 +1,3 @@
+## 2024-07-06 - N+1 Dashboard Query Avoidance in SQLAlchemy
+**Learning:** Dashboard endpoints like `wizard_summary` often fetch multiple disparate counts and existence checks. Executing these as separate `db.query(Model).count()` or `.first()` calls incurs significant N+1 round-trip overhead.
+**Action:** Consolidate these independent aggregations into a single database round-trip by wrapping them in `scalar_subquery()` and projecting them in a unified `select()` statement. For `.exists()`, wrap the `Model.id` select in an outer select (e.g. `select(select(Resume.id).where(...).exists()).scalar_subquery()`). Ensure `.limit(1)` is added to mimic `.first()` behavior.
