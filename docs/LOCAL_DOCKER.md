@@ -1,278 +1,109 @@
-# ApplyForge Local Docker Setup
+# ApplyForge Local Environment via Docker
 
-## Purpose
+## Overview
+This document outlines the most efficient method for running the complete ApplyForge stack locally using Docker. It is ideal for testing the Web, API, and Worker components alongside PostgreSQL and Redis without requiring host-level dependencies.
 
-This guide is the fastest way to run ApplyForge locally with Docker.
+## Services Included
+The default [docker-compose.yml](../infra/docker-compose.yml) provisions:
+- `db` (PostgreSQL) on port `5432`
+- `redis` on port `6379`
+- `api` (FastAPI) on port `8000`
+- `web` (Next.js) on port `3000`
+- `flower` (Celery Dashboard) on port `5555`
+- `worker` (Celery background service)
 
-Use this if you want:
+## Development Configuration Notes
+The current setup is heavily optimized for local development:
+- Source code directories are mounted as volumes.
+- Example environment files are loaded by default, with overrides allowed.
+- The web service uses the Next.js development server (`npm run dev`).
+- The API auto-generates database tables on startup.
+*(Note: This configuration is inherently insecure and unoptimized for production use).*
 
-- the full web + API + worker stack
-- PostgreSQL and Redis included
-- local manual testing without installing Python and Node on the host
-
-## What Starts
-
-The checked-in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml) starts:
-
-- `db` on `5432`
-- `redis` on `6379`
-- `api` on `8000`
-- `web` on `3000`
-- `flower` on `5555`
-- `worker` as a background service
-
-## Important Local Behavior
-
-The current Compose file is development-oriented:
-
-- it mounts the source tree into the containers
-- it reads the example env files first, then optional real local env files if they exist
-- the web container runs the Next.js dev server
-- the API creates tables at startup
-
-That is acceptable for local testing. It is not the same thing as a hardened production deployment.
-
-## Prerequisites
-
-- Docker
-- Docker Compose
-
-Verify:
-
+## System Requirements
+Ensure Docker and Docker Compose are installed and running:
 ```bash
 docker --version
 docker compose version
 ```
 
-## Option 1: Fastest Local Startup
-
-This uses the checked-in example env files as they are.
-
+## Quickstart: Zero-Configuration Launch
+To boot the stack using the default example variables:
 ```bash
-cd /home/ems/applyforge/infra
+cd infra
+docker compose up --build
+```
+Access the services:
+- Application: `http://localhost:3000`
+- API Swagger: `http://localhost:8000/docs`
+- Task Dashboard: `http://localhost:5555`
+
+*(If accessing from a different machine on the local network, substitute `localhost` with the host's IP address. Note that Redis operates on port `6379` via the `redis://` protocol, not HTTP).*
+
+## Customizing Environment Variables
+For advanced testing (e.g., OAuth integration), initialize your own environment files:
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/worker/.env.example apps/worker/.env
+cp infra/.env.example infra/.env
+```
+Update `PUBLIC_HOST` in `infra/.env` if binding to a specific network interface (e.g., `PUBLIC_HOST=192.168.1.100`).
+
+Start the stack normally:
+```bash
+cd infra
 docker compose up --build
 ```
 
-Then open:
-
-- web: `http://localhost:3000`
-- API docs: `http://localhost:8000/docs`
-- Flower: `http://localhost:5555`
-
-This is the quickest path for a first local test.
-
-If you are opening the stack from another machine on the same network, replace `localhost` with your Docker host IP.
-
-For your current host that means:
-
-- web: `http://172.24.28.220:3000`
-- API docs: `http://172.24.28.220:8000/docs`
-- Flower: `http://172.24.28.220:5555`
-
-Important:
-
-- `6379` is the Redis port, not the API port
-- Redis is not an HTTP service
-- the correct Redis URL is `redis://172.24.28.220:6379/0`, not `http://172.24.28.220:6379/`
-
-## Option 2: Local Startup With Your Own Env Values
-
-If you want real local secrets or OAuth credentials, create local env files first:
-
+## Database Seeding
+Populate the database with initial testing data by running:
 ```bash
-cp /home/ems/applyforge/apps/api/.env.example /home/ems/applyforge/apps/api/.env
-cp /home/ems/applyforge/apps/web/.env.example /home/ems/applyforge/apps/web/.env.local
-cp /home/ems/applyforge/apps/worker/.env.example /home/ems/applyforge/apps/worker/.env
-cp /home/ems/applyforge/infra/.env.example /home/ems/applyforge/infra/.env
-```
-
-Then set the host IP in `/home/ems/applyforge/infra/.env`:
-
-```bash
-PUBLIC_HOST=172.24.28.220
-```
-
-Then start:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose up --build
-```
-
-With `PUBLIC_HOST=172.24.28.220`, the browser-facing URLs become:
-
-- web: `http://172.24.28.220:3000`
-- API docs: `http://172.24.28.220:8000/docs`
-- Flower: `http://172.24.28.220:5555`
-
-Docker-internal traffic still uses service names:
-
-- Postgres: `db:5432`
-- Redis: `redis:6379`
-
-## Seed Demo Data
-
-Once the stack is up, seed demo data from another terminal:
-
-```bash
-cd /home/ems/applyforge/infra
+cd infra
 docker compose exec api python -m app.db.seed
 ```
+Default login:
+- **Email:** `defaultuser@applyforge.dev`
+- **Password:** `defaultuser123`
+*(This account is strictly limited to local development environments).*
 
-First local login credentials:
+## Health Verification
+Confirm system stability by testing these endpoints:
+- **API Base:** `curl http://localhost:8000/` (Should return `{"name": "ApplyForge API", "status": "running"}`)
+- **API Health:** `curl http://localhost:8000/admin/health` (Should return `ok` for status, database, and redis)
+- **Web UI:** Navigate to `http://localhost:3000`
+- **Worker Status:** Navigate to `http://localhost:5555`
 
-- email: `defaultuser@applyforge.dev`
-- password: `defaultuser123`
+## Essential Docker Commands
+- **Run detached:** `docker compose up --build -d`
+- **View live logs:** `docker compose logs -f api worker web`
+- **Shutdown gracefully:** `docker compose down`
+- **Nuclear reset (deletes DB volumes):** `docker compose down -v`
 
-That bootstrap account is enabled only by local Docker Compose. It is no longer on by default in generic non-production environments.
+## Typical Testing Workflow
+1. Seed the database.
+2. Authenticate via the Web UI.
+3. Complete the onboarding wizard at `/wizard`.
+4. Upload a sample resume.
+5. Define a target role and trigger discovery.
+6. Verify job population.
+7. Generate a tailored resume PDF.
+8. Initiate a draft application run.
+9. Inspect screenshots and logs in the Admin portal (`/runs/[id]`).
 
-## Smoke Check
-
-Run these after startup:
-
-### API root
-
-```bash
-curl http://localhost:8000/
-```
-
-Expected shape:
-
-- `name` = `ApplyForge API`
-- `status` = `running`
-
-### Health
-
-```bash
-curl http://localhost:8000/admin/health
-```
-
-Expected shape:
-
-- `status` = `ok`
-- `database` = `ok`
-- `redis` = `ok`
-
-### Web
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-### Worker visibility
-
-Open:
-
-```text
-http://localhost:5555
-```
-
-Flower should show the Celery worker if startup succeeded.
-
-If you are testing from another machine on the network, use:
-
-- API root: `http://172.24.28.220:8000/`
-- health: `http://172.24.28.220:8000/admin/health`
-- web: `http://172.24.28.220:3000`
-- Flower: `http://172.24.28.220:5555`
-
-## Useful Local Commands
-
-Start in background:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose up --build -d
-```
-
-Follow logs:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose logs -f api worker web
-```
-
-Stop the stack:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose down
-```
-
-Stop and remove volumes:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose down -v
-```
-
-Use `down -v` only if you want to reset local PostgreSQL data.
-
-## Common Local Test Flow
-
-After startup:
-
-1. Seed demo data.
-2. Log in through the web app.
-3. Open `/wizard` and verify readiness.
-4. Upload a resume.
-5. Create a role and run a scrape.
-6. Confirm jobs appear.
-7. Tailor a resume and export PDF.
-8. Start a draft or assisted application run.
-9. Check `/admin` and `/runs/[id]` for logs and screenshots.
-
-## Local OAuth Notes
-
-If you want Gmail or Outlook connect to work locally, the API env must include valid OAuth credentials.
-
-Recommended local callback URIs:
-
+## Local OAuth Configuration
+To test Gmail or Outlook connectivity, your `apps/api/.env` must contain valid client credentials.
+Ensure your OAuth provider is configured with these exact callback URIs:
 - Google: `http://localhost:8000/inbox/gmail/oauth/callback`
 - Microsoft: `http://localhost:8000/inbox/outlook/oauth/callback`
 
-The provider app registration must match those URIs exactly.
+## Common Issues
+- **Port Conflicts:** If ports (3000, 5432, 6379, 8000, 5555) are bound, terminate the offending processes or modify [docker-compose.yml](../infra/docker-compose.yml).
+- **Worker Stalling:** Check worker logs via `docker compose logs -f worker redis`.
+- **Schema Mismatches:** If API startup fails due to table conflicts, run `docker compose down -v` to reset the database, then rebuild and reseed.
+- **OAuth Failures:** Verify `CLIENT_ID` and `CLIENT_SECRET` variables are present and correct in the API environment.
 
-## Troubleshooting
-
-### Port already in use
-
-If `3000`, `5432`, `6379`, `8000`, or `5555` is already taken, stop the conflicting process or change the published port mapping in [docker-compose.yml](/home/ems/applyforge/infra/docker-compose.yml).
-
-### Worker not processing tasks
-
-Check:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose logs -f worker redis
-```
-
-### API starts but schema looks wrong
-
-The API currently creates tables at startup, but older local databases may still be incompatible with new columns.
-
-If needed, reset local state:
-
-```bash
-cd /home/ems/applyforge/infra
-docker compose down -v
-docker compose up --build
-```
-
-Then reseed.
-
-### OAuth button shows provider not configured
-
-Make sure your API env file includes:
-
-- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
-- or `MICROSOFT_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_SECRET`
-
-## Related Docs
-
-- [docs/DEPLOYMENT.md](/home/ems/applyforge/docs/DEPLOYMENT.md)
-- [docs/ARCHITECTURE.md](/home/ems/applyforge/docs/ARCHITECTURE.md)
-- [README.md](/home/ems/applyforge/README.md)
+## Further Reading
+- [Deployment Guide](DEPLOYMENT.md)
+- [Architecture Reference](ARCHITECTURE.md)
+- [Main README](../README.md)
