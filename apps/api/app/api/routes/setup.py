@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -14,26 +15,46 @@ router = APIRouter(prefix="/setup", tags=["setup"])
 
 @router.get("/wizard", response_model=WizardSummaryOut)
 def wizard_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-    active_resume = db.query(Resume).filter(Resume.user_id == user.id, Resume.active.is_(True)).first()
-    inbox = (
-        db.query(InboxConnection)
-        .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")
-        .order_by(InboxConnection.updated_at.desc())
-        .first()
-    )
-    role_count = db.query(TargetRole).filter(TargetRole.user_id == user.id).count()
-    job_count = db.query(Job).filter(Job.user_id == user.id, Job.active.is_(True)).count()
-    tailored_resume_count = (
-        db.query(ResumeVersion)
+    # ⚡ Bolt Optimization: Consolidate 6 independent queries into a single round-trip
+    # using scalar subqueries. This eliminates N+1-like behaviour on the dashboard endpoint.
+    profile_basics_sq = select(CandidateProfile.basics).where(CandidateProfile.user_id == user.id).limit(1).scalar_subquery()
+    profile_skills_sq = select(CandidateProfile.skills).where(CandidateProfile.user_id == user.id).limit(1).scalar_subquery()
+    resume_ready_sq = select(select(Resume.id).where(Resume.user_id == user.id, Resume.active.is_(True)).exists()).scalar_subquery()
+    inbox_ready_sq = select(select(InboxConnection.id).where(InboxConnection.user_id == user.id, InboxConnection.status == "connected").exists()).scalar_subquery()
+    role_count_sq = select(func.count(TargetRole.id)).where(TargetRole.user_id == user.id).scalar_subquery()
+    job_count_sq = select(func.count(Job.id)).where(Job.user_id == user.id, Job.active.is_(True)).scalar_subquery()
+    tailored_resume_count_sq = (
+        select(func.count(ResumeVersion.id))
+        .select_from(ResumeVersion)
         .join(Resume, Resume.id == ResumeVersion.resume_id)
-        .filter(Resume.user_id == user.id)
-        .count()
+        .where(Resume.user_id == user.id)
+        .scalar_subquery()
     )
 
-    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
-    resume_ready = bool(active_resume)
-    inbox_ready = bool(inbox)
+    query = select(
+        profile_basics_sq.label("basics"),
+        profile_skills_sq.label("skills"),
+        resume_ready_sq.label("resume_ready"),
+        inbox_ready_sq.label("inbox_ready"),
+        role_count_sq.label("role_count"),
+        job_count_sq.label("job_count"),
+        tailored_resume_count_sq.label("tailored_resume_count")
+    )
+
+    result = db.execute(query).fetchone()
+
+    profile_ready = bool(
+        result and
+        result.basics and
+        isinstance(result.basics, dict) and
+        result.basics.get("full_name") and
+        result.skills
+    )
+    resume_ready = bool(result and result.resume_ready)
+    inbox_ready = bool(result and result.inbox_ready)
+    role_count = result.role_count if result else 0
+    job_count = result.job_count if result else 0
+    tailored_resume_count = result.tailored_resume_count if result else 0
 
     steps = [
         {
