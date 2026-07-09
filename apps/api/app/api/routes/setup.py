@@ -14,26 +14,36 @@ router = APIRouter(prefix="/setup", tags=["setup"])
 
 @router.get("/wizard", response_model=WizardSummaryOut)
 def wizard_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-    active_resume = db.query(Resume).filter(Resume.user_id == user.id, Resume.active.is_(True)).first()
-    inbox = (
-        db.query(InboxConnection)
-        .filter(InboxConnection.user_id == user.id, InboxConnection.status == "connected")
-        .order_by(InboxConnection.updated_at.desc())
-        .first()
-    )
-    role_count = db.query(TargetRole).filter(TargetRole.user_id == user.id).count()
-    job_count = db.query(Job).filter(Job.user_id == user.id, Job.active.is_(True)).count()
-    tailored_resume_count = (
-        db.query(ResumeVersion)
-        .join(Resume, Resume.id == ResumeVersion.resume_id)
-        .filter(Resume.user_id == user.id)
-        .count()
+    from sqlalchemy import select, func, exists
+
+    profile_basics_subq = select(CandidateProfile.basics).where(CandidateProfile.user_id == user.id).limit(1).scalar_subquery()
+    profile_skills_subq = select(CandidateProfile.skills).where(CandidateProfile.user_id == user.id).limit(1).scalar_subquery()
+    resume_exists_subq = select(select(Resume.id).where(Resume.user_id == user.id, Resume.active.is_(True)).exists()).scalar_subquery()
+    inbox_exists_subq = select(select(InboxConnection.id).where(InboxConnection.user_id == user.id, InboxConnection.status == "connected").exists()).scalar_subquery()
+    role_count_subq = select(func.count(TargetRole.id)).where(TargetRole.user_id == user.id).scalar_subquery()
+    job_count_subq = select(func.count(Job.id)).where(Job.user_id == user.id, Job.active.is_(True)).scalar_subquery()
+    tailored_resume_count_subq = select(func.count(ResumeVersion.id)).join(Resume, Resume.id == ResumeVersion.resume_id).where(Resume.user_id == user.id).scalar_subquery()
+
+    # ⚡ Bolt Optimization: Consolidated 7 independent database queries into a single query
+    # using scalar subqueries to eliminate N+1 round trips to the database.
+    query = select(
+        profile_basics_subq.label("profile_basics"),
+        profile_skills_subq.label("profile_skills"),
+        resume_exists_subq.label("resume_exists"),
+        inbox_exists_subq.label("inbox_exists"),
+        role_count_subq.label("role_count"),
+        job_count_subq.label("job_count"),
+        tailored_resume_count_subq.label("tailored_resume_count")
     )
 
-    profile_ready = bool(profile and profile.basics.get("full_name") and profile.skills)
-    resume_ready = bool(active_resume)
-    inbox_ready = bool(inbox)
+    stats = db.execute(query).first()
+
+    profile_ready = bool(stats and stats.profile_basics and stats.profile_basics.get("full_name") and stats.profile_skills)
+    resume_ready = bool(stats and stats.resume_exists)
+    inbox_ready = bool(stats and stats.inbox_exists)
+    role_count = stats.role_count if stats else 0
+    job_count = stats.job_count if stats else 0
+    tailored_resume_count = stats.tailored_resume_count if stats else 0
 
     steps = [
         {

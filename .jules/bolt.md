@@ -1,0 +1,3 @@
+## 2024-07-09 - Consolidate Multiple Counts and Exists Queries
+**Learning:** To optimize dashboard-style endpoints in `apps/api` (e.g., `wizard_summary`), consolidating multiple independent counts and existence checks into a single database round-trip by wrapping `func.count()` and `exists()` clauses in `scalar_subquery()` calls within a unified SQLAlchemy `select()` statement significantly reduces network roundtrips.
+**Action:** When refactoring SQLAlchemy queries to consolidate database calls, construct scalar subqueries to compose a unified select and append `.limit(1)` where multiple rows might conflict, ensuring exactly one column per subquery is returned. Wrap `exists()` inside an inner select explicitly.
