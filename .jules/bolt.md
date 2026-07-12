@@ -1,0 +1,3 @@
+## 2026-07-12 - Consolidating Dashboard Queries with Scalar Subqueries
+**Learning:** In dashboard-style endpoints (like `wizard_summary`), making 6 independent `db.query().first()` and `db.query().count()` calls causes N+1 roundtrips. When consolidating these using `select(...).scalar_subquery()`, checking existence in SQLAlchemy requires wrapping the `exists()` clause in a secondary select (e.g., `select(select(Model.id).where(...).exists()).scalar_subquery()`) to avoid `AttributeError: 'Exists' object has no attribute 'label'`.
+**Action:** Always wrap `exists()` inside `select()` when using it as a scalar subquery to consolidate multiple checks into a single database trip.
