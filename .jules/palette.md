@@ -1,0 +1,3 @@
+## 2024-07-18 - Dark Theme Keyboard Focus and Form Alert Mapping
+**Learning:** In the ApplyForge dark-themed app (slate-950), interactive components like Button lacked explicit focus offsets, making browser default focus rings invisible against the dark background. Furthermore, the custom React Hook Form layouts (like in AuthForm) lacked screen reader context because labels and validation errors weren't explicitly mapped to adjacent inputs.
+**Action:** Always append `focus-visible:ring-offset-slate-950` alongside `focus-visible:ring-*` on interactive elements to ensure clear dark-mode keyboard accessibility. Always explicitly link labels to Inputs via `htmlFor`/`id` and map validation error text using `aria-invalid`, `aria-describedby`, and `role="alert"`.
